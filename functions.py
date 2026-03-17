@@ -23,21 +23,62 @@ def redirector_update(ip, port=PORT):
         repo = Repo(REDIRECTOR_PATH)
         
         repo.remotes.origin.fetch()
-        
         repo.git.reset('--hard', 'origin/main')
         repo.git.clean('-fd')
         
+        # Using an f-string (note the f before the triple quotes)
+        # Also, we use {{ }} for CSS brackets so Python doesn't get confused
         new_html = f"""<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="1; url=http://{ip}:{port}">
-    <script>window.location.replace("http://{ip}:{port}");</script>
-    <title>Redirecting to LAN Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LANHub Redirector</title>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f9; color: #333; }}
+        .card {{ max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }}
+        .error-box {{ display: none; color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 8px; margin-top: 20px; }}
+        .loading-spinner {{ border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }}
+        @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+        a {{ color: #3498db; text-decoration: none; font-weight: bold; }}
+    </style>
 </head>
 <body>
-    <p>Server moved to: <b>http://{ip}:{port}</b></p>
-    <p>Redirecting you now... If it fails, <a href="http://{ip}:{port}">click here</a>.</p>
+    <div class="card">
+        <h2>🛰️ LANHub Gateway</h2>
+        
+        <div id="checking">
+            <p>Verifying connection to <b>{ip}</b>...</p>
+            <div class="loading-spinner"></div>
+        </div>
+
+        <div id="error-msg" class="error-box">
+            <h3>🚫 Connection Failed</h3>
+            <p>You must be connected to the <b>same Wi-Fi</b> as the server to access this page.</p>
+            <p>Current Target: <a href="http://{ip}:{port}">http://{ip}:{port}</a></p>
+        </div>
+
+        <p style="font-size: 0.9em; color: #666; margin-top: 20px;">
+            If you aren't redirected in 5 seconds, you are likely off-campus or on the wrong network.
+        </p>
+    </div>
+
+    <script>
+        const targetUrl = "http://{ip}:{port}";
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        fetch(targetUrl + "/static/pixel.png", {{ mode: 'no-cors', signal: controller.signal }})
+            .then(() => {{
+                window.location.replace(targetUrl);
+            }})
+            .catch((err) => {{
+                document.getElementById("checking").style.display = "none";
+                document.getElementById("error-msg").style.display = "block";
+                console.log("Connection failed: ", err);
+            }});
+    </script>
 </body>
 </html>"""
 
@@ -50,7 +91,7 @@ def redirector_update(ip, port=PORT):
         repo.index.commit(f"Update redirect to {ip}:{port} at {timestamp}")
         
         origin = repo.remote(name='origin')
-        origin.push()
+        origin.push(force=True) # Added force=True just in case history diverges again
 
         git_log.info(f"Successfully updated GitHub redirect to http://{ip}:{port}")
         return True
@@ -58,7 +99,7 @@ def redirector_update(ip, port=PORT):
     except Exception as e:
         git_log.error(f"Failed to update GitHub: {e}")
         return False
-
+    
 ########################################################
 # Stats Functions
 ########################################################
