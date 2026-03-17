@@ -1,5 +1,5 @@
 # --- General settings ---
-REPO_URL = "https://github.com/theplatecrafter/LANHub-redirector-dep" # Redirector repository URL
+REPO_URL = "https://github.com/YOUR_USERNAME/YOUR_REDIRECTOR_REPO" # Redirector repository URL
 PORT = 5000
 # --- Chat settings ---
 CHAT_MAX_CHARS       = 500   # max characters per message
