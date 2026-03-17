@@ -18,7 +18,7 @@ import os
 
 HTML_FILENAME = "index.html"
 
-def redirector_update(ip, port=PORT):
+def redirector_update(ip, server,port=PORT):
     try:
         repo = Repo(REDIRECTOR_PATH)
         
@@ -54,7 +54,8 @@ def redirector_update(ip, port=PORT):
 
         <div id="error-msg" class="error-box">
             <h3>🚫 Connection Failed</h3>
-            <p>You must be connected to the <b>same Wi-Fi</b> as the server to access this page.</p>
+            <p>You must be connected to the <b>same Wi-Fi</b> ({server}) as the server to access this page.</p>
+            <p>Or, the server is down/offline.</p>
             <p>Current Target: <a href="http://{ip}:{port}">http://{ip}:{port}</a></p>
         </div>
 

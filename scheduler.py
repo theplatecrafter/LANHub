@@ -23,10 +23,11 @@ def sch_redirector_update():
     
     stats = f.get_network_stats()
     current_ip = stats.get("ip_address")
+    server = stats.get("ssid", "Could Not Determine")
     
     if current_ip and current_ip != "127.0.0.1" and current_ip != last_pushed_ip:
         git_log.info(f"IP Change detected ({last_pushed_ip} -> {current_ip}). Updating GitHub...")
-        success = f.redirector_update(current_ip, PORT)
+        success = f.redirector_update(current_ip,server, PORT)
         
         if success:
             last_pushed_ip = current_ip
