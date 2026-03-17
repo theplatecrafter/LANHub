@@ -1,7 +1,8 @@
+# functions.py
 from glob_vars import *
 
-
 import sqlite3
+import time
 import psutil
 import socket
 import subprocess
@@ -9,6 +10,62 @@ import platform
 from git import Repo
 import datetime
 import os
+
+
+#######################################################
+# Database
+#######################################################
+def get_db():
+    """Returns a sqlite3 connection. Caller is responsible for closing it."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row  # rows behave like dicts
+    return conn
+
+#######################################################
+# Chat Helpers
+#######################################################
+# In-memory rate tracker: { ip: [timestamp, timestamp, ...] }
+_rate_tracker: dict[str, list[float]] = {}
+
+def is_rate_limited(ip: str) -> bool:
+    """Sliding window rate limiter. Returns True if the IP is over the limit."""
+    now = time.time()
+    timestamps = _rate_tracker.get(ip, [])
+    timestamps = [t for t in timestamps if now - t < CHAT_RATE_WINDOW]
+    if len(timestamps) >= CHAT_RATE_LIMIT:
+        _rate_tracker[ip] = timestamps
+        return True
+    timestamps.append(now)
+    _rate_tracker[ip] = timestamps
+    return False
+
+def save_chat_message(username: str, ip: str, message: str) -> dict:
+    """Saves a message and returns the row as a dict."""
+    now = time.time()
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO chat_messages (username, ip, message, timestamp) VALUES (?, ?, ?, ?)",
+        (username, ip, message, now)
+    )
+    conn.commit()
+    row_id = c.lastrowid
+    conn.close()
+    return {"id": row_id, "username": username, "message": message, "timestamp": now}
+
+def get_recent_messages(limit: int) -> list[dict]:
+    """Returns the most recent `limit` messages, oldest first."""
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "SELECT id, username, message, timestamp FROM chat_messages ORDER BY id DESC LIMIT ?",
+        (limit,)
+    )
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    rows.reverse()  # oldest → newest
+    return rows
+
 
 
 

@@ -1,8 +1,38 @@
+# init.py
 from glob_vars import *
 
 import os
+import sqlite3
 import subprocess
 from git import Repo
+
+
+
+###########################################
+# Database
+###########################################
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # --- Chat ---
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            username  TEXT    NOT NULL,
+            ip        TEXT    NOT NULL,
+            message   TEXT    NOT NULL,
+            timestamp REAL    NOT NULL
+        )
+    """)
+
+    # --- Stub tables for future features ---
+    # c.execute("CREATE TABLE IF NOT EXISTS game_scores (...)")
+    # c.execute("CREATE TABLE IF NOT EXISTS reports (...)")
+
+    conn.commit()
+    conn.close()
+    app_log.info("Database initialized.")
 
 
 ###########################################

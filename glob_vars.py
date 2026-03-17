@@ -1,15 +1,39 @@
+# glob_vars.py
 import os
 import logging
 from logging.handlers import RotatingFileHandler
 
-REPO_URL = "https://github.com/theplatecrafter/LANHub-redirector-dev"
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-REDIRECTOR_PATH = os.path.join(BASE_DIR, "redirector_repo")
-PORT = 5000
 
 ###########################################################
+# Configuration variables
+###########################################################
+# --- General settings ---
+REPO_URL = "https://github.com/theplatecrafter/LANHub-redirector-dev" # Redirector repository URL
+PORT = 5000
+# --- Chat settings ---
+CHAT_MAX_CHARS       = 500   # max characters per message
+CHAT_RATE_LIMIT      = 5     # max messages per window
+CHAT_RATE_WINDOW     = 10    # seconds for rate window
+CHAT_HISTORY_ON_JOIN = 50    # recent messages sent on connect
 
+
+###########################################################
+# Redirector Vars
+###########################################################
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+REDIRECTOR_PATH = os.path.join(BASE_DIR, "redirector_repo")
+
+
+###########################################################
+# Database Vars
+###########################################################
+DB_PATH = os.path.join(BASE_DIR, "app.db")
+
+
+
+###########################################################
+# Logging Vars
+###########################################################
 LOG_DIR = "logs"
 LOG_MAXBYTES = 5 * 1024 * 1024  # 5 MB
 LOG_BACKUPCOUNT = 3  # Keep 3 backup log files

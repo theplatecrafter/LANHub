@@ -1,3 +1,4 @@
+# app.py
 from glob_vars import *
 from init import initialize
 initialize()
@@ -11,7 +12,16 @@ import signal
 
 app = Flask(__name__)
 
+# Blueprints
+from blueprints.chat import chat_bp
+
+# Socket event handlers
+import socket_events.chat_events
+
+app.secret_key = os.urandom(24)
 socketio.init_app(app)
+app.register_blueprint(chat_bp)
+
 
 ###########################################
 # Routes
