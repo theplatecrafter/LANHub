@@ -589,49 +589,69 @@
     if (arr.length > SPARK_LEN) arr.shift();
   }
 
-  function drawSparkline(canvasId, data, color) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas || !data.length) return;
+  function resolveCssVar(varStr) {
+  // Extracts "--cyan" from "var(--cyan)" then resolves it
+  const name = varStr.trim().replace(/^var\((.+)\)$/, "$1").trim();
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
 
-    const dpr  = window.devicePixelRatio || 1;
-    const w    = canvas.offsetWidth;
-    const h    = canvas.offsetHeight || 50;
-    canvas.width  = w * dpr;
-    canvas.height = h * dpr;
-    const ctx  = canvas.getContext("2d");
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, w, h);
+function drawSparkline(canvasId, data, colorVar) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !data.length) return;
 
-    const max  = 100;
-    const step = w / (SPARK_LEN - 1);
+  const color = resolveCssVar(colorVar);   // e.g. "#00d4ff" or "0, 212, 255"
 
-    // Gradient fill
-    const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, color.replace("var(", "").replace(")", ""));  // fallback
-    // We use a canvas-friendly approach: draw with alpha
-    ctx.beginPath();
-    data.forEach((v, i) => {
-      const x = i * step;
-      const y = h - (v / max) * h;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.lineTo((data.length - 1) * step, h);
-    ctx.lineTo(0, h);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(0,212,255,0.1)";
-    ctx.fill();
+  const dpr  = window.devicePixelRatio || 1;
+  const w    = canvas.offsetWidth;
+  const h    = canvas.offsetHeight || 50;
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  const ctx  = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
 
-    // Line
-    ctx.beginPath();
-    data.forEach((v, i) => {
-      const x = i * step;
-      const y = h - (v / max) * h;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.strokeStyle = "rgba(0,212,255,0.8)";
-    ctx.lineWidth   = 1.5;
-    ctx.stroke();
+  const max  = 100;
+  const step = w / Math.max(SPARK_LEN - 1, 1);
+
+  // Filled area under the line
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = i * step;
+    const y = h - (v / max) * h;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo((data.length - 1) * step, h);
+  ctx.lineTo(0, h);
+  ctx.closePath();
+  ctx.fillStyle = hexToRgba(color, 0.12);
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = i * step;
+    const y = h - (v / max) * h;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = hexToRgba(color, 0.85);
+  ctx.lineWidth   = 1.5;
+  ctx.stroke();
+}
+
+function hexToRgba(color, alpha) {
+  // Handles "#rrggbb", "#rgb", and "r, g, b" (some browsers return space-separated)
+  color = color.trim();
+  if (color.startsWith("#")) {
+    let hex = color.slice(1);
+    if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+    const r = parseInt(hex.slice(0,2), 16);
+    const g = parseInt(hex.slice(2,4), 16);
+    const b = parseInt(hex.slice(4,6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
   }
+  // Already "r, g, b" format
+  return `rgba(${color},${alpha})`;
+}
 
   // ── Route table ───────────────────────────────────────────
   function buildRouteTable(counts) {
