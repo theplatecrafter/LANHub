@@ -25,6 +25,7 @@ def redirector_update(ip, port=PORT):
         repo.remotes.origin.fetch()
         
         repo.git.reset('--hard', 'origin/main')
+        repo.git.clean('-fd')
         
         new_html = f"""<!DOCTYPE html>
 <html>

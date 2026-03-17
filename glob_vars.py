@@ -2,11 +2,10 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 
-
+REPO_URL = "https://github.com/theplatecrafter/LANHub-redirector-dev"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 REDIRECTOR_PATH = os.path.join(BASE_DIR, "redirector_repo")
-REPO_URL = "https://github.com/theplatecrafter/LANHub-redirector-dev"
 PORT = 5000
 
 ###########################################################

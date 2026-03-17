@@ -21,7 +21,7 @@ last_pushed_ip = None
 def sch_redirector_update():
     global last_pushed_ip
     
-    stats = f.get_server_stats()
+    stats = f.get_network_stats()
     current_ip = stats.get("ip_address")
     
     if current_ip and current_ip != "127.0.0.1" and current_ip != last_pushed_ip:

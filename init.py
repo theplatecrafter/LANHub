@@ -1,5 +1,5 @@
 from glob_vars import *
-from functions import get_server_stats, redirector_update
+from functions import get_network_stats, redirector_update
 
 import os
 import subprocess
@@ -32,6 +32,6 @@ def ensure_redirector_exists():
 
 #########################################################
 def initialize():
-    redirector_update(get_server_stats().get("ip_address"), PORT)
+    redirector_update(get_network_stats().get("ip_address"), PORT)
     create_directories()
     ensure_redirector_exists()
