@@ -1,0 +1,690 @@
+{% extends "base.html" %}
+{% block title %}LANHub — Stats{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Page layout ─────────────────────────────────────────── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    padding: 24px 0;
+  }
+
+  /* Full-width card */
+  .stats-card.wide { grid-column: 1 / -1; }
+
+  /* ── Card shell ──────────────────────────────────────────── */
+  .stats-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stats-card-title {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stats-card-title .icon { font-size: 0.9rem; }
+
+  /* ── Gauge bar ───────────────────────────────────────────── */
+  .gauge-wrap { margin-bottom: 14px; }
+
+  .gauge-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .gauge-label {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    color: var(--text);
+  }
+  .gauge-value {
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-bright);
+    transition: color 0.3s ease;
+  }
+  .gauge-sub {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    margin-left: 6px;
+  }
+
+  .gauge-track {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-card);
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .gauge-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--cyan);
+    transition: width 0.5s ease, background 0.3s ease;
+    width: 0%;
+  }
+  .gauge-fill.warn  { background: var(--amber); }
+  .gauge-fill.crit  { background: var(--red); }
+
+  /* Colour helper applied via JS */
+  .val-ok   { color: var(--green)  !important; }
+  .val-warn { color: var(--amber)  !important; }
+  .val-crit { color: var(--red)    !important; }
+
+  /* ── Per-core bars ───────────────────────────────────────── */
+  .core-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .core-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .core-bar-track {
+    width: 100%; height: 48px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 3px; position: relative; overflow: hidden;
+    display: flex; align-items: flex-end;
+  }
+  .core-bar-fill {
+    width: 100%; background: var(--cyan);
+    transition: height 0.5s ease, background 0.3s ease;
+    height: 0%;
+  }
+  .core-label {
+    font-family: var(--font-mono); font-size: 0.55rem;
+    color: var(--text-dim); text-align: center;
+  }
+
+  /* ── Sparkline canvas ────────────────────────────────────── */
+  .sparkline-wrap { margin-top: 10px; position: relative; }
+  .sparkline-canvas {
+    width: 100%; height: 50px; display: block;
+    border-radius: 4px;
+  }
+
+  /* ── Big number stat ─────────────────────────────────────── */
+  .big-stat {
+    text-align: center; padding: 8px 0;
+  }
+  .big-stat .num {
+    font-family: var(--font-mono); font-size: 2.4rem; font-weight: 700;
+    color: var(--text-bright); line-height: 1; display: block;
+    transition: all 0.3s ease;
+  }
+  .big-stat .unit {
+    font-family: var(--font-mono); font-size: 0.72rem;
+    color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.12em;
+    margin-top: 4px; display: block;
+  }
+
+  /* ── Network speed ───────────────────────────────────────── */
+  .speed-row {
+    display: flex; gap: 12px;
+  }
+  .speed-item {
+    flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .speed-arrow { font-size: 1.1rem; flex-shrink: 0; }
+  .speed-info  { flex: 1; }
+  .speed-label { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
+  .speed-val   { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: var(--text-bright); }
+  .speed-unit  { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); margin-left: 4px; }
+
+  /* ── Disk ────────────────────────────────────────────────── */
+  .disk-donut-wrap {
+    display: flex; align-items: center; gap: 20px; margin-top: 8px;
+  }
+  .donut-svg { flex-shrink: 0; }
+  .donut-circle-bg  { fill: none; stroke: var(--border); stroke-width: 8; }
+  .donut-circle-val { fill: none; stroke: var(--cyan); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease, stroke 0.3s ease; }
+  .disk-legend { flex: 1; }
+  .disk-legend-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--font-mono); font-size: 0.75rem;
+    margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .disk-legend-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .disk-legend-label { color: var(--text-dim); }
+  .disk-legend-val   { color: var(--text-bright); font-weight: 700; }
+
+  /* ── Route table ─────────────────────────────────────────── */
+  .route-table { width: 100%; border-collapse: collapse; }
+  .route-table th {
+    font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--text-dim); text-align: left;
+    padding: 6px 10px; border-bottom: 1px solid var(--border);
+  }
+  .route-table td {
+    font-family: var(--font-mono); font-size: 0.82rem; color: var(--text);
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+  }
+  .route-table tbody tr:last-child td { border-bottom: none; }
+  .route-table tbody tr:hover td { background: var(--bg-hover); }
+  .route-count-bar {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .route-count-track {
+    flex: 1; height: 4px; background: var(--bg-card);
+    border-radius: 2px; overflow: hidden;
+  }
+  .route-count-fill {
+    height: 100%; background: var(--cyan); border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  /* ── System info ─────────────────────────────────────────── */
+  .sysinfo-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .sysinfo-item {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 14px;
+  }
+  .sysinfo-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 4px; }
+  .sysinfo-val   { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-bright); word-break: break-all; }
+
+  /* ── GPU card ────────────────────────────────────────────── */
+  #gpu-card { display: none; }
+
+  /* ── Live indicator ──────────────────────────────────────── */
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--font-mono); font-size: 0.62rem;
+    color: var(--green); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-left: auto;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 6px var(--green);
+    animation: live-pulse 2s infinite;
+  }
+  @keyframes live-pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+  /* ── Uptime ──────────────────────────────────────────────── */
+  #uptime-str { font-family: var(--font-mono); font-size: 1.1rem; color: var(--text-bright); }
+
+  /* responsive */
+  @media (max-width: 600px) {
+    .stats-grid { grid-template-columns: 1fr; }
+    .speed-row  { flex-direction: column; }
+    .sysinfo-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fade-up" style="padding: 20px 0 4px; display:flex; align-items:baseline; gap:14px;">
+  <h1>Server Stats</h1>
+  <span class="live-badge"><span class="live-dot"></span>Live</span>
+</div>
+
+<div class="stats-grid">
+
+  <!-- ── CPU ──────────────────────────────────────────────── -->
+  <div class="stats-card">
+    <div class="stats-card-title"><span class="icon">🖥️</span> CPU</div>
+
+    <div class="gauge-wrap">
+      <div class="gauge-header">
+        <span class="gauge-label">Overall</span>
+        <span>
+          <span class="gauge-value" id="cpu-pct">—</span>
+          <span class="gauge-sub" id="cpu-temp-str"></span>
+        </span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="cpu-bar"></div></div>
+    </div>
+
+    <div class="sparkline-wrap">
+      <canvas class="sparkline-canvas" id="cpu-spark"></canvas>
+    </div>
+
+    <div class="core-grid" id="core-grid"></div>
+  </div>
+
+  <!-- ── RAM ──────────────────────────────────────────────── -->
+  <div class="stats-card">
+    <div class="stats-card-title"><span class="icon">💾</span> Memory</div>
+
+    <div class="gauge-wrap">
+      <div class="gauge-header">
+        <span class="gauge-label">Used</span>
+        <span>
+          <span class="gauge-value" id="ram-pct">—</span>
+          <span class="gauge-sub" id="ram-sub"></span>
+        </span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="ram-bar"></div></div>
+    </div>
+
+    <div class="sparkline-wrap">
+      <canvas class="sparkline-canvas" id="ram-spark"></canvas>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <div class="sysinfo-item" style="flex:1">
+        <div class="sysinfo-label">Total</div>
+        <div class="sysinfo-val" id="ram-total">—</div>
+      </div>
+      <div class="sysinfo-item" style="flex:1">
+        <div class="sysinfo-label">Available</div>
+        <div class="sysinfo-val" id="ram-avail">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── GPU ──────────────────────────────────────────────── -->
+  <div class="stats-card" id="gpu-card">
+    <div class="stats-card-title"><span class="icon">🎮</span> GPU <span id="gpu-name" style="font-size:0.6rem;color:var(--text-dim);margin-left:6px;"></span></div>
+
+    <div class="gauge-wrap">
+      <div class="gauge-header">
+        <span class="gauge-label">Load</span>
+        <span class="gauge-value" id="gpu-load">—</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="gpu-bar"></div></div>
+    </div>
+
+    <div class="gauge-wrap">
+      <div class="gauge-header">
+        <span class="gauge-label">VRAM</span>
+        <span>
+          <span class="gauge-value" id="gpu-mem-pct">—</span>
+          <span class="gauge-sub" id="gpu-mem-sub"></span>
+        </span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="gpu-mem-bar"></div></div>
+    </div>
+
+    <div class="sysinfo-item" style="margin-top:8px">
+      <div class="sysinfo-label">Temperature</div>
+      <div class="sysinfo-val" id="gpu-temp">—</div>
+    </div>
+  </div>
+
+  <!-- ── Disk ─────────────────────────────────────────────── -->
+  <div class="stats-card">
+    <div class="stats-card-title"><span class="icon">💿</span> Disk</div>
+    <div class="disk-donut-wrap">
+      <svg class="donut-svg" width="80" height="80" viewBox="0 0 80 80">
+        <circle class="donut-circle-bg"  cx="40" cy="40" r="30"/>
+        <circle class="donut-circle-val" id="disk-donut" cx="40" cy="40" r="30"
+          stroke-dasharray="188.5" stroke-dashoffset="188.5"
+          transform="rotate(-90 40 40)"/>
+        <text x="40" y="44" text-anchor="middle"
+              font-family="var(--font-mono)" font-size="11"
+              fill="var(--text-bright)" id="disk-donut-label">—</text>
+      </svg>
+      <div class="disk-legend">
+        <div class="disk-legend-row">
+          <span class="disk-legend-label">Used</span>
+          <span class="disk-legend-val" id="disk-used">—</span>
+        </div>
+        <div class="disk-legend-row">
+          <span class="disk-legend-label">Free</span>
+          <span class="disk-legend-val" id="disk-free">—</span>
+        </div>
+        <div class="disk-legend-row">
+          <span class="disk-legend-label">Total</span>
+          <span class="disk-legend-val" id="disk-total">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Network ──────────────────────────────────────────── -->
+  <div class="stats-card">
+    <div class="stats-card-title"><span class="icon">📡</span> Network</div>
+
+    <div class="sysinfo-grid" style="margin-bottom:14px">
+      <div class="sysinfo-item">
+        <div class="sysinfo-label">SSID</div>
+        <div class="sysinfo-val" id="net-ssid">—</div>
+      </div>
+      <div class="sysinfo-item">
+        <div class="sysinfo-label">IP Address</div>
+        <div class="sysinfo-val" id="net-ip">—</div>
+      </div>
+    </div>
+
+    <div class="speed-row">
+      <div class="speed-item">
+        <span class="speed-arrow" style="color:var(--green)">↑</span>
+        <div class="speed-info">
+          <div class="speed-label">Upload</div>
+          <div><span class="speed-val" id="net-up">0</span><span class="speed-unit">KB/s</span></div>
+        </div>
+      </div>
+      <div class="speed-item">
+        <span class="speed-arrow" style="color:var(--cyan)">↓</span>
+        <div class="speed-info">
+          <div class="speed-label">Download</div>
+          <div><span class="speed-val" id="net-down">0</span><span class="speed-unit">KB/s</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sysinfo-grid" style="margin-top:12px">
+      <div class="sysinfo-item">
+        <div class="sysinfo-label">Total Sent</div>
+        <div class="sysinfo-val" id="net-sent">—</div>
+      </div>
+      <div class="sysinfo-item">
+        <div class="sysinfo-label">Total Recv</div>
+        <div class="sysinfo-val" id="net-recv">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Connections ──────────────────────────────────────── -->
+  <div class="stats-card">
+    <div class="stats-card-title"><span class="icon">🔗</span> Connections</div>
+
+    <div style="display:flex; gap:10px; margin-bottom:16px;">
+      <div style="flex:1; text-align:center;">
+        <div class="big-stat">
+          <span class="num" id="conn-total">0</span>
+          <span class="unit">open tabs</span>
+        </div>
+      </div>
+    </div>
+
+    <table class="route-table">
+      <thead>
+        <tr>
+          <th>Route</th>
+          <th>Viewers</th>
+          <th style="width:40%"></th>
+        </tr>
+      </thead>
+      <tbody id="route-tbody">
+        <tr><td colspan="3" style="color:var(--text-dim);font-family:var(--font-mono);font-size:0.75rem;padding:12px 10px;">No connections yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Uptime & System ──────────────────────────────────── -->
+  <div class="stats-card">
+    <div class="stats-card-title"><span class="icon">⏱️</span> Uptime &amp; System</div>
+
+    <div class="big-stat" style="margin-bottom:16px;">
+      <span class="num" id="uptime-str">—</span>
+      <span class="unit">running</span>
+    </div>
+
+    <div class="sysinfo-grid">
+      <div class="sysinfo-item" style="grid-column:1/-1">
+        <div class="sysinfo-label">Platform</div>
+        <div class="sysinfo-val" id="sys-platform">—</div>
+      </div>
+      <div class="sysinfo-item">
+        <div class="sysinfo-label">CPU Cores</div>
+        <div class="sysinfo-val" id="sys-cores">—</div>
+      </div>
+      <div class="sysinfo-item">
+        <div class="sysinfo-label">CPU Temp</div>
+        <div class="sysinfo-val" id="sys-temp">—</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /stats-grid -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const socket   = _socket;
+  const SPARK_LEN = 60;   // data points kept in sparkline history
+
+  // Sparkline histories
+  const cpuHistory = [];
+  const ramHistory = [];
+
+  // ── Initial data from server-side render ─────────────────
+  const initial = {{ initial | tojson }};
+  if (initial && Object.keys(initial).length) applyStats(initial);
+
+  // ── Tell server which page we're on ──────────────────────
+  socket.on("connect", () => {
+    socket.emit("page_open", { path: "/stats" });
+  });
+  // Emit immediately if already connected
+  if (socket.connected) socket.emit("page_open", { path: "/stats" });
+
+  // ── Live updates ──────────────────────────────────────────
+  socket.on("server_stats", applyStats);
+
+  function applyStats(d) {
+    if (!d || !Object.keys(d).length) return;
+
+    // CPU
+    if (d.cpu !== undefined) {
+      setGauge("cpu-pct", "cpu-bar", d.cpu, "%");
+      pushSparkline(cpuHistory, d.cpu);
+      drawSparkline("cpu-spark", cpuHistory, "var(--cyan)");
+    }
+    if (d.cpu_per_core) buildCoreGrid(d.cpu_per_core);
+    if (d.cpu_temp)    { document.getElementById("cpu-temp-str").textContent = d.cpu_temp + "°C"; }
+    if (d.cpu_count)   { document.getElementById("sys-cores").textContent = d.cpu_count + " cores"; }
+
+    // RAM
+    if (d.ram !== undefined) {
+      setGauge("ram-pct", "ram-bar", d.ram, "%");
+      pushSparkline(ramHistory, d.ram);
+      drawSparkline("ram-spark", ramHistory, "var(--purple)");
+    }
+    if (d.ram_used_gb !== undefined) {
+      document.getElementById("ram-sub").textContent = d.ram_used_gb + " / " + d.ram_total_gb + " GB";
+      document.getElementById("ram-total").textContent = d.ram_total_gb + " GB";
+      document.getElementById("ram-avail").textContent = d.ram_avail_gb + " GB";
+    }
+
+    // GPU
+    if (d.gpu) {
+      document.getElementById("gpu-card").style.display = "block";
+      document.getElementById("gpu-name").textContent   = d.gpu.name || "";
+      setGauge("gpu-load",    "gpu-bar",     d.gpu.load,        "%");
+      setGauge("gpu-mem-pct", "gpu-mem-bar", d.gpu.mem_percent, "%");
+      document.getElementById("gpu-mem-sub").textContent = d.gpu.mem_used_mb + " / " + d.gpu.mem_total_mb + " MB";
+      document.getElementById("gpu-temp").textContent    = d.gpu.temp ? d.gpu.temp + " °C" : "N/A";
+    }
+
+    // Disk
+    if (d.disk) {
+      const pct = d.disk.percent;
+      document.getElementById("disk-used").textContent  = d.disk.used_gb  + " GB";
+      document.getElementById("disk-free").textContent  = d.disk.free_gb  + " GB";
+      document.getElementById("disk-total").textContent = d.disk.total_gb + " GB";
+      document.getElementById("disk-donut-label").textContent = pct + "%";
+      const circ = 2 * Math.PI * 30;
+      const offset = circ - (pct / 100) * circ;
+      const donut = document.getElementById("disk-donut");
+      donut.style.strokeDashoffset = offset;
+      donut.style.stroke = pct > 90 ? "var(--red)" : pct > 70 ? "var(--amber)" : "var(--cyan)";
+    }
+
+    // Network
+    if (d.ssid) document.getElementById("net-ssid").textContent = d.ssid;
+    if (d.ip)   document.getElementById("net-ip").textContent   = d.ip;
+    if (d.upload_kbps   !== undefined) document.getElementById("net-up").textContent   = fmtSpeed(d.upload_kbps);
+    if (d.download_kbps !== undefined) document.getElementById("net-down").textContent = fmtSpeed(d.download_kbps);
+    if (d.bytes_sent !== undefined) document.getElementById("net-sent").textContent = fmtBytes(d.bytes_sent);
+    if (d.bytes_recv !== undefined) document.getElementById("net-recv").textContent = fmtBytes(d.bytes_recv);
+
+    // Connections
+    if (d.total_connections !== undefined) {
+      document.getElementById("conn-total").textContent = d.total_connections;
+    }
+    if (d.route_counts) buildRouteTable(d.route_counts);
+
+    // System
+    if (d.platform)  document.getElementById("sys-platform").textContent = d.platform;
+    if (d.cpu_temp)  document.getElementById("sys-temp").textContent = d.cpu_temp + " °C";
+    else             document.getElementById("sys-temp").textContent = "N/A";
+    if (d.uptime !== undefined) document.getElementById("uptime-str").textContent = fmtUptime(d.uptime);
+  }
+
+  // ── Gauge helper ──────────────────────────────────────────
+  function setGauge(valId, barId, pct, unit) {
+    const valEl = document.getElementById(valId);
+    const barEl = document.getElementById(barId);
+    if (!valEl || !barEl) return;
+
+    valEl.textContent = pct.toFixed(1) + (unit || "");
+    barEl.style.width = Math.min(pct, 100) + "%";
+
+    const cls = pct > 85 ? "crit" : pct > 60 ? "warn" : "";
+    barEl.className = "gauge-fill " + cls;
+    valEl.className = "gauge-value " + (pct > 85 ? "val-crit" : pct > 60 ? "val-warn" : "val-ok");
+  }
+
+  // ── Per-core grid ─────────────────────────────────────────
+  function buildCoreGrid(cores) {
+    const grid = document.getElementById("core-grid");
+    // Build once, then update
+    if (grid.children.length !== cores.length) {
+      grid.innerHTML = "";
+      cores.forEach((_, i) => {
+        const item = document.createElement("div");
+        item.className = "core-item";
+        item.innerHTML =
+          `<div class="core-bar-track"><div class="core-bar-fill" id="core-fill-${i}"></div></div>` +
+          `<div class="core-label">C${i}</div>`;
+        grid.appendChild(item);
+      });
+    }
+    cores.forEach((pct, i) => {
+      const fill = document.getElementById("core-fill-" + i);
+      if (!fill) return;
+      fill.style.height = Math.min(pct, 100) + "%";
+      fill.style.background = pct > 85 ? "var(--red)" : pct > 60 ? "var(--amber)" : "var(--cyan)";
+    });
+  }
+
+  // ── Sparkline ─────────────────────────────────────────────
+  function pushSparkline(arr, val) {
+    arr.push(val);
+    if (arr.length > SPARK_LEN) arr.shift();
+  }
+
+  function drawSparkline(canvasId, data, color) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !data.length) return;
+
+    const dpr  = window.devicePixelRatio || 1;
+    const w    = canvas.offsetWidth;
+    const h    = canvas.offsetHeight || 50;
+    canvas.width  = w * dpr;
+    canvas.height = h * dpr;
+    const ctx  = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, h);
+
+    const max  = 100;
+    const step = w / (SPARK_LEN - 1);
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, color.replace("var(", "").replace(")", ""));  // fallback
+    // We use a canvas-friendly approach: draw with alpha
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = i * step;
+      const y = h - (v / max) * h;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.lineTo((data.length - 1) * step, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(0,212,255,0.1)";
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = i * step;
+      const y = h - (v / max) * h;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = "rgba(0,212,255,0.8)";
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+  }
+
+  // ── Route table ───────────────────────────────────────────
+  function buildRouteTable(counts) {
+    const tbody = document.getElementById("route-tbody");
+    const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+    if (!sorted.length) {
+      tbody.innerHTML = `<tr><td colspan="3" style="color:var(--text-dim);font-family:var(--font-mono);font-size:.75rem;padding:12px 10px;">No connections</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = sorted.map(([route, count]) => `
+      <tr>
+        <td>${escHtml(route)}</td>
+        <td>${count}</td>
+        <td>
+          <div class="route-count-bar">
+            <div class="route-count-track">
+              <div class="route-count-fill" style="width:${(count/total*100).toFixed(1)}%"></div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  // ── Format helpers ────────────────────────────────────────
+  function fmtUptime(secs) {
+    const d = Math.floor(secs / 86400);
+    const h = Math.floor((secs % 86400) / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  }
+
+  function fmtSpeed(kbps) {
+    if (kbps >= 1024) return (kbps / 1024).toFixed(1) + " MB/s";
+    return kbps.toFixed(1);
+  }
+
+  function fmtBytes(bytes) {
+    if (bytes >= 1e9) return (bytes / 1e9).toFixed(2) + " GB";
+    if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + " MB";
+    if (bytes >= 1e3) return (bytes / 1e3).toFixed(0) + " KB";
+    return bytes + " B";
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+</script>
+{% endblock %}

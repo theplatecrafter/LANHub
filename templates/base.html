@@ -134,6 +134,12 @@
     /* ── Live server stats ───────────────────────────────────── */
     const _socket = io();
 
+    // Tell server which page this tab has open (used for /stats route counts)
+    _socket.on("connect", () => {
+      _socket.emit("page_open", { path: window.location.pathname });
+    });
+    if (_socket.connected) _socket.emit("page_open", { path: window.location.pathname });
+
     _socket.on("connect", () => {
       document.getElementById("srv-dot").classList.remove("warn", "error");
       document.getElementById("srv-status").textContent = "online";

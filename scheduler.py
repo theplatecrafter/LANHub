@@ -4,18 +4,24 @@ from glob_vars import *
 from apscheduler.schedulers.background import BackgroundScheduler
 import functions as f
 from socketio_instance import socketio
+import socket_events.global_events as ge
 
 
 
 server_stats_cache = {}
 def update_stats():
     global server_stats_cache
-    server_stats_cache = f.get_server_stats()
+ 
+    route_counts      = ge.get_route_counts()
+    total_connections = ge.get_total_connections()
+ 
+    # Full stats payload — used by /stats page
+    full_stats = f.get_full_server_stats(route_counts, total_connections)
+    server_stats_cache = full_stats
+ 
+    # Emit to ALL connected clients (base.html status bar uses cpu + ram)
+    socketio.emit("server_stats", full_stats)
 
-    socketio.emit(
-        "server_stats",
-        server_stats_cache
-    )
 
 
 last_pushed_ip = None

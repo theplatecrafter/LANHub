@@ -14,25 +14,34 @@ from git import Repo
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
-    # --- Chat ---
+ 
+    # Core table
     c.execute("""
         CREATE TABLE IF NOT EXISTS chat_messages (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            username  TEXT    NOT NULL,
-            ip        TEXT    NOT NULL,
-            message   TEXT    NOT NULL,
-            timestamp REAL    NOT NULL
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            username     TEXT    NOT NULL,
+            ip           TEXT    NOT NULL,
+            message      TEXT    NOT NULL,
+            timestamp    REAL    NOT NULL,
+            reply_to_id  INTEGER REFERENCES chat_messages(id),
+            edited       INTEGER NOT NULL DEFAULT 0
         )
     """)
-
-    # --- Stub tables for future features ---
-    # c.execute("CREATE TABLE IF NOT EXISTS game_scores (...)")
-    # c.execute("CREATE TABLE IF NOT EXISTS reports (...)")
-
+ 
+    # Migration: add columns to existing DBs that predate them
+    for col, definition in [
+        ("reply_to_id", "INTEGER REFERENCES chat_messages(id)"),
+        ("edited",      "INTEGER NOT NULL DEFAULT 0"),
+    ]:
+        try:
+            c.execute(f"ALTER TABLE chat_messages ADD COLUMN {col} {definition}")
+        except Exception:
+            pass   # column already exists — that's fine
+ 
     conn.commit()
     conn.close()
     app_log.info("Database initialized.")
+
 
 
 ###########################################
