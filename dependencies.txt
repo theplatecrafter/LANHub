@@ -2,3 +2,4 @@ GitPython
 flask
 flask-socketio
 psutil
+apscheduler
