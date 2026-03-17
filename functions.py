@@ -201,13 +201,12 @@ def redirector_update(ip,port=PORT):
 
         <div id="error-msg" class="error-box">
             <h3>🚫 Connection Failed</h3>
-            <p>You must be connected to the <b>same Wi-Fi</b> as the server to access this page.</p>
-            <p>Or, the server is down/offline.</p>
+            <p>You must be connected to the <b>same LAN (or Wi-Fi)</b> as the server to access this page.</p>
             <p>Current Target: <a href="http://{ip}:{port}">http://{ip}:{port}</a></p>
         </div>
 
         <p style="font-size: 0.9em; color: #666; margin-top: 20px;">
-            If you aren't redirected in 5 seconds, you are likely off-campus or on the wrong network.
+            If you aren't redirected in 5 seconds, you are likely on the wrong network or the server is offline.
         </p>
     </div>
 
