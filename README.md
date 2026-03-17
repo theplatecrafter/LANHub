@@ -180,7 +180,7 @@ python app.py
 There should be some warnings or errors in the console or log, these will be resolved. If the app terminates due to program error, please contact me.
 Exit out using ```Ctrl+C```
 
-Run the following commands in order:
+Run the following commands **in order**:
 Make sure to replace ```<redirector-repo>``` with the name of the github repository you just created.
 ```bash
 cd ./<redirector-repo>
