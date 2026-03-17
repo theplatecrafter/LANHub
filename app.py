@@ -15,6 +15,8 @@ app = Flask(__name__)
 # Blueprints
 from blueprints.chat import chat_bp
 from blueprints.stats import stats_bp
+from blueprints.logs import logs_bp
+from blueprints.devices import devices_bp
 
 
 # Socket event handlers
@@ -25,6 +27,8 @@ app.secret_key = os.urandom(24)
 socketio.init_app(app)
 app.register_blueprint(chat_bp)
 app.register_blueprint(stats_bp)
+app.register_blueprint(logs_bp)
+app.register_blueprint(devices_bp)
 
 
 ###########################################

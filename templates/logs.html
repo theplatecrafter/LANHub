@@ -1,0 +1,504 @@
+{% extends "base.html" %}
+{% block title %}LANHub — Logs{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Full-height layout ──────────────────────────────────── */
+  .page-wrap {
+    padding: 0 !important;
+    height: calc(100vh - 56px - 33px);
+    display: flex;
+    flex-direction: column;
+  }
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* ── Shell ───────────────────────────────────────────────── */
+  #log-shell {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    background: var(--bg);
+  }
+
+  /* ── Tab bar ─────────────────────────────────────────────── */
+  #tab-bar {
+    display: flex;
+    align-items: stretch;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  #tab-bar::-webkit-scrollbar { display: none; }
+
+  .tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 22px;
+    height: 46px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    flex-shrink: 0;
+  }
+  .tab-btn:hover { color: var(--text-bright); }
+  .tab-btn.active {
+    color: var(--cyan);
+    border-bottom-color: var(--cyan);
+  }
+
+  /* Unread badge on error tab */
+  .tab-badge {
+    background: var(--red);
+    color: #fff;
+    font-size: 0.55rem;
+    padding: 1px 5px;
+    border-radius: 10px;
+    font-family: var(--font-mono);
+    display: none;
+  }
+  .tab-badge.visible { display: inline-block; }
+
+  /* ── Toolbar ─────────────────────────────────────────────── */
+  #log-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 20px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #search-input {
+    flex: 1;
+    padding: 6px 12px !important;
+    border-radius: var(--radius) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.78rem;
+    min-width: 0;
+    max-width: 340px;
+  }
+
+  .toolbar-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .toolbar-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  #log-info {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  /* ── Load-more indicator ─────────────────────────────────── */
+  #load-older-bar {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+  }
+  #load-older-bar.visible { display: flex; }
+
+  #history-start {
+    display: none;
+    text-align: center;
+    padding: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+  }
+  #history-start.visible { display: block; }
+
+  .spinner {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid var(--border);
+    border-top-color: var(--cyan);
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Log lines ───────────────────────────────────────────── */
+  #log-view {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    min-height: 0;
+    scroll-behavior: auto;  /* no smooth — we need precise position control */
+  }
+
+  .log-line {
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+    padding: 2px 20px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    border-bottom: 1px solid transparent;
+    transition: background 0.1s ease;
+    word-break: break-all;
+  }
+  .log-line:hover { background: var(--bg-hover); }
+
+  /* Line number gutter */
+  .log-num {
+    color: var(--text-dim);
+    min-width: 52px;
+    padding-right: 16px;
+    text-align: right;
+    font-size: 0.68rem;
+    user-select: none;
+    flex-shrink: 0;
+    opacity: 0.5;
+  }
+
+  .log-text { flex: 1; white-space: pre-wrap; }
+
+  /* Level colouring */
+  .log-line.level-info    .log-text { color: var(--text); }
+  .log-line.level-warning .log-text { color: var(--amber); }
+  .log-line.level-error   .log-text { color: var(--red); }
+  .log-line.level-debug   .log-text { color: var(--text-dim); }
+
+  .log-line.level-info    .log-num { color: var(--text-dim); }
+  .log-line.level-warning .log-num { color: var(--amber); opacity: 0.7; }
+  .log-line.level-error   .log-num { color: var(--red); opacity: 0.7; }
+
+  /* Highlight from search */
+  .log-line.match { background: var(--amber-dim) !important; }
+  .log-line.match .log-text mark {
+    background: var(--amber);
+    color: var(--bg);
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  /* Empty state */
+  #log-empty {
+    display: none;
+    padding: 40px 20px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+  #log-empty.visible { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="log-shell">
+
+  <!-- Tabs -->
+  <div id="tab-bar">
+    {% for label, filename in log_files %}
+    <button
+      class="tab-btn{% if loop.first %} active{% endif %}"
+      data-file="{{ filename }}"
+      type="button"
+      onclick="switchTab('{{ filename }}', this)"
+    >
+      {{ label }}
+      {% if filename == "error.log" %}
+      <span class="tab-badge" id="error-badge"></span>
+      {% endif %}
+    </button>
+    {% endfor %}
+  </div>
+
+  <!-- Toolbar -->
+  <div id="log-toolbar">
+    <input
+      id="search-input"
+      type="text"
+      placeholder="Filter lines…"
+      oninput="applyFilter()"
+    />
+    <button class="toolbar-btn" onclick="refreshLog()" title="Reload">
+      ↻ Refresh
+    </button>
+    <button class="toolbar-btn" onclick="scrollToBottom()" title="Jump to latest">
+      ↓ Latest
+    </button>
+    <div id="log-info">—</div>
+  </div>
+
+  <!-- Load-older indicator -->
+  <div id="history-start">— beginning of log —</div>
+  <div id="load-older-bar">
+    <div class="spinner"></div>
+    Loading older entries…
+  </div>
+
+  <!-- Log lines -->
+  <div id="log-view">
+    <div id="log-empty">No log entries yet.</div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── State ─────────────────────────────────────────────────
+  let currentFile     = "{{ log_files[0][1] }}";
+  let currentOffset   = 0;
+  let totalLines      = 0;
+  let isLoading       = false;
+  let noMoreHistory   = false;
+  let filterText      = "";
+
+  // Per-tab state so switching tabs remembers position
+  const tabState = {};
+  {% for label, filename in log_files %}
+  tabState["{{ filename }}"] = { offset: 0, total: 0, noMore: false };
+  {% endfor %}
+
+  const logView  = document.getElementById("log-view");
+  const logEmpty = document.getElementById("log-empty");
+
+  // ── Init ──────────────────────────────────────────────────
+  loadInitial(currentFile);
+
+  // Tell server which page we're on
+  _socket.emit("page_open", { path: "/logs" });
+
+  // ── Tab switching ─────────────────────────────────────────
+  function switchTab(filename, btn) {
+    if (filename === currentFile) return;
+
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    currentFile = filename;
+    const s = tabState[filename];
+    noMoreHistory = s.noMore;
+
+    // Clear view and reload
+    logView.innerHTML = "";
+    logEmpty.classList.remove("visible");
+    document.getElementById("history-start").classList.remove("visible");
+    document.getElementById("load-older-bar").classList.remove("visible");
+
+    loadInitial(filename);
+  }
+
+  // ── Load initial chunk (newest lines) ────────────────────
+  async function loadInitial(filename) {
+    tabState[filename].offset   = 0;
+    tabState[filename].noMore   = false;
+    noMoreHistory = false;
+    logView.innerHTML = "";
+    logEmpty.classList.remove("visible");
+    document.getElementById("history-start").classList.remove("visible");
+
+    await loadChunk(filename, 0, true);
+    scrollToBottom();
+  }
+
+  // ── Refresh (reload from scratch) ────────────────────────
+  function refreshLog() {
+    loadInitial(currentFile);
+  }
+
+  // ── Scroll listener ───────────────────────────────────────
+  logView.addEventListener("scroll", () => {
+    if (logView.scrollTop < 100 && !isLoading && !noMoreHistory) {
+      loadOlder();
+    }
+  });
+
+  async function loadOlder() {
+    const s = tabState[currentFile];
+    if (s.noMore || isLoading) return;
+    document.getElementById("load-older-bar").classList.add("visible");
+    await loadChunk(currentFile, s.offset, false);
+    document.getElementById("load-older-bar").classList.remove("visible");
+  }
+
+  // ── Core fetch function ───────────────────────────────────
+  async function loadChunk(filename, offset, isInitial) {
+    if (isLoading) return;
+    isLoading = true;
+
+    try {
+      const res  = await fetch(`/api/logs/${encodeURIComponent(filename)}?offset=${offset}`);
+      const data = await res.json();
+
+      if (data.error) { isLoading = false; return; }
+
+      const s = tabState[filename];
+      s.offset = data.offset;
+      s.total  = data.total;
+      s.noMore = !data.has_more;
+      noMoreHistory = s.noMore;
+
+      updateInfo(s.offset, s.total);
+
+      if (!data.lines.length && isInitial) {
+        logEmpty.classList.add("visible");
+        isLoading = false;
+        return;
+      }
+
+      if (isInitial) {
+        // Append — lines arrive oldest-first in chunk (server reversed them)
+        data.lines.forEach((line, i) => {
+          logView.appendChild(makeLineEl(line, s.total - data.lines.length + i + 1));
+        });
+      } else {
+        // Prepend — preserve scroll position
+        const prevHeight = logView.scrollHeight;
+        const frag = document.createDocumentFragment();
+        data.lines.forEach((line, i) => {
+          // These are the lines just above what we have loaded
+          // line numbers: (s.total - s.offset + 1) to (s.total - old_offset)
+          const lineNum = s.total - data.offset + i + 1;
+          frag.appendChild(makeLineEl(line, lineNum));
+        });
+        logView.insertBefore(frag, logView.firstChild);
+        // Restore scroll position so user doesn't jump
+        logView.scrollTop = logView.scrollHeight - prevHeight;
+      }
+
+      applyFilter();
+
+      if (s.noMore) {
+        document.getElementById("history-start").classList.add("visible");
+      }
+
+    } catch (e) {
+      console.error("Log fetch error:", e);
+    }
+
+    isLoading = false;
+  }
+
+  // ── Build a log line element ──────────────────────────────
+  function makeLineEl(text, lineNum) {
+    const div = document.createElement("div");
+    div.className = "log-line " + classifyLine(text);
+    div.dataset.raw = text;
+
+    const num = document.createElement("span");
+    num.className   = "log-num";
+    num.textContent = lineNum;
+
+    const txt = document.createElement("span");
+    txt.className   = "log-text";
+    txt.textContent = text || " ";
+
+    div.appendChild(num);
+    div.appendChild(txt);
+    return div;
+  }
+
+  // ── Classify line for colour ──────────────────────────────
+  function classifyLine(text) {
+    const t = text.toUpperCase();
+    if (t.includes("[ERROR]")   || t.includes("ERROR"))   return "level-error";
+    if (t.includes("[WARNING]") || t.includes("WARNING")) return "level-warning";
+    if (t.includes("[DEBUG]")   || t.includes("DEBUG"))   return "level-debug";
+    return "level-info";
+  }
+
+  // ── Filter / search ───────────────────────────────────────
+  function applyFilter() {
+    filterText = document.getElementById("search-input").value.trim().toLowerCase();
+
+    document.querySelectorAll(".log-line").forEach(el => {
+      const raw = (el.dataset.raw || "").toLowerCase();
+      const txt = el.querySelector(".log-text");
+
+      if (!filterText) {
+        el.style.display = "";
+        el.classList.remove("match");
+        txt.textContent = el.dataset.raw || " ";
+        return;
+      }
+
+      if (raw.includes(filterText)) {
+        el.style.display = "";
+        el.classList.add("match");
+        txt.innerHTML = escHtml(el.dataset.raw).replace(
+          new RegExp(escRegex(escHtml(filterText)), "gi"),
+          m => `<mark>${m}</mark>`
+        );
+      } else {
+        el.style.display = "none";
+        el.classList.remove("match");
+      }
+    });
+  }
+
+  // ── Info bar ──────────────────────────────────────────────
+  function updateInfo(loaded, total) {
+    const info = document.getElementById("log-info");
+    info.textContent = loaded + " / " + total + " lines loaded";
+  }
+
+  // ── Scroll to bottom ──────────────────────────────────────
+  function scrollToBottom() {
+    logView.scrollTop = logView.scrollHeight;
+  }
+
+  // ── Helpers ───────────────────────────────────────────────
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  function escRegex(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+</script>
+{% endblock %}
