@@ -46,4 +46,4 @@ signal.signal(signal.SIGTERM, graceful_shutdown)
 if __name__ == "__main__":
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         sch.start_scheduler()
-    socketio.run(app, host="0.0.0.0",debug=True,port=PORT)
+    socketio.run(app, host="0.0.0.0",debug=True,port=PORT,allow_unsafe_werkzeug=True)

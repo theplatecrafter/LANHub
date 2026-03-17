@@ -165,7 +165,7 @@ Copy from the first letter of the output string to the end of the key.
 Goto your github **account settings**, then **SSH and GPG keys**
 Click ```New SSH```, then paste your SSH key here and save it.
 
-**Create a github repository**. You can name this whatever you want, and it does not need to have README.md. This repository will be in charge of redirecting users to the ip address of the server so that even if the server's ip address changes, the LANHub page can be accessed using the same link.
+**Create a github repository**. You can name this whatever you want. **Add a README.md file** for simple initial branch creation This repository will be in charge of redirecting users to the ip address of the server so that even if the server's ip address changes, the LANHub page can be accessed using the same link.
 
 In the repository settings, goto the **Pages** tab.
 Under **Source**, select ```Deploy from branch```
