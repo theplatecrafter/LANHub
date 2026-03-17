@@ -1,5 +1,4 @@
 GitPython
 flask
 flask-socketio
-sqlite3
 psutil
