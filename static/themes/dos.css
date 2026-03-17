@@ -1,0 +1,147 @@
+/* ============================================================
+   LANHub — DOS Theme
+   Aesthetic: IBM PC XT. CGA text mode. C:\> prompt.
+   High-contrast white on black. No decorations. Pure text.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+:root {
+  --bg: #000000; --bg-panel: #000000; --bg-card: #000000; --bg-hover: #000080;
+  --border: #aaaaaa; --border-hi: #ffffff;
+  --text: #aaaaaa; --text-dim: #555555; --text-bright: #ffffff;
+  --cyan: #00aaaa; --cyan-dim: rgba(0,170,170,0.15); --cyan-glow: rgba(0,170,170,0.3);
+  --amber: #aa5500; --amber-dim: rgba(170,85,0,0.15);
+  --green: #00aa00; --green-dim: rgba(0,170,0,0.15);
+  --red: #aa0000; --red-dim: rgba(170,0,0,0.15);
+  --purple: #aa00aa; --purple-dim: rgba(170,0,170,0.15);
+  --pink: #aa00aa; --pink-dim: rgba(170,0,170,0.15);
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-ui: 'Share Tech Mono', monospace;
+  --radius: 0px; --radius-lg: 0px; --transition: 0s;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: auto; }
+
+body {
+  background-color: #000; color: var(--text);
+  font-family: var(--font-mono); font-size: 14px; line-height: 1.5; min-height: 100vh;
+}
+
+/* CRT scanlines */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px);
+  pointer-events: none; z-index: 9998;
+}
+
+::-webkit-scrollbar { width: 16px; }
+::-webkit-scrollbar-track { background: #000; border: 1px solid #aaa; }
+::-webkit-scrollbar-thumb { background: #aaa; }
+
+h1,h2,h3,h4,h5,h6 { font-family: var(--font-mono); color: #fff; line-height: 1.2; font-weight: normal; }
+h1 { font-size: 1.2rem; color: #fff; }
+h2 { font-size: 1rem; color: #0f0; }
+h3 { font-size: 0.9rem; color: #0ff; }
+p { color: var(--text); }
+a { color: var(--cyan); text-decoration: none; }
+a:hover { background: var(--cyan); color: #000; }
+code, pre, .mono { font-family: var(--font-mono); }
+.container { max-width: 1100px; margin: 0 auto; padding: 0 8px; }
+.page-wrap { padding: 1rem 0 2rem; }
+
+nav.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 8px; height: 24px;
+  background: #00aa00; border-bottom: none;
+  position: sticky; top: 0; z-index: 50;
+}
+nav.topbar .brand { font-size: 0.88rem; color: #000; font-weight: bold; display: flex; align-items: center; gap: 6px; }
+nav.topbar .brand::before { content: 'C:\>'; color: #000; }
+nav.topbar .nav-links { display: flex; gap: 0; list-style: none; }
+nav.topbar .nav-links a { font-size: 0.82rem; color: #000; padding: 2px 12px; border-left: 1px solid rgba(0,0,0,0.3); transition: none; }
+nav.topbar .nav-links a:hover, nav.topbar .nav-links a.active { background: #000; color: #00aa00; }
+
+.status-bar {
+  display: flex; align-items: center; gap: 0;
+  padding: 0; background: #000; border-top: 1px solid #555; border-bottom: 1px solid #555;
+  font-family: var(--font-mono); font-size: 0.78rem; color: #555;
+}
+.status-item { display: flex; align-items: center; gap: 6px; padding: 3px 14px; border-right: 1px solid #333; }
+.status-item .dot { width: 8px; height: 8px; background: #0a0; animation: dos-blink 1s step-start infinite; }
+@keyframes dos-blink { 0%,49% { opacity:1; } 50%,100% { opacity:0; } }
+.status-item .dot.warn  { background: #aa5500; }
+.status-item .dot.error { background: #aa0000; animation: dos-blink 0.3s step-start infinite; }
+
+.panel { background: #000; border: 1px solid #555; padding: 16px; }
+.panel-title { font-size: 0.78rem; text-transform: uppercase; color: #0f0; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #333; }
+
+/* DOS-style bordered box using characters */
+.feature-card {
+  display: flex; flex-direction: column;
+  background: #000; border: 1px solid #555;
+  padding: 12px 16px; cursor: pointer; position: relative; overflow: hidden;
+  transition: none; text-decoration: none; color: inherit;
+}
+.feature-card:hover { background: #000080; border-color: #fff; color: #fff; }
+.feature-card:hover .card-title { color: #fff; }
+.feature-card:hover .card-label { color: #0ff; }
+.feature-card:hover .card-desc { color: #aaa; }
+
+.feature-card .card-icon { display: none; }
+.feature-card .card-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #0ff; margin-bottom: 2px; }
+.feature-card .card-title { font-size: 0.88rem; color: #fff; margin-bottom: 6px; }
+.feature-card .card-desc { font-size: 0.72rem; color: #777; line-height: 1.4; flex: 1; }
+.feature-card .card-badge { display: inline-block; margin-top: 10px; font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 0 6px; background: transparent; color: var(--card-accent, #0f0); border: 1px solid var(--card-accent, #0f0); align-self: flex-start; }
+
+/* CGA color accents */
+.accent-cyan   { --card-accent: #00aaaa; }
+.accent-amber  { --card-accent: #aa5500; }
+.accent-green  { --card-accent: #00aa00; }
+.accent-red    { --card-accent: #aa0000; }
+.accent-purple { --card-accent: #aa00aa; }
+.accent-pink   { --card-accent: #aa00aa; }
+.feature-card.soon { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+.category { margin-bottom: 2rem; }
+.category-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.category-header .cat-line { flex: 1; height: 1px; background: #333; }
+.category-header h2 { font-size: 0.8rem; text-transform: uppercase; color: #0f0; font-weight: normal; white-space: nowrap; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px; border: 1px solid #aaa; font-family: var(--font-mono); font-size: 0.82rem; cursor: pointer; transition: none; text-transform: uppercase; background: #000; color: #aaa; }
+.btn-primary { background: #000; color: #0f0; border-color: #0f0; }
+.btn:hover { background: #000080; color: #fff; border-color: #fff; }
+.btn-primary:hover { background: #0f0; color: #000; }
+
+input[type="text"], input[type="password"], textarea {
+  background: #000; border: 1px solid #555; color: #fff;
+  font-family: var(--font-mono); font-size: 0.88rem; padding: 4px 8px;
+  outline: none; width: 100%; caret-color: #fff;
+}
+input:focus, textarea:focus { border-color: #0f0; }
+input::placeholder { color: #555; }
+
+.toast { padding: 6px 14px; font-family: var(--font-mono); font-size: 0.82rem; border: 1px solid; }
+.toast.error   { border-color: var(--red);   color: #ff5555; background: #000; }
+.toast.success { border-color: var(--green); color: #55ff55; background: #000; }
+.toast.info    { border-color: var(--cyan);  color: #55ffff; background: #000; }
+
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 200; }
+.modal {
+  background: #000080; border: 2px solid #fff; padding: 20px; width: 360px; max-width: 90vw;
+  color: #fff; box-shadow: 4px 4px 0 rgba(255,255,255,0.3);
+}
+.modal::before { content: ' ╔══ LANHub ══╗ '; display: block; text-align: center; color: #ff0; margin-bottom: 16px; font-size: 0.78rem; }
+.modal h2 { font-size: 1rem; margin-bottom: 8px; color: #ff0; }
+.modal p  { font-size: 0.82rem; color: #ccc; margin-bottom: 14px; }
+
+.fade-up { animation: none; opacity: 1; }
+.stagger > * { animation: none; opacity: 1; }
+
+.theme-picker{position:relative}.theme-btn{display:flex;align-items:center;gap:7px;background:#000;border:1px solid #555;color:#555;font-family:var(--font-mono);font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;padding:3px 10px;cursor:pointer;transition:none}.theme-btn:hover{border-color:#0f0;color:#0f0}.theme-btn .swatch{width:8px;height:8px;background:#0f0;flex-shrink:0}.theme-btn .chevron{font-style:normal;font-size:.6rem}.theme-dropdown{position:absolute;top:calc(100% + 4px);right:0;background:#000;border:1px solid #aaa;padding:4px;min-width:200px;box-shadow:4px 4px 0 rgba(255,255,255,0.1);z-index:100;opacity:0;pointer-events:none}.theme-picker.open .theme-dropdown{opacity:1;pointer-events:all}.theme-option{display:flex;align-items:center;gap:8px;width:100%;padding:4px 10px;background:transparent;border:none;cursor:pointer;font-family:var(--font-mono);font-size:.78rem;color:#777;text-transform:uppercase;text-align:left}.theme-option:hover,.theme-option.active{background:#000080;color:#fff}.theme-option .dot{width:8px;height:8px;flex-shrink:0}
+.theme-option[data-value="dark"].dot{background:#00d4ff}.theme-option[data-value="mech"].dot{background:#f5a623}.theme-option[data-value="kawaii"].dot{background:#ff6eb4}.theme-option[data-value="paper"].dot{background:#aaa}.theme-option[data-value="matrix"].dot{background:#00ff41}.theme-option[data-value="vaporwave"].dot{background:#ff71ce}.theme-option[data-value="blueprint"].dot{background:#4fc3f7}.theme-option[data-value="neon-tokyo"].dot{background:#ff003c}.theme-option[data-value="outrun"].dot{background:#ff6b35}.theme-option[data-value="windows95"].dot{background:#0000aa}.theme-option[data-value="underwater"].dot{background:#00b4d8}.theme-option[data-value="noir"].dot{background:#c8a96e}.theme-option[data-value="gameboy"].dot{background:#8bac0f}.theme-option[data-value="dos"].dot{background:#aaa}
+
+@media(max-width:640px){nav.topbar{padding:0 4px}.container{padding:0 8px}.card-grid{grid-template-columns:1fr 1fr}.status-bar{display:none}}

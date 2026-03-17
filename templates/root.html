@@ -1,6 +1,226 @@
 {% extends "base.html" %}
+{% block title %}LANHub — Home{% endblock %}
 
 {% block content %}
-    <h2>Welcome to LANHub</h2>
-    <p>This dashboard provides real-time insights into your local network. Use the navigation above to explore the latest stats and monitor your devices.</p>
+
+<!-- ── Hero ──────────────────────────────────────────────────── -->
+<div class="fade-up" style="padding: 2.5rem 0 2rem;">
+  <p class="mono" style="color: var(--cyan); letter-spacing: 0.15em; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 10px;">
+    ◈ System Online
+  </p>
+  <h1>Welcome to <span style="color: var(--cyan);">LANHub</span></h1>
+  <p style="color: var(--text-dim); margin-top: 10px; max-width: 480px; font-size: 0.92rem;">
+    Your local network control centre. Games, chat, tools and more — all running on your LAN.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- COMMUNICATIONS                                             -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="category">
+  <div class="category-header">
+    <h2>📡 &nbsp;Communications</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+
+    <a href="/chat" class="feature-card accent-cyan">
+      <div class="card-icon">💬</div>
+      <div class="card-label">Chat</div>
+      <div class="card-title">LAN Chat</div>
+      <div class="card-desc">Real-time messaging with anyone on the same network.</div>
+      <span class="card-badge">Live</span>
+    </a>
+
+    <div class="feature-card accent-cyan soon">
+      <div class="card-icon">📢</div>
+      <div class="card-label">Announcements</div>
+      <div class="card-title">Broadcast</div>
+      <div class="card-desc">Push alerts and announcements to all connected devices.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-cyan soon">
+      <div class="card-icon">📁</div>
+      <div class="card-label">File Share</div>
+      <div class="card-title">Drop Zone</div>
+      <div class="card-desc">Instantly share files with others on the LAN.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- GAMES                                                      -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="category">
+  <div class="category-header">
+    <h2>🎮 &nbsp;Games</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+
+    <div class="feature-card accent-purple soon">
+      <div class="card-icon">♟️</div>
+      <div class="card-label">Board Games</div>
+      <div class="card-title">Chess</div>
+      <div class="card-desc">Play chess against someone else on your network.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-purple soon">
+      <div class="card-icon">🃏</div>
+      <div class="card-label">Card Games</div>
+      <div class="card-title">Uno</div>
+      <div class="card-desc">Multiplayer Uno. Draw four your friends.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-purple soon">
+      <div class="card-icon">🐍</div>
+      <div class="card-label">Arcade</div>
+      <div class="card-title">Snake Royale</div>
+      <div class="card-desc">Last snake standing wins. Up to 8 players.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-purple soon">
+      <div class="card-icon">❓</div>
+      <div class="card-label">Trivia</div>
+      <div class="card-title">Quiz Night</div>
+      <div class="card-desc">Host a trivia game for up to 20 players in real time.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- SERVER STATS                                               -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="category">
+  <div class="category-header">
+    <h2>📊 &nbsp;Server Stats</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+
+    <a href="/stats" class="feature-card accent-green">
+      <div class="card-icon">🖥️</div>
+      <div class="card-label">System</div>
+      <div class="card-title">Live Monitor</div>
+      <div class="card-desc">CPU, RAM, network I/O and uptime at a glance.</div>
+      <span class="card-badge">Live</span>
+    </a>
+
+    <div class="feature-card accent-green soon">
+      <div class="card-icon">📶</div>
+      <div class="card-label">Network</div>
+      <div class="card-title">Connected Devices</div>
+      <div class="card-desc">See who's on the LAN and their activity.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-green soon">
+      <div class="card-icon">📜</div>
+      <div class="card-label">Logs</div>
+      <div class="card-title">Log Viewer</div>
+      <div class="card-desc">Browse access, app, and error logs in the browser.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- TOOLS                                                      -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="category">
+  <div class="category-header">
+    <h2>🔧 &nbsp;Tools</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+
+    <div class="feature-card accent-amber soon">
+      <div class="card-icon">📋</div>
+      <div class="card-label">Utility</div>
+      <div class="card-title">Clipboard Sync</div>
+      <div class="card-desc">Share clipboard text instantly across LAN devices.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-amber soon">
+      <div class="card-icon">⏱️</div>
+      <div class="card-label">Utility</div>
+      <div class="card-title">Shared Timer</div>
+      <div class="card-desc">Countdown timers visible to the whole network.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-amber soon">
+      <div class="card-icon">📝</div>
+      <div class="card-label">Utility</div>
+      <div class="card-title">Notepad</div>
+      <div class="card-desc">A shared scratchpad everyone on the LAN can edit.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-amber soon">
+      <div class="card-icon">🗳️</div>
+      <div class="card-label">Utility</div>
+      <div class="card-title">Poll / Vote</div>
+      <div class="card-desc">Quick anonymous polls for decisions or fun.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- DEV / MOD TOOLS                                            -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="category">
+  <div class="category-header">
+    <h2>⚙️ &nbsp;DEV / MOD Tools</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+
+    <div class="feature-card accent-red soon">
+      <div class="card-icon">🚫</div>
+      <div class="card-label">Moderation</div>
+      <div class="card-title">IP Ban Manager</div>
+      <div class="card-desc">Block or unblock IPs from accessing the hub.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-red soon">
+      <div class="card-icon">🏷️</div>
+      <div class="card-label">Moderation</div>
+      <div class="card-title">Report Queue</div>
+      <div class="card-desc">Review user-submitted /report flags from chat.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-red soon">
+      <div class="card-icon">🔄</div>
+      <div class="card-label">Server</div>
+      <div class="card-title">Restart / Update</div>
+      <div class="card-desc">Trigger a git pull and service restart from the browser.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+    <div class="feature-card accent-red soon">
+      <div class="card-icon">🗃️</div>
+      <div class="card-label">Database</div>
+      <div class="card-title">DB Inspector</div>
+      <div class="card-desc">Browse and query the app database in the browser.</div>
+      <span class="card-badge">Coming Soon</span>
+    </div>
+
+  </div>
+</div>
+
 {% endblock %}

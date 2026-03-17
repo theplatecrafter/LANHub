@@ -1,25 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Place Holder Header</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}LANHub{% endblock %}</title>
+
+  <link id="theme-stylesheet"
+        rel="stylesheet"
+        href="{{ url_for('static', filename='themes/dark.css') }}" />
+
+  <!-- Apply saved theme BEFORE paint — prevents flash -->
+  <script>
+    (function () {
+      var saved = localStorage.getItem("lanhub-theme") || "dark";
+      document.getElementById("theme-stylesheet").href = "/static/themes/" + saved + ".css";
+    })();
+  </script>
+
+  {% block head %}{% endblock %}
 </head>
 <body>
 
-    <header style="background: #333; color: white; padding: 1rem;">
-        <h1>Network Dashboard</h1>
-        <nav>
-            <a href="/" style="color: white;">Home</a> | 
-        </nav>
-    </header>
+  <!-- ── Top Nav ───────────────────────────────────────────── -->
+  <nav class="topbar">
+    <a href="/" class="brand">LANHub</a>
 
-    <main>
-        Place Holder Description
-    </main>
+    <ul class="nav-links">
+      <li><a href="/"      class="{{ 'active' if request.path == '/' }}">Home</a></li>
+      <li><a href="/chat"  class="{{ 'active' if request.path == '/chat' }}">Chat</a></li>
+      <li><a href="/stats" class="{{ 'active' if request.path == '/stats' }}">Stats</a></li>
+    </ul>
 
-    <footer>
-        <p>&copy; 2026 Network Monitor</p>
-    </footer>
+    <!-- Theme picker -->
+    <div class="theme-picker" id="themePicker">
+      <button class="theme-btn" id="themeBtn" onclick="toggleThemePicker()" aria-label="Switch theme">
+        <span class="swatch"></span>
+        <span id="themeLabel">Mission Control</span>
+        <em class="chevron">▼</em>
+      </button>
+      <div class="theme-dropdown" id="themeDropdown">
+        <button class="theme-option" data-value="dark"      onclick="setTheme('dark')">      <span class="dot"></span> Mission Control </button>
+        <button class="theme-option" data-value="mech"      onclick="setTheme('mech')">      <span class="dot"></span> Mech            </button>
+        <button class="theme-option" data-value="kawaii"    onclick="setTheme('kawaii')">    <span class="dot"></span> Kawaii          </button>
+        <button class="theme-option" data-value="paper"     onclick="setTheme('paper')">     <span class="dot"></span> Paper           </button>
+        <button class="theme-option" data-value="matrix"    onclick="setTheme('matrix')">    <span class="dot"></span> Matrix          </button>
+        <button class="theme-option" data-value="vaporwave" onclick="setTheme('vaporwave')"> <span class="dot"></span> Vaporwave       </button>
+        <button class="theme-option" data-value="blueprint" onclick="setTheme('blueprint')"> <span class="dot"></span> Blueprint       </button>
+        <button class="theme-option" data-value="neon-tokyo"onclick="setTheme('neon-tokyo')"><span class="dot"></span> Neon Tokyo      </button>
+        <button class="theme-option" data-value="outrun"    onclick="setTheme('outrun')">    <span class="dot"></span> Outrun          </button>
+        <button class="theme-option" data-value="windows95" onclick="setTheme('windows95')"> <span class="dot"></span> Windows 95      </button>
+        <button class="theme-option" data-value="underwater"onclick="setTheme('underwater')"><span class="dot"></span> Underwater      </button>
+        <button class="theme-option" data-value="noir"      onclick="setTheme('noir')">      <span class="dot"></span> Noir            </button>
+        <button class="theme-option" data-value="gameboy"   onclick="setTheme('gameboy')">   <span class="dot"></span> Game Boy        </button>
+        <button class="theme-option" data-value="dos"       onclick="setTheme('dos')">       <span class="dot"></span> DOS             </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Live Status Bar ───────────────────────────────────── -->
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="dot" id="srv-dot"></span>
+      <span>Server</span>
+      <span id="srv-status">connecting…</span>
+    </div>
+    <div class="status-item">
+      <span>CPU</span>
+      <span id="stat-cpu">—</span>
+    </div>
+    <div class="status-item">
+      <span>RAM</span>
+      <span id="stat-ram">—</span>
+    </div>
+  </div>
+
+  <!-- ── Page Content ──────────────────────────────────────── -->
+  <main class="page-wrap">
+    <div class="container">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    /* ── Theme switcher ──────────────────────────────────────── */
+    const THEMES = {
+      dark:       "Mission Control",
+      mech:       "Mech",
+      kawaii:     "Kawaii",
+      paper:      "Paper",
+      matrix:     "Matrix",
+      vaporwave:  "Vaporwave",
+      blueprint:  "Blueprint",
+      "neon-tokyo": "Neon Tokyo",
+      outrun:     "Outrun",
+      windows95:  "Windows 95",
+      underwater: "Underwater",
+      noir:       "Noir",
+      gameboy:    "Game Boy",
+      dos:        "DOS",
+    };
+
+    function setTheme(theme) {
+      document.getElementById("theme-stylesheet").href = "/static/themes/" + theme + ".css";
+      localStorage.setItem("lanhub-theme", theme);
+      document.getElementById("themeLabel").textContent = THEMES[theme] || theme;
+      document.querySelectorAll(".theme-option").forEach(el => {
+        el.classList.toggle("active", el.dataset.value === theme);
+      });
+      closePicker();
+    }
+
+    function toggleThemePicker() {
+      document.getElementById("themePicker").classList.toggle("open");
+    }
+
+    function closePicker() {
+      document.getElementById("themePicker").classList.remove("open");
+    }
+
+    document.addEventListener("click", e => {
+      if (!document.getElementById("themePicker").contains(e.target)) closePicker();
+    });
+
+    (function () {
+      const current = localStorage.getItem("lanhub-theme") || "dark";
+      document.getElementById("themeLabel").textContent = THEMES[current] || current;
+      document.querySelectorAll(".theme-option").forEach(el => {
+        el.classList.toggle("active", el.dataset.value === current);
+      });
+    })();
+
+    /* ── Live server stats ───────────────────────────────────── */
+    const _socket = io();
+
+    _socket.on("connect", () => {
+      document.getElementById("srv-dot").classList.remove("warn", "error");
+      document.getElementById("srv-status").textContent = "online";
+    });
+
+    _socket.on("disconnect", () => {
+      document.getElementById("srv-dot").classList.add("warn");
+      document.getElementById("srv-status").textContent = "disconnected";
+    });
+
+    _socket.on("server_stats", data => {
+      if (data.cpu !== undefined) {
+        const el = document.getElementById("stat-cpu");
+        el.textContent = data.cpu.toFixed(1) + "%";
+        el.style.color = data.cpu > 80 ? "var(--red)" : data.cpu > 50 ? "var(--amber)" : "var(--green)";
+      }
+      if (data.ram !== undefined) {
+        const el = document.getElementById("stat-ram");
+        el.textContent = data.ram.toFixed(1) + "%";
+        el.style.color = data.ram > 85 ? "var(--red)" : data.ram > 60 ? "var(--amber)" : "var(--green)";
+      }
+    });
+  </script>
+
+  {% block scripts %}{% endblock %}
 </body>
 </html>

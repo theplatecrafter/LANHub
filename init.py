@@ -63,3 +63,4 @@ def ensure_redirector_exists():
 def initialize():
     create_directories()
     ensure_redirector_exists()
+    init_db()
