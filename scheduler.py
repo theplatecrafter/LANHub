@@ -42,7 +42,7 @@ def sch_redirector_update():
 ##########################################################
 scheduler = BackgroundScheduler()
 scheduler.add_job(update_stats, "interval", seconds=3)
-scheduler.add_job(sch_redirector_update, "interval", seconds=10)
+scheduler.add_job(sch_redirector_update, "interval", seconds=60)
 
 def start_scheduler():
     update_stats()
