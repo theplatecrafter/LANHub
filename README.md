@@ -3,15 +3,14 @@
 ## **Description**
 
 ## **Setup Steps**
-### **A: Server Setup**
-#### **1: Create a Server**
+### **1: Create a Server**
 It is recommended to use a server OS, however, if wi-fi connection requires complicated captcha, it is best to use a desktop OS such as the __Ubuntu Desktop LTS (22.04 or 24.04)__.
 
 This tutorial will show how to setup LANHUB for __linux-based OS__.
 
 Make sure to set server/desktop OS to __autoconnect to a wi-fi network__.
 
-##### **For Desktop OS Users**
+#### **For Desktop OS Users**
 
 In order to disable sleep/hibernation to keep the server running 24/7, you can run the following command line in your server:
 ```bash
@@ -36,7 +35,7 @@ sudo reboot
 ```
 ---
 
-#### 2: **Depoly LANHub App**
+### 2: **Depoly LANHub App**
 
 On the server console
 Install Git if needed:
@@ -80,7 +79,7 @@ Do **not** run app.py yet.
 
 
 ---
-#### **3:Create systemd Service**
+### **3:Create systemd Service**
 Create service file:
 
 ```bash
@@ -144,7 +143,7 @@ sudo systemctl stop lanhub
 ---
 
 
-#### **4: Dynamic Redirector Setup**
+### **4: Dynamic Redirector Setup**
 This allows users to visit a set GitHub Pages URL to find your server.
 
 Since the server updates GitHub automatically, you must use SSH keys to avoid "Authentication Failed" errors.
@@ -206,8 +205,7 @@ This should run properly
 ---
 
 
-
-#### Extra: **Open a SSH to the Server**
+### Extra: **Open a SSH to the Server**
 This opens a ssh to the server console that automatically opens when the server computer starts
 
 In the server terminal:
@@ -237,3 +235,76 @@ sudo systemctl status ssh
 
 You should see `active (running)`.
 
+Use the following command to get the ip address of the server:
+```bash
+ip a
+```
+
+In another linux console in a diffrent computer, you can now access the server using:
+```bash
+ssh your_username@YOUR_SERVER_IP
+```
+where ```your_username``` is the username logged on the server.
+You will need to type in the password you set for that username.
+You are now remotely controlling your Ubuntu server.
+
+You are now remotely controlling your server.
+
+
+
+## **Commands for Updating and Server Control**
+### **Updating**
+In your server console, run the following to stop the systemctl:
+```bash
+sudo systemctl stop lanhub
+```
+
+Then cd into the LANHub repository, and run:
+```bash
+git pull
+```
+
+Then restart the systemctl:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start lanhub
+```
+
+### **Looking at Logs**
+cd into the LANHub repository
+
+General app logs:
+```bash
+tail -f logs/app.log
+```
+
+Static github page redirector logs:
+```bash
+tail -f logs/github_sync.log
+```
+
+User access to server:
+```bash
+tail -f logs/access.log
+```
+
+Errors:
+```bash
+tail -f logs/error.log
+```
+
+Full Log:
+```bash
+journalctl -u lanhub -f
+```
+
+### **Stopping/Starting Server**
+To stop the server:
+```bash
+sudo systemctl stop lanhub
+```
+
+To start the server:
+```bash
+sudo systemctl start lanhub
+```
