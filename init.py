@@ -5,6 +5,8 @@ import os
 import sqlite3
 import subprocess
 from git import Repo
+from werkzeug.security import generate_password_hash
+
 
 
 
@@ -15,7 +17,7 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
  
-    # Core table
+    # ── chat_messages ────────────────────────────────────────
     c.execute("""
         CREATE TABLE IF NOT EXISTS chat_messages (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,20 +29,43 @@ def init_db():
             edited       INTEGER NOT NULL DEFAULT 0
         )
     """)
- 
-    # Migration: add columns to existing DBs that predate them
-    for col, definition in [
+    for col, defn in [
         ("reply_to_id", "INTEGER REFERENCES chat_messages(id)"),
         ("edited",      "INTEGER NOT NULL DEFAULT 0"),
     ]:
         try:
-            c.execute(f"ALTER TABLE chat_messages ADD COLUMN {col} {definition}")
+            c.execute(f"ALTER TABLE chat_messages ADD COLUMN {col} {defn}")
         except Exception:
-            pass   # column already exists — that's fine
+            pass
+ 
+    # ── admins ───────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS admins (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            username      TEXT    NOT NULL UNIQUE,
+            password_hash TEXT    NOT NULL,
+            role          TEXT    NOT NULL CHECK(role IN ('MOD','DEV'))
+        )
+    """)
+ 
+    # Seed initial DEV account if no admins exist yet
+    c.execute("SELECT COUNT(*) FROM admins")
+    if c.fetchone()[0] == 0:
+        from werkzeug.security import generate_password_hash
+        c.execute(
+            "INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)",
+            (
+                INITIAL_DEV_USERNAME,
+                generate_password_hash(INITIAL_DEV_PASSWORD),
+                "DEV",
+            )
+        )
+        app_log.info(f"[admin] Seeded initial DEV account: {INITIAL_DEV_USERNAME!r}")
  
     conn.commit()
     conn.close()
     app_log.info("Database initialized.")
+
 
 
 

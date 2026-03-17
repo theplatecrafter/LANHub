@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+{% block title %}LANHub — Admin Power Control{% endblock %}
+
+{% block head %}
+<style>
+  .page-wrap { padding: 0 !important; }
+
+  .apc-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 24px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .apc-header h1 { font-size: 1.1rem; }
+  .dev-badge {
+    font-family: var(--font-mono); font-size: 0.65rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 20px;
+    background: var(--red-dim); color: var(--red); border: 1px solid var(--red);
+  }
+
+  .apc-body {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* ── Admin table ─────────────────────────────────────── */
+  .admin-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .admin-card-title {
+    padding: 14px 20px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  table.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table.admin-table th {
+    font-family: var(--font-mono); font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-dim); text-align: left;
+    padding: 10px 20px; border-bottom: 1px solid var(--border);
+  }
+  table.admin-table td {
+    font-family: var(--font-mono); font-size: 0.82rem;
+    color: var(--text); padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.admin-table tbody tr:last-child td { border-bottom: none; }
+  table.admin-table tbody tr:hover td { background: var(--bg-hover); }
+
+  .role-chip {
+    display: inline-block;
+    font-family: var(--font-mono); font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 2px 8px; border-radius: 20px; border: 1px solid;
+  }
+  .role-chip.MOD { color: var(--amber); border-color: var(--amber); background: var(--amber-dim); }
+  .role-chip.DEV { color: var(--red);   border-color: var(--red);   background: var(--red-dim); }
+
+  .table-actions { display: flex; gap: 6px; }
+
+  .tbl-btn {
+    padding: 4px 12px; border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 0.7rem;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); cursor: pointer;
+    transition: all 0.12s ease; letter-spacing: 0.04em;
+  }
+  .tbl-btn:hover           { border-color: var(--cyan);  color: var(--cyan);  background: var(--cyan-dim); }
+  .tbl-btn.danger:hover    { border-color: var(--red);   color: var(--red);   background: var(--red-dim); }
+  .tbl-btn:disabled        { opacity: 0.3; cursor: not-allowed; }
+
+  /* ── Create form ─────────────────────────────────────── */
+  .create-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 10px;
+    padding: 16px 20px;
+    align-items: end;
+    border-top: 1px solid var(--border);
+  }
+  .create-form .form-group { margin: 0; }
+  .create-form label {
+    display: block;
+    font-family: var(--font-mono); font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-dim); margin-bottom: 5px;
+  }
+  .create-form input,
+  .create-form select {
+    width: 100%; padding: 7px 10px;
+    background: var(--bg); border: 1px solid var(--border-hi);
+    border-radius: var(--radius);
+    color: var(--text-bright); font-family: var(--font-mono);
+    font-size: 0.82rem; outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .create-form input:focus,
+  .create-form select:focus { border-color: var(--cyan); }
+
+  .create-btn {
+    padding: 8px 18px; border-radius: var(--radius); border: none;
+    background: var(--cyan); color: var(--bg);
+    font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    cursor: pointer; transition: opacity 0.15s ease; white-space: nowrap;
+  }
+  .create-btn:hover { opacity: 0.85; }
+
+  /* ── Toast ───────────────────────────────────────────── */
+  #apc-toast {
+    position: fixed; bottom: 24px; right: 24px;
+    padding: 10px 18px; border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 0.8rem;
+    border: 1px solid; z-index: 999;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+  }
+  #apc-toast.show { opacity: 1; transform: translateY(0); }
+  #apc-toast.ok  { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  #apc-toast.err { background: var(--red-dim);   border-color: var(--red);   color: var(--red); }
+
+  /* ── Edit modal ──────────────────────────────────────── */
+  #edit-modal-bg {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center; z-index: 200;
+  }
+  #edit-modal-bg.open { display: flex; }
+  #edit-modal {
+    background: var(--bg-panel); border: 1px solid var(--border-hi);
+    border-radius: var(--radius-lg); padding: 2rem;
+    width: 380px; max-width: 90vw;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    animation: modal-in 0.2s ease;
+  }
+  @keyframes modal-in {
+    from { opacity:0; transform:translateY(10px) scale(0.97); }
+    to   { opacity:1; transform:translateY(0) scale(1); }
+  }
+  #edit-modal h3 { font-size: 1rem; margin-bottom: 16px; }
+  .modal-form-group { margin-bottom: 14px; }
+  .modal-form-group label {
+    display: block; font-family: var(--font-mono); font-size: 0.65rem;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 5px;
+  }
+  .modal-form-group input,
+  .modal-form-group select {
+    width: 100%; padding: 8px 12px;
+    background: var(--bg); border: 1px solid var(--border-hi);
+    border-radius: var(--radius); color: var(--text-bright);
+    font-family: var(--font-mono); font-size: 0.9rem; outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .modal-form-group input:focus,
+  .modal-form-group select:focus { border-color: var(--cyan); }
+  .modal-hint { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); margin-top: 4px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+  .modal-cancel {
+    padding: 8px 16px; border-radius: var(--radius);
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-family: var(--font-mono); font-size: 0.78rem;
+    cursor: pointer; transition: all 0.12s ease;
+  }
+  .modal-cancel:hover { border-color: var(--border-hi); color: var(--text-bright); }
+  .modal-save {
+    padding: 8px 20px; border-radius: var(--radius); border: none;
+    background: var(--cyan); color: var(--bg); font-family: var(--font-mono);
+    font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    cursor: pointer; transition: opacity 0.15s ease;
+  }
+  .modal-save:hover { opacity: 0.85; }
+
+  @media (max-width: 600px) {
+    .create-form { grid-template-columns: 1fr 1fr; }
+    .create-form .create-btn { grid-column: 1/-1; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="apc-header">
+  <h1>⚙️ Admin Power Control</h1>
+  <span class="dev-badge">DEV only</span>
+  <span style="margin-left:auto; font-family:var(--font-mono); font-size:0.72rem; color:var(--text-dim);">
+    Logged in as <strong style="color:var(--red)">{{ session.admin_name }}</strong>
+  </span>
+</div>
+
+<div class="apc-body">
+  <div class="admin-card">
+    <div class="admin-card-title">
+      <span>Admins ({{ admins|length }})</span>
+    </div>
+
+    <table class="admin-table" id="admin-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in admins %}
+        <tr id="admin-row-{{ a.id }}">
+          <td>{{ a.id }}</td>
+          <td>{{ a.username }}</td>
+          <td><span class="role-chip {{ a.role }}">{{ a.role }}</span></td>
+          <td>
+            <div class="table-actions">
+              <button class="tbl-btn"
+                onclick="openEditModal({{ a.id }}, '{{ a.username }}', '{{ a.role }}')">
+                Edit
+              </button>
+              <button class="tbl-btn danger"
+                {% if a.username == session.admin_name %}disabled title="Cannot delete yourself"{% endif %}
+                onclick="deleteAdmin({{ a.id }}, '{{ a.username }}')">
+                Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Create new admin -->
+    <div class="create-form" id="create-form">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="new-username" placeholder="admin_name" autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="new-password" placeholder="••••••••" />
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="new-role">
+          <option value="MOD">MOD</option>
+          <option value="DEV">DEV</option>
+        </select>
+      </div>
+      <button class="create-btn" onclick="createAdmin()">+ Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div id="edit-modal-bg">
+  <div id="edit-modal">
+    <h3>Edit Admin</h3>
+    <input type="hidden" id="edit-id" />
+    <div class="modal-form-group">
+      <label>Username</label>
+      <input type="text" id="edit-username" autocomplete="off" />
+    </div>
+    <div class="modal-form-group">
+      <label>New Password</label>
+      <input type="password" id="edit-password" placeholder="Leave blank to keep current" />
+      <div class="modal-hint">Leave blank to keep the existing password.</div>
+    </div>
+    <div class="modal-form-group">
+      <label>Role</label>
+      <select id="edit-role">
+        <option value="MOD">MOD</option>
+        <option value="DEV">DEV</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeEditModal()">Cancel</button>
+      <button class="modal-save" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="apc-toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function showToast(msg, ok) {
+    const el = document.getElementById("apc-toast");
+    el.textContent = msg;
+    el.className   = "show " + (ok ? "ok" : "err");
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.className = ok ? "ok" : "err"; }, 3000);
+  }
+
+  // ── Create ────────────────────────────────────────────────
+  async function createAdmin() {
+    const username = document.getElementById("new-username").value.trim();
+    const password = document.getElementById("new-password").value;
+    const role     = document.getElementById("new-role").value;
+
+    const res  = await fetch("/admin/power/create", {
+      method: "POST",
+      body: new URLSearchParams({ username, password, role }),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      showToast("Admin created.", true);
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast(data.error, false);
+    }
+  }
+
+  // ── Edit modal ────────────────────────────────────────────
+  function openEditModal(id, username, role) {
+    document.getElementById("edit-id").value       = id;
+    document.getElementById("edit-username").value = username;
+    document.getElementById("edit-password").value = "";
+    document.getElementById("edit-role").value     = role;
+    document.getElementById("edit-modal-bg").classList.add("open");
+  }
+
+  function closeEditModal() {
+    document.getElementById("edit-modal-bg").classList.remove("open");
+  }
+
+  async function saveEdit() {
+    const id       = document.getElementById("edit-id").value;
+    const username = document.getElementById("edit-username").value.trim();
+    const password = document.getElementById("edit-password").value;
+    const role     = document.getElementById("edit-role").value;
+
+    const res  = await fetch(`/admin/power/edit/${id}`, {
+      method: "POST",
+      body: new URLSearchParams({ username, password, role }),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      showToast("Saved.", true);
+      closeEditModal();
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast(data.error, false);
+    }
+  }
+
+  // ── Delete ────────────────────────────────────────────────
+  async function deleteAdmin(id, username) {
+    if (!confirm(`Delete admin "${username}"? This cannot be undone.`)) return;
+    const res  = await fetch(`/admin/power/delete/${id}`, { method: "POST" });
+    const data = await res.json();
+    if (data.ok) {
+      showToast("Deleted.", true);
+      document.getElementById(`admin-row-${id}`)?.remove();
+    } else {
+      showToast(data.error, false);
+    }
+  }
+
+  // Close modal on background click
+  document.getElementById("edit-modal-bg").addEventListener("click", e => {
+    if (e.target === e.currentTarget) closeEditModal();
+  });
+</script>
+{% endblock %}

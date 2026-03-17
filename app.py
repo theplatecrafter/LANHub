@@ -9,26 +9,31 @@ from socketio_instance import socketio
 import scheduler as sch
 import sys
 import signal
+from configvars import SECRET_KEY
 
 app = Flask(__name__)
+app.secret_key = SECRET_KEY
 
 # Blueprints
 from blueprints.chat import chat_bp
 from blueprints.stats import stats_bp
 from blueprints.logs import logs_bp
 from blueprints.devices import devices_bp
+from blueprints.admin import admin_bp
+
 
 
 # Socket event handlers
 import socket_events.chat_events
 import socket_events.global_events
 
-app.secret_key = os.urandom(24)
+
 socketio.init_app(app)
 app.register_blueprint(chat_bp)
 app.register_blueprint(stats_bp)
 app.register_blueprint(logs_bp)
 app.register_blueprint(devices_bp)
+app.register_blueprint(admin_bp)
 
 
 ###########################################

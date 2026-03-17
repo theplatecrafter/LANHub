@@ -29,6 +29,7 @@
       <li><a href="/"      class="{{ 'active' if request.path == '/' }}">Home</a></li>
       <li><a href="/chat"  class="{{ 'active' if request.path == '/chat' }}">Chat</a></li>
       <li><a href="/stats" class="{{ 'active' if request.path == '/stats' }}">Stats</a></li>
+      <li><a href="/admin/login" class="{{ 'active' if '/admin' in request.path }}">Admin</a></li>
     </ul>
 
     <!-- Theme picker -->
