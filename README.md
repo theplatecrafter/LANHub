@@ -174,7 +174,7 @@ Under **Branch**, select ```main``` and ```/root```, then hit save.
 cd into the LANHub directory, then run the following command:
 Make sure to replace ```<redirector-link>``` with the github link of the repository you just created.
 ```bash
-sed -i 's#^REPO_URL = .*#REPO_URL = "<redirector-link>"#' glob_vars.py
+sed -i 's#^REPO_URL = .*#REPO_URL = "<redirector-link>"#' configvars.py
 ```
 
 Run the app:
