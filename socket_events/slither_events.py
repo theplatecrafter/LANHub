@@ -37,6 +37,7 @@ def _cfg():
         'FOOD_DENSITY':  float(getattr(config, 'SLITHER_FOOD_DENSITY',    0.000032)),
         'MAX_FOOD':      int(  getattr(config, 'SLITHER_MAX_FOOD',        420)),
         'SEGS_CAP':      int(  getattr(config, 'SLITHER_SEND_SEGS_CAP',   140)),
+        'SIZE_GROWTH':   float(getattr(config, 'SLITHER_SEGMENT_SIZE_GROWTH',  0.008)),
     }
 
 
@@ -279,13 +280,14 @@ def on_join(data):
     with _lock:
         _spawn(sid, username, color, c)
         socketio.emit('slither_init', {
-            'food':    list(_food.values()),
-            'world_r': round(_world_r(c)),
-            'my_sid':  sid,
+            'food':        list(_food.values()),
+            'world_r':     round(_world_r(c)),
+            'my_sid':      sid,
+            'size_growth': c['SIZE_GROWTH'],
         }, to=sid)
 
     app_log.info(f"[slither] {username!r} joined ({sid})")
-    _start_loop()
+    _start_loop()   # ← this line was dropped, add it back
 
 
 @socketio.on('slither_input')

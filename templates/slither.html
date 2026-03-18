@@ -302,6 +302,7 @@ let custRaf  = null;
 let custT    = 0;
 let inputInt = null;
 let boostShown = false;
+let sizeGrowth = 0.008;
 
 const root = document.getElementById('sl-root');
 const gc   = document.getElementById('gc');
@@ -316,9 +317,10 @@ window.addEventListener('resize', resize);
 const socket = _socket;
 
 socket.on('connect',       () => { mySid = socket.id; });
-socket.on('slither_init',  d  => {
-  mySid = d.my_sid || socket.id;
-  srv   = { players:[], food: d.food||[], world_r: d.world_r||2200 };
+socket.on('slither_init', d => {
+  mySid      = d.my_sid || socket.id;
+  sizeGrowth = Math.max(0, isFinite(+d.size_growth) ? +d.size_growth : 0.008);
+  srv        = { players:[], food: d.food||[], world_r: d.world_r||2200 };
 });
 socket.on('slither_state', d => {
   srv = d;
@@ -530,11 +532,12 @@ function drawSnakes(players) {
     const segs=p.segs; if (!segs?.length) continue;
     const isMe=p.sid===mySid, boost=p.boosting, hAng=headAngle(segs);
     ctx.save(); ctx.shadowColor=p.color;
+    const fatness = 1 + sizeGrowth * Math.max(0, segs.length - 22);
     for (let i=segs.length-1;i>=0;i--) {
       const [wx,wy]=segs[i],[sx,sy]=ws(wx,wy);
       if (sx<-28||sx>W+28||sy<-28||sy>H+28) continue;
       const isHead=i===0, frac=1-i/segs.length;
-      const r=(isHead?12:8)*zoom*(.72+frac*.28);
+      const r = (isHead ? 12 : 8) * zoom * (.72 + frac * .28) * fatness;
       const pulse=isHead?Math.sin(t*2.8)*1.2*zoom:0;
       ctx.shadowBlur=(boost?30:17)*zoom*frac; ctx.globalAlpha=.52+frac*.48;
       ctx.fillStyle=isHead?lighten(p.color,65):p.color;
