@@ -8,12 +8,14 @@ no image is ever downloaded or cached by the server.
 
 Requires: pip install streetview
 """
-import uuid, time, threading, random, math
+import uuid, time, threading, random, math, urllib.request
+import json as _json
 from flask import request
 from flask_socketio import emit
 from socketio_instance import socketio
 from glob_vars import app_log, error_log
 import functions as f
+import config
 
 # ── Try importing streetview ───────────────────────────────────────────────────
 try:
@@ -134,13 +136,228 @@ def haversine_km(lat1, lng1, lat2, lng2) -> float:
     return 2 * R * math.asin(math.sqrt(max(0.0, min(1.0, a))))
 
 
-def geo_score(distance_km: float) -> int:
-    if distance_km < 0.025:
-        return 5000
-    return round(max(0, 5000 * math.exp(-distance_km / 2000)))
+def _region_diagonal_km(region: list) -> float:
+    """Bounding-box diagonal of the polygon in km (≈ max in-region distance)."""
+    lats = [p[0] for p in region]
+    lngs = [p[1] for p in region]
+    return haversine_km(min(lats), min(lngs), max(lats), max(lngs))
+ 
+ 
+def geo_score(distance_km: float,
+              region: list = None,
+              region_is_world: bool = True) -> int:
+    """
+    Score a guess (0–5000).
+ 
+    World mode / no region
+        decay = 2000 km  (original formula, unchanged)
+ 
+    Custom region
+        decay = bbox_diagonal * GEO_REGION_SCORE_DECAY_FACTOR
+        This scales the full 0–5000 range to the actual size of the region,
+        so near-misses within a small area still produce meaningful spread.
+    """
+    if region_is_world or not region:
+        # ── Original world-scale formula ──────────────────────────────────
+        if distance_km < 0.025:
+            return 5000
+        return round(max(0, 5000 * math.exp(-distance_km / 2000)))
+    else:
+        # ── Region-scaled formula ──────────────────────────────────────────
+        factor    = float(getattr(config, "GEO_REGION_SCORE_DECAY_FACTOR", 0.5))
+        diagonal  = _region_diagonal_km(region)
+        decay     = max(0.1, diagonal * factor)   # floor at 100 m
+        perfect   = max(0.001, diagonal * 0.0005) # 0.05 % of diagonal
+        if distance_km < perfect:
+            return 5000
+        return round(max(0, 5000 * math.exp(-distance_km / decay)))
 
 
-# ── Panorama location lookup ───────────────────────────────────────────────────
+# ── Street View Metadata API (official, free, reliable) ───────────────────────
+
+def _sv_metadata_check(lat: float, lng: float, radius_m: int, api_key: str) -> "tuple | None":
+    """
+    Query the official Street View Static API metadata endpoint.
+    Free to use (zero cost per call), supports radius, returns actual pano coords.
+
+    Response shape: { "status": "OK"|"ZERO_RESULTS"|...,
+                      "pano_id": "...",
+                      "location": {"lat": ..., "lng": ...} }
+
+    Returns (pano_id, pano_lat, pano_lng) on success, or None.
+    pano_lat/pano_lng are the panorama's ACTUAL position, not the query point.
+    """
+    url = (
+        "https://maps.googleapis.com/maps/api/streetview/metadata"
+        f"?location={lat},{lng}&radius={radius_m}&source=outdoor&key={api_key}"
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=6) as resp:
+            data = _json.loads(resp.read().decode())
+        if data.get("status") != "OK":
+            return None
+        pano_id  = data.get("pano_id", "")
+        location = data.get("location", {})
+        pano_lat = float(location.get("lat", lat))
+        pano_lng = float(location.get("lng", lng))
+        if not pano_id:
+            return None
+        return pano_id, pano_lat, pano_lng
+    except Exception as e:
+        app_log.debug(f"[geo] metadata check error ({lat:.3f},{lng:.3f}) r={radius_m}m: {e}")
+        return None
+
+
+def _generate_grid_candidates(region: list, grid_step: float) -> list:
+    """
+    Generate a uniformly shuffled list of (lat, lng) candidate points on a
+    regular grid inside the polygon. Adaptively halves grid_step until at
+    least 2 interior points are found. The centroid is included as a regular
+    candidate (no special priority) so each round starts at a different point.
+    """
+    lats = [p[0] for p in region]
+    lngs = [p[1] for p in region]
+    mn_lat, mx_lat = min(lats), max(lats)
+    mn_lng, mx_lng = min(lngs), max(lngs)
+    c_lat = sum(lats) / len(lats)
+    c_lng = sum(lngs) / len(lngs)
+ 
+    step = grid_step
+    candidates = []
+    while step >= 0.001:
+        candidates = []
+        lat = mn_lat + step / 2
+        while lat <= mx_lat + step / 2:
+            lng = mn_lng + step / 2
+            while lng <= mx_lng + step / 2:
+                if _point_in_polygon(lat, lng, region):
+                    candidates.append((lat, lng))
+                lng += step
+            lat += step
+        if len(candidates) >= 2:
+            break
+        step /= 2
+ 
+    # Add centroid as a regular candidate (not prioritised)
+    centroid = (c_lat, c_lng)
+    if centroid not in candidates:
+        candidates.append(centroid)
+ 
+    # Fully shuffle — every round starts at a different grid cell
+    random.shuffle(candidates)
+    return candidates
+
+
+def _find_pano_region(region: list, api_key: str, on_timeout=None) -> "tuple | None":
+    """
+    Grid-based region search using the official Street View Metadata API.
+ 
+    Grid step is computed dynamically from the polygon's bounding box so that
+    small regions get a fine grid (good coverage + variety) and large regions
+    get a coarser grid (fewer API calls). The step equals:
+ 
+        min(shorter_bbox_dimension / GEO_REGION_GRID_DIVISIONS,
+            GEO_REGION_GRID_STEP_MAX)
+ 
+    Phase 1 — coarse grid at the computed step.
+    Phase 2 — finer grid at half the step.
+    Phase 3 — centroid with escalating radii (2 km → 10 km → 50 km).
+ 
+    Each candidate has random jitter of ±step/2 so the same grid cell returns
+    a different nearby pano each round. The returned pano coordinates are always
+    verified with _point_in_polygon.
+    """
+    # ── Config ────────────────────────────────────────────────────────────────
+    divisions = int(  getattr(config, "GEO_REGION_GRID_DIVISIONS",         8))
+    max_step  = float(getattr(config, "GEO_REGION_GRID_STEP_MAX",        0.5))
+    radius_m  = int(  getattr(config, "GEO_REGION_SEARCH_RADIUS_M",      500))
+    timeout_s = float(getattr(config, "GEO_REGION_SEARCH_TIMEOUT_SECS",   15))
+ 
+    # ── Derive step from bbox ─────────────────────────────────────────────────
+    lats = [p[0] for p in region]
+    lngs = [p[1] for p in region]
+    mn_lat, mx_lat = min(lats), max(lats)
+    mn_lng, mx_lng = min(lngs), max(lngs)
+    c_lat = (mn_lat + mx_lat) / 2
+    c_lng = (mn_lng + mx_lng) / 2
+ 
+    short_dim = min(mx_lat - mn_lat, mx_lng - mn_lng)
+    # Avoid division by zero for degenerate (point-like) polygons
+    grid_step = max(0.001, min(short_dim / max(divisions, 1), max_step))
+ 
+    app_log.info(
+        f"[geo] Region bbox short={short_dim:.4f}° → "
+        f"grid_step={grid_step:.4f}° (~{grid_step * 111:.1f} km)"
+    )
+ 
+    # ── Timeout machinery ─────────────────────────────────────────────────────
+    start_time    = time.time()
+    timeout_fired = False
+ 
+    def _check_timeout():
+        nonlocal timeout_fired
+        if not timeout_fired and on_timeout and (time.time() - start_time) >= timeout_s:
+            timeout_fired = True
+            try:
+                on_timeout()
+                app_log.info("[geo] Region search timeout signal emitted to client")
+            except Exception:
+                pass
+ 
+    def _try_candidates(candidates, phase_name, jitter):
+        for base_lat, base_lng in candidates:
+            lat = base_lat + random.uniform(-jitter, jitter)
+            lng = base_lng + random.uniform(-jitter, jitter)
+            lat = max(-85.0, min(85.0,  lat))
+            lng = max(-180.0, min(180.0, lng))
+ 
+            _check_timeout()
+            result = _sv_metadata_check(lat, lng, radius_m, api_key)
+            if not result:
+                continue
+            pano_id, pano_lat, pano_lng = result
+            if _point_in_polygon(pano_lat, pano_lng, region):
+                app_log.info(
+                    f"[geo] Region pano ({phase_name}): {pano_id} "
+                    f"@ ({pano_lat:.4f},{pano_lng:.4f})"
+                )
+                return pano_id, pano_lat, pano_lng
+            app_log.debug(
+                f"[geo] Pano {pano_id} at ({pano_lat:.3f},{pano_lng:.3f}) "
+                f"outside polygon — skipping"
+            )
+        return None
+ 
+    # Phase 1 — coarse grid
+    c1 = _generate_grid_candidates(region, grid_step)
+    app_log.info(f"[geo] Phase 1: {len(c1)} candidates, jitter=±{grid_step/2:.4f}°")
+    r = _try_candidates(c1, "phase 1", jitter=grid_step / 2)
+    if r:
+        return r
+ 
+    # Phase 2 — finer grid (half step)
+    fine_step = grid_step / 2
+    c2 = _generate_grid_candidates(region, fine_step)
+    app_log.info(f"[geo] Phase 2: {len(c2)} candidates, step={fine_step:.4f}°")
+    r = _try_candidates(c2, "phase 2", jitter=fine_step / 2)
+    if r:
+        return r
+ 
+    # Phase 3 — centroid with escalating radii
+    for big_r in (2_000, 10_000, 50_000):
+        _check_timeout()
+        result = _sv_metadata_check(c_lat, c_lng, big_r, api_key)
+        if result:
+            pano_id, pano_lat, pano_lng = result
+            if _point_in_polygon(pano_lat, pano_lng, region):
+                app_log.info(f"[geo] Region pano (centroid r={big_r}m): {pano_id}")
+                return pano_id, pano_lat, pano_lng
+ 
+    _check_timeout()
+    return None
+
+
+# ── Panorama location lookup (legacy — used for world mode + no-key fallback) ─
 
 def _extract_pano_info(result, default_lat: float, default_lng: float):
     if isinstance(result, dict):
@@ -153,140 +370,111 @@ def _extract_pano_info(result, default_lat: float, default_lng: float):
         pano_lng = float(getattr(result, "lon", getattr(result, "lng", default_lng)))
     return pano_id.strip(), pano_lat, pano_lng
 
-def _find_pano_at(lat: float, lng: float) -> "tuple | None":
-    """
-    Try to find any valid Street View panorama near (lat, lng).
-    Expands search radius in steps: 100 m → 1 km → 5 km → 25 km.
-    Returns (pano_id, pano_lat, pano_lng) on success, or None.
-    The returned lat/lng are the PANORAMA's actual coordinates.
-    """
-    for radius in (100, 1000, 5000, 25000):
-        try:
-            results = _search_panoramas(lat=lat, lon=lng, radius=radius)
-        except Exception as e:
-            app_log.debug(f"[geo] search_panoramas error at r={radius}m ({lat:.3f},{lng:.3f}): {e}")
-            continue
-        if not results:
-            continue
-        pano_id, pano_lat, pano_lng = _extract_pano_info(results[0], lat, lng)
-        if pano_id:
-            app_log.debug(f"[geo] Hit pano {pano_id} at r={radius}m near ({lat:.3f},{lng:.3f})")
-            return pano_id, pano_lat, pano_lng
-    return None
 
-
-def _find_pano(region: list, region_is_world: bool):
+def _find_pano(region: list, region_is_world: bool, on_timeout=None) -> tuple:
     """
-    Guaranteed Street View panorama finder.
- 
-    World mode
-    ──────────
-    Shuffles _WORLD_CITIES and for each city tries up to 4 random jitter
-    variants.  Each variant uses expanding search radii via _find_pano_at.
-    With 160+ cities × 4 variants × 4 radii, the probability of total
-    failure approaches zero.  Falls back to trying city centres directly
-    (no jitter) as a last resort.
- 
-    Custom-region mode
-    ──────────────────
-    1. Attempts up to 30 random points inside the polygon, each with
-       expanding radii.
-    2. If all fail, searches outward from the polygon centroid with very
-       large radii (5 km → 25 km → 100 km → 500 km) — this handles tiny
-       or remote regions.
- 
-    Return value
-    ────────────
-    (pano_id, correct_lat, correct_lng) where the lat/lng are the actual
-    coordinates of the found panorama — always accurate for scoring.
+    Master panorama finder. Never raises (always returns something playable).
+
+    World mode  — weighted city list (85 %) + pure random (15 %), infinite loop.
+    Region mode — uses official Street View Metadata API when an API key is
+                  configured (fast, systematic, free).  Falls back to the old
+                  streetview-library neighbour-search when no key is present.
+                  If the region genuinely has no coverage, silently falls back
+                  to world mode so the game never crashes.
     """
     if not _SV_OK:
         raise Exception(
             "The 'streetview' library is not installed. "
             "Run: pip install streetview"
         )
- 
-    # ── World mode ────────────────────────────────────────────────────────────
+
+    # ── World mode: infinite weighted loop ────────────────────────────────────
     if region_is_world:
-        cities = list(_WORLD_CITIES)
-        random.shuffle(cities)
- 
-        for base_lat, base_lng in cities:
-            for _ in range(4):
-                jitter = random.uniform(0.02, 0.40)
+        while True:
+            if random.random() < 0.85:
+                base_lat, base_lng = random.choice(_WORLD_CITIES)
+                jitter = random.uniform(0.05, 0.45)
                 lat = max(-85.0, min(85.0, base_lat + random.uniform(-jitter, jitter)))
                 lng = max(-180.0, min(180.0, base_lng + random.uniform(-jitter, jitter)))
-                result = _find_pano_at(lat, lng)
-                if result:
-                    app_log.info(
-                        f"[geo] World pano found: {result[0]} @ ({result[1]:.4f},{result[2]:.4f})"
-                    )
-                    return result
- 
-        # Ultra-fallback: exact city centres (no jitter), first 30
-        for base_lat, base_lng in cities[:30]:
-            result = _find_pano_at(base_lat, base_lng)
-            if result:
-                app_log.info(f"[geo] World pano (city-centre fallback): {result[0]}")
-                return result
- 
-        # Should be unreachable, but guard just in case
-        raise Exception(
-            "Could not find a Street View panorama in world mode after exhausting "
-            "the city list. This should never happen — please report this as a bug."
-        )
- 
-    # ── Custom region mode ────────────────────────────────────────────────────
-    pt = _random_polygon_point(region)
-    if pt is None:
-        raise Exception(
-            "Could not generate a point inside the drawn polygon. "
-            "Try drawing a larger region."
-        )
- 
-    # Phase 1: random polygon points with expanding radii
-    for attempt in range(30):
-        pt = _random_polygon_point(region)
-        if pt is None:
-            continue
-        result = _find_pano_at(pt[0], pt[1])
-        if result:
-            app_log.info(
-                f"[geo] Region pano found on attempt {attempt+1}: "
-                f"{result[0]} @ ({result[1]:.4f},{result[2]:.4f})"
-            )
-            return result
- 
-    # Phase 2: centroid fallback with very large radii
-    lats = [p[0] for p in region]
-    lngs = [p[1] for p in region]
-    c_lat = sum(lats) / len(lats)
-    c_lng = sum(lngs) / len(lngs)
-    app_log.info(
-        f"[geo] Region random search exhausted; trying centroid "
-        f"({c_lat:.3f},{c_lng:.3f}) with large radii"
-    )
- 
-    for radius in (5_000, 25_000, 100_000, 500_000):
-        try:
-            results = _search_panoramas(lat=c_lat, lon=c_lng, radius=radius)
-        except Exception as e:
-            app_log.debug(f"[geo] Centroid r={radius}m error: {e}")
-            continue
-        if not results:
-            continue
-        pano_id, pano_lat, pano_lng = _extract_pano_info(results[0], c_lat, c_lng)
-        if pano_id:
-            app_log.info(
-                f"[geo] Region pano via centroid r={radius}m: "
-                f"{pano_id} @ ({pano_lat:.4f},{pano_lng:.4f})"
-            )
+            else:
+                lat = random.uniform(-55, 70)
+                lng = random.uniform(-180, 180)
+
+            try:
+                results = _search_panoramas(lat=lat, lon=lng)
+            except Exception as e:
+                app_log.debug(f"[geo] search_panoramas error at ({lat:.2f},{lng:.2f}): {e}")
+                continue
+
+            if not results:
+                continue
+
+            pano_id, pano_lat, pano_lng = _extract_pano_info(results[0], lat, lng)
+            if not pano_id:
+                continue
+
+            app_log.info(f"[geo] Found pano {pano_id} @ ({pano_lat:.4f},{pano_lng:.4f})")
             return pano_id, pano_lat, pano_lng
- 
-    raise Exception(
-        "No Street View coverage found anywhere in or near the drawn region. "
-        "Try drawing a larger area or choosing a different location."
-    )
+
+    # ── Region mode ───────────────────────────────────────────────────────────
+    if not region or _random_polygon_point(region) is None:
+        app_log.warning("[geo] Empty or degenerate polygon — falling back to world mode")
+        return _find_pano([], True)
+
+    api_key = getattr(config, "GOOGLE_MAPS_EMBED_KEY", "")
+
+    if api_key:
+        # ── Primary path: official Metadata API — systematic, fast, free ─────
+        result = _find_pano_region(region, api_key, on_timeout=on_timeout)
+        if result:
+            return result
+        app_log.warning("[geo] Region search exhausted — falling back to world mode")
+        return _find_pano([], True)
+
+    else:
+        # ── Fallback path: streetview library with neighbour offsets ──────────
+        # Used only when GOOGLE_MAPS_EMBED_KEY is not configured.
+        app_log.warning(
+            "[geo] No API key configured — using streetview library for region mode. "
+            "Set GOOGLE_MAPS_EMBED_KEY in configvars for much faster region search."
+        )
+        max_retries = int(  getattr(config, "GEO_REGION_MAX_RETRIES",      50))
+        spread      = float(getattr(config, "GEO_REGION_NEIGHBOR_SPREAD", 0.015))
+        offsets = [
+            (0.0,    0.0),
+            ( spread, 0.0),
+            (-spread, 0.0),
+            (0.0,    spread),
+            (0.0,   -spread),
+        ]
+        attempt = 0
+        while True:
+            attempt += 1
+            pt = _random_polygon_point(region)
+            if pt is None:
+                break
+            base_lat, base_lng = pt
+            for dlat, dlng in offsets:
+                clat = max(-85.0, min(85.0,  base_lat + dlat))
+                clng = max(-180.0, min(180.0, base_lng + dlng))
+                try:
+                    results = _search_panoramas(lat=clat, lon=clng)
+                except Exception as e:
+                    app_log.debug(f"[geo] Region attempt {attempt}: {e}")
+                    continue
+                if not results:
+                    continue
+                pano_id, pano_lat, pano_lng = _extract_pano_info(results[0], clat, clng)
+                if pano_id:
+                    app_log.info(
+                        f"[geo] Region pano (no-key, attempt {attempt}): "
+                        f"{pano_id} @ ({pano_lat:.4f},{pano_lng:.4f})"
+                    )
+                    return pano_id, pano_lat, pano_lng
+            if attempt >= max_retries:
+                break
+        app_log.warning("[geo] Region no-key search exhausted — falling back to world mode")
+        return _find_pano([], True)
 
 
 # ── Room helpers ──────────────────────────────────────────────────────────────
@@ -320,18 +508,19 @@ def _emit_room(room_id: str):
     socketio.emit(
         "geo_room_state",
         {
-            "id":            room["id"],
-            "title":         room["title"],
-            "privacy":       room["privacy"],
-            "creator_sid":   room["creator_sid"],
-            "players":       [
+            "id":              room["id"],
+            "title":           room["title"],
+            "privacy":         room["privacy"],
+            "creator_sid":     room["creator_sid"],
+            "players":         [
                 {"sid": p["sid"], "username": p["username"], "total_score": p["total_score"]}
                 for p in room["players"]
             ],
-            "status":        room["status"],
-            "rounds_total":  room["rounds_total"],
-            "round_current": room["round_current"],
-            "time_limit":    room["round_time_limit"],
+            "status":          room["status"],
+            "rounds_total":    room["rounds_total"],
+            "round_current":   room["round_current"],
+            "time_limit":      room["round_time_limit"],
+            "region_is_world": room["region_is_world"],
         },
         room=_rn(room_id),
     )
@@ -417,9 +606,26 @@ def _start_round(room_id: str):
 
     socketio.emit("geo_loading", {"message": "Finding a location…"}, room=_rn(room_id))
 
+    # Capture creator_sid now (before the thread starts) for the timeout callback
+    creator_sid      = room.get("creator_sid")
+    is_region_search = not room["region_is_world"]
+
+    def on_timeout():
+        # Emitted to the whole room; frontend shows the "Change Region" button
+        # only to the creator (checked via amCreator in JS).
+        socketio.emit(
+            "geo_region_timeout",
+            {"creator_sid": creator_sid},
+            room=_rn(room_id),
+        )
+
     def fetch_and_start():
         try:
-            pano_id, lat, lng = _find_pano(room["region"], room["region_is_world"])
+            pano_id, lat, lng = _find_pano(
+                room["region"],
+                room["region_is_world"],
+                on_timeout=(on_timeout if is_region_search else None),
+            )
         except Exception as e:
             error_log.error(f"[geo] Room {room_id} pano lookup failed: {e}")
             socketio.emit("geo_fetch_error", {"message": str(e)}, room=_rn(room_id))
@@ -449,12 +655,12 @@ def _start_round(room_id: str):
             room=_rn(room_id),
         )
 
-        def on_timeout():
+        def on_round_timeout():
             r = geo_rooms.get(room_id)
             if r and r["status"] == "playing":
                 _end_round(room_id)
-
-        t = threading.Timer(room2["round_time_limit"], on_timeout)
+ 
+        t = threading.Timer(room2["round_time_limit"], on_round_timeout)
         room2["round_timer"] = t
         t.daemon = True
         t.start()
@@ -489,7 +695,11 @@ def _end_round(room_id: str):
         guess = room["round_guesses"].get(sid)
         if guess and guess.get("lat") is not None:
             dist  = haversine_km(guess["lat"], guess["lng"], correct_lat, correct_lng)
-            score = geo_score(dist)
+            score = geo_score(
+                dist,
+                region          = room.get("region", []),
+                region_is_world = room.get("region_is_world", True),
+            )
         else:
             dist  = None
             score = 0
@@ -790,10 +1000,19 @@ def handle_sp_get_panorama(data):
     region          = data.get("region") or []
     region_is_world = bool(data.get("region_is_world", True))
     emit("geo_sp_loading", {"message": "Finding a location…"})
+    geo_sessions[sid]["sp_region"]          = region
+    geo_sessions[sid]["sp_region_is_world"] = region_is_world
+
+    def on_timeout():
+        socketio.emit("geo_region_timeout", {}, to=sid)
 
     def fetch():
         try:
-            pano_id, lat, lng = _find_pano(region, region_is_world)
+            pano_id, lat, lng = _find_pano(
+                region,
+                region_is_world,
+                on_timeout=(on_timeout if not region_is_world else None),
+            )
             socketio.emit(
                 "geo_sp_panorama",
                 {"pano_id": pano_id, "correct_lat": lat, "correct_lng": lng},
@@ -813,8 +1032,13 @@ def handle_sp_submit_guess(data):
     correct_lng = data.get("correct_lng")
     if None in (lat, lng, correct_lat, correct_lng):
         emit("geo_error", {"message": "Invalid guess data."}); return
-    dist  = haversine_km(lat, lng, correct_lat, correct_lng)
-    score = geo_score(dist)
+    dist = haversine_km(lat, lng, correct_lat, correct_lng)
+    sess = geo_sessions.get(request.sid, {})
+    score = geo_score(
+        dist,
+        region          = sess.get("sp_region", []),
+        region_is_world = sess.get("sp_region_is_world", True),
+    )
     emit("geo_sp_result", {
         "distance_km": round(dist, 2),
         "score":       score,
