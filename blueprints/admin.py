@@ -185,17 +185,22 @@ def server_control():
 @admin_bp.route("/server/update", methods=["POST"])
 @require_role("DEV")
 def server_update():
-    """Runs git pull, then merges configvars.example.json into configvars.json."""
+    """
+    Runs git pull, merges configvars.example.json → configvars.json,
+    then installs / upgrades dependencies inside the project venv.
+    """
     try:
+        # ── git pull ─────────────────────────────────────────────────────────
         result = subprocess.run(
             ["git", "pull"],
             cwd=BASE_DIR,
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=60,
         )
-        app_log.info(f"[admin] {_name()!r} ran git pull")
-
+        app_log.info(f"[admin] {_name()!r} ran git pull (exit={result.returncode})")
+ 
+        # ── configvars merge ─────────────────────────────────────────────────
         config_note = ""
         if result.returncode == 0:
             try:
@@ -206,41 +211,83 @@ def server_update():
                     parts.append(f"Added: {', '.join(changes['added'])}")
                 if changes["removed"]:
                     parts.append(f"Removed: {', '.join(changes['removed'])}")
-                if parts:
-                    config_note = "\n\n[configvars.json] " + " | ".join(parts)
-                else:
-                    config_note = "\n\n[configvars.json] No changes needed."
+                config_note = (
+                    "\n\n[configvars.json] " + " | ".join(parts)
+                    if parts else
+                    "\n\n[configvars.json] No changes needed."
+                )
                 app_log.info(f"[admin] config merge after pull: {changes}")
             except Exception as ce:
                 config_note = f"\n\n[configvars.json] Merge error: {ce}"
                 error_log.error(f"[admin] config merge failed: {ce}")
-        
-        # ── pip install after a successful pull ──────────────────────────────
+ 
+        # ── pip install ───────────────────────────────────────────────────────
+        # Resolve the venv pip explicitly so we always install into the correct
+        # environment regardless of how the process was launched.
+        #
+        #   1st choice: <BASE_DIR>/venv/bin/pip   (the project venv's pip)
+        #   Fallback:   sys.executable -m pip     (works when sys.executable
+        #               is already the venv python, e.g. launched by systemd)
         pip_note = ""
         if result.returncode == 0:
+            venv_pip = os.path.join(BASE_DIR, "venv", "bin", "pip")
+            if os.path.isfile(venv_pip):
+                pip_cmd = [venv_pip, "install", "-r", "dependencies.txt"]
+                app_log.info(f"[admin] pip: using venv pip at {venv_pip}")
+            else:
+                pip_cmd = [sys.executable, "-m", "pip", "install", "-r", "dependencies.txt"]
+                app_log.info(f"[admin] pip: venv pip not found, using sys.executable {sys.executable}")
+ 
             try:
                 pip_result = subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "-r", "dependencies.txt"],
+                    pip_cmd,
                     cwd=BASE_DIR,
                     capture_output=True,
                     text=True,
-                    timeout=120,
+                    timeout=180,
                 )
-                app_log.info(f"[admin] pip install -r dependencies.txt exit={pip_result.returncode}")
+                app_log.info(
+                    f"[admin] pip install -r dependencies.txt "
+                    f"exit={pip_result.returncode}"
+                )
+ 
+                # Merge stdout + stderr: pip writes progress to stderr on some
+                # versions/platforms, so show both for full visibility.
+                pip_combined = ""
+                if pip_result.stdout.strip():
+                    pip_combined += pip_result.stdout.strip()
+                if pip_result.stderr.strip():
+                    if pip_combined:
+                        pip_combined += "\n"
+                    pip_combined += pip_result.stderr.strip()
+ 
                 if pip_result.returncode == 0:
-                    pip_note = "\n\n[pip] " + (pip_result.stdout.strip().splitlines()[-1]
-                                               if pip_result.stdout.strip() else "Dependencies up to date.")
+                    pip_note = (
+                        "\n\n[pip] " + pip_combined
+                        if pip_combined else
+                        "\n\n[pip] All dependencies already up to date."
+                    )
                 else:
-                    pip_note = "\n\n[pip] ERROR:\n" + pip_result.stderr.strip()
+                    pip_note = (
+                        "\n\n[pip] ERROR (exit {}):\n{}".format(
+                            pip_result.returncode,
+                            pip_combined or "(no output)",
+                        )
+                    )
+            except subprocess.TimeoutExpired:
+                pip_note = "\n\n[pip] ERROR: pip install timed out after 180 s."
+                error_log.error("[admin] pip install timed out")
             except Exception as pe:
                 pip_note = f"\n\n[pip] Install failed: {pe}"
                 error_log.error(f"[admin] pip install failed: {pe}")
-
+ 
+        # ── response ──────────────────────────────────────────────────────────
         return jsonify({
             "ok":     result.returncode == 0,
-            "stdout": result.stdout + config_note,
+            "stdout": result.stdout + config_note + pip_note,  # ← all three sections
             "stderr": result.stderr,
         })
+ 
     except Exception as e:
         return jsonify({"ok": False, "stdout": "", "stderr": str(e)})
 

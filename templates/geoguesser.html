@@ -5,6 +5,22 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
+/* ── Result-map pin labels ───────────────────────────── */
+.geo-pin-label {
+  background: rgba(5,8,20,.82);
+  border: 1px solid rgba(255,255,255,.18);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: .6rem;
+  letter-spacing: .07em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 1px 6px rgba(0,0,0,.5);
+  pointer-events: none;
+}
+.geo-pin-label::before { display: none !important; }
+
 /* ── Reset / shell ────────────────────────────────────── */
 .page-wrap,.container{padding:0!important;max-width:100%!important}
 #geo-root{font-family:var(--font-mono);color:var(--text-bright);min-height:100vh;background:var(--bg)}
@@ -128,7 +144,7 @@
   transition:all .25s cubic-bezier(.34,1.1,.64,1);display:none;background:#111}
 #guess-map-wrap.map-visible{display:block}
 #guess-map-wrap:hover,#guess-map-wrap.expanded{width:380px;height:280px}
-#guess-map{width:100%;height:100%}
+#guess-map{width:100%;height:100%;position:relative;z-index:0}
 #guess-map-btns{position:absolute;bottom:0;left:0;right:0;display:flex;gap:6px;padding:7px;
   background:linear-gradient(to top,rgba(0,0,0,.85),transparent);z-index:50}
 .gmap-btn{flex:1;padding:7px 8px;border:none;border-radius:6px;font-family:var(--font-mono);
@@ -610,6 +626,28 @@
 const GEO_MAPS_KEY = {{ google_maps_key | tojson }};
 
 // ── Socket ─────────────────────────────────────────────
+// ── Pin icon factory (teardrop SVG marker) ─────────────
+// color    — fill colour string, e.g. '#00d4ff' or '#4caf50'
+// scale    — 1 = normal (22×31 px), 1.4 = large correct-location pin
+// Returns a Leaflet DivIcon.
+function _makePinIcon(color, scale = 1) {
+  const w = Math.round(22 * scale), h = Math.round(31 * scale);
+  const r = w / 2;
+  return L.divIcon({
+    className: '',
+    html: `<svg width="${w}" height="${h}" viewBox="0 0 22 31"
+               xmlns="http://www.w3.org/2000/svg"
+               style="filter:drop-shadow(0 2px 5px rgba(0,0,0,.6))">
+      <path d="M11 0C4.925 0 0 4.925 0 11c0 8.556 11 20 11 20S22 19.556 22 11C22 4.925 17.075 0 11 0z"
+            fill="${color}" stroke="rgba(255,255,255,0.65)" stroke-width="1.1"/>
+      <circle cx="11" cy="11" r="4" fill="rgba(255,255,255,0.88)"/>
+    </svg>`,
+    iconSize:    [w, h],
+    iconAnchor:  [w / 2, h],
+    popupAnchor: [0, -h],
+  });
+}
+
 const socket = io();
 socket.on('connect', () => {
   socket.emit('page_open', {path: window.location.pathname});
@@ -885,13 +923,33 @@ socket.on('geo_sp_result', data => {
     }
     resultMapInst.eachLayer(l => { if (!(l instanceof L.TileLayer)) resultMapInst.removeLayer(l); });
     resultMapInst.invalidateSize();
-    const cLat=data.correct_lat, cLng=data.correct_lng;
-    L.circleMarker([cLat,cLng],{radius:10,color:'#4caf50',fillColor:'#4caf50',fillOpacity:.9,weight:3}).bindPopup('📍 Correct').addTo(resultMapInst);
+    const cLat = data.correct_lat, cLng = data.correct_lng;
+ 
+    // Correct location — large green pin
+    L.marker([cLat, cLng], {icon: _makePinIcon('#4caf50', 1.4), zIndexOffset: 900})
+      .bindPopup('📍 Correct location')
+      .addTo(resultMapInst);
+ 
     if (currentGuess) {
-      L.circleMarker([currentGuess.lat,currentGuess.lng],{radius:8,color:'#00d4ff',fillColor:'#00d4ff',fillOpacity:.85,weight:2}).bindPopup('Your Guess').addTo(resultMapInst);
-      L.polyline([[cLat,cLng],[currentGuess.lat,currentGuess.lng]],{color:'rgba(255,255,255,.25)',dashArray:'5,5',weight:1.5}).addTo(resultMapInst);
-      resultMapInst.fitBounds(L.latLngBounds([[cLat,cLng],[currentGuess.lat,currentGuess.lng]]).pad(0.25),{maxZoom:10});
-    } else { resultMapInst.setView([cLat,cLng],6); }
+      // Player guess — cyan pin
+      L.marker([currentGuess.lat, currentGuess.lng], {
+        icon: _makePinIcon('#00d4ff', 1.0),
+        zIndexOffset: 800,
+      }).bindPopup('Your guess')
+        .addTo(resultMapInst);
+ 
+      // Dashed line connecting guess → correct
+      L.polyline([[cLat, cLng], [currentGuess.lat, currentGuess.lng]], {
+        color: 'rgba(255,255,255,.3)', dashArray: '5,5', weight: 1.5,
+      }).addTo(resultMapInst);
+ 
+      resultMapInst.fitBounds(
+        L.latLngBounds([[cLat, cLng], [currentGuess.lat, currentGuess.lng]]).pad(0.25),
+        {maxZoom: 10}
+      );
+    } else {
+      resultMapInst.setView([cLat, cLng], 6);
+    }
   }, 80);
 });
 
@@ -1119,19 +1177,48 @@ socket.on('geo_round_end', data=>{
     }
     reMapInst.eachLayer(l=>{if(!(l instanceof L.TileLayer))reMapInst.removeLayer(l);});
     reMapInst.invalidateSize();
-    const cLat=data.correct_lat, cLng=data.correct_lng;
-    const allPts=[[cLat,cLng]];
-    L.circleMarker([cLat,cLng],{radius:12,color:'#4caf50',fillColor:'#4caf50',fillOpacity:.9,weight:3}).bindPopup('📍 Correct').addTo(reMapInst);
-    data.results.forEach((r,i)=>{
-      if (!r.guessed||r.guess_lat==null) return;
-      const colors=['#00d4ff','#a78bfa','#ffd700','#ff6b6b','#6bffb8'];
-      const col=colors[i%colors.length];
-      L.circleMarker([r.guess_lat,r.guess_lng],{radius:7,color:col,fillColor:col,fillOpacity:.85,weight:2}).bindPopup(`${r.username}: ${fmtDist(r.distance_km)}`).addTo(reMapInst);
-      L.polyline([[cLat,cLng],[r.guess_lat,r.guess_lng]],{color:col,opacity:.35,weight:1.5,dashArray:'4,4'}).addTo(reMapInst);
-      allPts.push([r.guess_lat,r.guess_lng]);
+    const cLat = data.correct_lat, cLng = data.correct_lng;
+    const allPts = [[cLat, cLng]];
+ 
+    // Correct location — large green pin labelled "Answer"
+    L.marker([cLat, cLng], {icon: _makePinIcon('#4caf50', 1.5), zIndexOffset: 1000})
+      .bindPopup('📍 Correct location')
+      .bindTooltip('Answer', {
+        permanent: true, direction: 'top', offset: [0, -31],
+        className: 'geo-pin-label',
+      })
+      .addTo(reMapInst);
+ 
+    const GUESS_COLORS = ['#00d4ff', '#a78bfa', '#ffd700', '#ff6b6b', '#6bffb8'];
+ 
+    data.results.forEach((r, i) => {
+      if (!r.guessed || r.guess_lat == null) return;
+      const col = GUESS_COLORS[i % GUESS_COLORS.length];
+ 
+      // Player guess pin
+      L.marker([r.guess_lat, r.guess_lng], {
+        icon: _makePinIcon(col, 1.0),
+        zIndexOffset: 500 - i,          // first-place pin renders on top
+      })
+        .bindPopup(`${r.username}: ${fmtDist(r.distance_km)}`)
+        .bindTooltip(r.username, {
+          permanent: true, direction: 'top', offset: [0, -31],
+          className: 'geo-pin-label',
+        })
+        .addTo(reMapInst);
+ 
+      // Dashed line from guess to correct location
+      L.polyline([[cLat, cLng], [r.guess_lat, r.guess_lng]], {
+        color: col, opacity: 0.45, weight: 1.5, dashArray: '4,4',
+      }).addTo(reMapInst);
+ 
+      allPts.push([r.guess_lat, r.guess_lng]);
     });
-    if (allPts.length>1) reMapInst.fitBounds(L.latLngBounds(allPts).pad(0.2),{maxZoom:10});
-    else reMapInst.setView([cLat,cLng],6);
+ 
+    if (allPts.length > 1)
+      reMapInst.fitBounds(L.latLngBounds(allPts).pad(0.2), {maxZoom: 10});
+    else
+      reMapInst.setView([cLat, cLng], 6);
   },80);
 });
 
@@ -1196,12 +1283,15 @@ function initGuessMap() {
   guessMapInst=L.map('guess-map',{center:[20,0],zoom:1,minZoom:1,maxZoom:18,zoomControl:false,attributionControl:false});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(guessMapInst);
   L.control.zoom({position:'topright'}).addTo(guessMapInst);
-  guessMapInst.on('click',e=>{
+  guessMapInst.on('click', e => {
     if (guessLocked) return;
-    currentGuess={lat:e.latlng.lat,lng:e.latlng.lng};
+    currentGuess = {lat: e.latlng.lat, lng: e.latlng.lng};
     if (guessMarker) guessMapInst.removeLayer(guessMarker);
-    guessMarker=L.circleMarker([e.latlng.lat,e.latlng.lng],{radius:7,color:'#00d4ff',fillColor:'#00d4ff',fillOpacity:.85,weight:2}).addTo(guessMapInst);
-    document.getElementById('lock-btn').disabled=false;
+    guessMarker = L.marker([e.latlng.lat, e.latlng.lng], {
+      icon: _makePinIcon('#00d4ff'),
+      zIndexOffset: 1000,
+    }).addTo(guessMapInst);
+    document.getElementById('lock-btn').disabled = false;
   });
   const wrap=document.getElementById('guess-map-wrap');
   let t;
