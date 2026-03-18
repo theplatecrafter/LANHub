@@ -32,6 +32,7 @@ from blueprints.chess import chess_bp
 from blueprints.tetris import tetris_bp
 from blueprints.uno import uno_bp
 from blueprints.server_config import server_config_bp
+from blueprints.slither import slither_bp
 
 
 
@@ -46,6 +47,7 @@ import socket_events.channels_events
 import socket_events.chess_events
 import socket_events.tetris_events
 import socket_events.uno_events
+import socket_events.slither_events
 
 
 
@@ -65,6 +67,7 @@ app.register_blueprint(chess_bp)
 app.register_blueprint(tetris_bp)
 app.register_blueprint(uno_bp)
 app.register_blueprint(server_config_bp)
+app.register_blueprint(slither_bp)
 
 
 ###########################################
