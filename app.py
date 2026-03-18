@@ -29,6 +29,9 @@ from blueprints.updates import updates_bp
 from blueprints.chess import chess_bp
 from blueprints.tetris import tetris_bp
 from blueprints.uno import uno_bp
+from blueprints.server_config import server_config_bp
+
+
 
 
 
@@ -59,6 +62,7 @@ app.register_blueprint(updates_bp)
 app.register_blueprint(chess_bp)
 app.register_blueprint(tetris_bp)
 app.register_blueprint(uno_bp)
+app.register_blueprint(server_config_bp)
 
 
 ###########################################
