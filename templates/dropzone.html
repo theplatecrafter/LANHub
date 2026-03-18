@@ -3,6 +3,33 @@
 
 {% block head %}
 <style>
+
+  /* Tag search in search bar */
+  .tag-search-wrap {
+    position: relative; display: flex; align-items: center;
+    background: var(--bg); border: 1px solid var(--border-hi);
+    border-radius: var(--radius); padding: 0 8px; gap: 4px; flex-shrink: 0;
+  }
+  .tag-search-wrap:focus-within { border-color: var(--cyan); }
+  .tag-search-prefix { color: var(--cyan); font-family: var(--font-mono); font-size: 0.8rem; }
+  #tag-search-input {
+    border: none; background: transparent; outline: none;
+    color: var(--text-bright); font-family: var(--font-mono); font-size: 0.78rem;
+    width: 110px; padding: 6px 0;
+  }
+  .tag-search-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; min-width: 160px;
+    background: var(--bg-panel); border: 1px solid var(--border-hi);
+    border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 200; display: none;
+  }
+  .tag-search-dropdown.open { display: block; }
+  .tag-sug-item {
+    padding: 7px 12px; font-family: var(--font-mono); font-size: 0.78rem;
+    color: var(--text-dim); cursor: pointer;
+  }
+  .tag-sug-item:hover, .tag-sug-item.selected { background: var(--bg-hover); color: var(--cyan); }
+
   .page-wrap { padding: 0 !important; }
 
   .dz-shell {
@@ -400,7 +427,16 @@
   <!-- ── Search bar ─────────────────────────────────────── -->
   <div class="search-bar">
     <input type="text" id="search-input" placeholder="Search by name or display name…"
-           oninput="debounceSearch()" />
+          oninput="debounceSearch()" />
+
+    <!-- Tag search -->
+    <div class="tag-search-wrap" id="tag-search-wrap">
+      <span class="tag-search-prefix">#</span>
+      <input type="text" id="tag-search-input" placeholder="filter by tag…"
+            autocomplete="off" oninput="onTagSearchInput()" onkeydown="onTagSearchKeydown(event)" />
+      <div id="tag-search-sug" class="tag-search-dropdown"></div>
+    </div>
+
     <div id="active-tag-filter">
       <span id="active-tag-label"></span>
       <span id="clear-tag" onclick="clearTagFilter()">✕</span>
@@ -781,6 +817,49 @@
     `;
     return card;
   }
+
+  // ── Tag search input ────────────────────────────────────
+  let tagSugSelected = -1;
+
+  async function onTagSearchInput() {
+    const val = document.getElementById("tag-search-input").value.trim();
+    const sug = document.getElementById("tag-search-sug");
+    tagSugSelected = -1;
+    if (!val) { sug.classList.remove("open"); sug.innerHTML = ""; return; }
+    const res  = await fetch("/api/dropzone/tags?q=" + encodeURIComponent(val));
+    const data = await res.json();
+    if (!data.tags.length) { sug.classList.remove("open"); sug.innerHTML = ""; return; }
+    sug.innerHTML = data.tags.map((t, i) =>
+      `<div class="tag-sug-item" data-tag="${escHtml(t)}" onclick="selectTagSug('${escHtml(t)}')">#${escHtml(t)}</div>`
+    ).join("");
+    sug.classList.add("open");
+  }
+
+  function onTagSearchKeydown(e) {
+    const sug   = document.getElementById("tag-search-sug");
+    const items = sug.querySelectorAll(".tag-sug-item");
+    if (e.key === "ArrowDown")  { e.preventDefault(); tagSugSelected = Math.min(tagSugSelected+1, items.length-1); items.forEach((el,i) => el.classList.toggle("selected", i===tagSugSelected)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); tagSugSelected = Math.max(tagSugSelected-1, -1); items.forEach((el,i) => el.classList.toggle("selected", i===tagSugSelected)); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      const chosen = tagSugSelected >= 0 ? items[tagSugSelected]?.dataset.tag : document.getElementById("tag-search-input").value.trim();
+      if (chosen) selectTagSug(chosen);
+    } else if (e.key === "Escape") {
+      sug.classList.remove("open"); sug.innerHTML = "";
+    }
+  }
+
+  function selectTagSug(tag) {
+    document.getElementById("tag-search-input").value = "";
+    document.getElementById("tag-search-sug").classList.remove("open");
+    filterByTag(tag);
+  }
+
+  document.addEventListener("click", e => {
+    if (!document.getElementById("tag-search-wrap")?.contains(e.target)) {
+      document.getElementById("tag-search-sug")?.classList.remove("open");
+    }
+  });
 
   // ── Tag filter ──────────────────────────────────────────
   function filterByTag(tag) {

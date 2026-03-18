@@ -183,10 +183,3 @@ def handle_console_stop(_data=None):
     sid = request.sid
     app_log.info(f"[console] {_get_admin_name()!r} stopped shell (sid={sid})")
     _cleanup(sid)
-
-
-# Note: disconnect is handled by chat_events.py's generic handler.
-# We register a separate named handler so both coexist.
-@socketio.on("disconnect")
-def handle_console_on_disconnect():
-    _cleanup(request.sid)

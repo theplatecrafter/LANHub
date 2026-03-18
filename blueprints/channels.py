@@ -32,6 +32,14 @@ def api_create():
 
     tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
 
+    if f.check_profanity(title):
+        return jsonify({"ok": False, "error": "Title contains disallowed words."}), 400
+    if description and f.check_profanity(description):
+        return jsonify({"ok": False, "error": "Description contains disallowed words."}), 400
+    for tag in tags:
+        if f.check_profanity(tag):
+            return jsonify({"ok": False, "error": f"Tag '{tag}' contains disallowed words."}), 400
+
     try:
         channel = f.create_channel(title, description, tags, password, ip)
         access_log.info(f"[channels] {ip} created channel #{channel['id']} '{title}'")

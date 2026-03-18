@@ -3,6 +3,8 @@
 
 {% block head %}
 <style>
+
+  .action-btn.report:hover { color: var(--yellow, #f59e0b); border-color: var(--yellow, #f59e0b); }
   /* jump-to-bottom button */
   #chat-shell { position: relative; }
 
@@ -294,6 +296,21 @@
   </div>
 </div>
 
+<!-- Report modal -->
+<div id="rep-modal-bg" class="modal-bg" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+  <div class="modal-box" style="min-width:300px; max-width:420px; width:90%;">
+    <h3>🚩 Report Message</h3>
+    <p id="rep-msg-preview" style="font-size:0.82rem; color:var(--text-dim); border-left:2px solid var(--border-hi); padding-left:8px; margin:10px 0; word-break:break-word;"></p>
+    <textarea id="rep-reason" placeholder="Reason (optional)…"
+      style="width:100%; resize:vertical; min-height:64px; background:var(--bg); border:1px solid var(--border-hi); border-radius:var(--radius); color:var(--text-bright); font-family:var(--font-mono); font-size:0.8rem; padding:8px; outline:none; box-sizing:border-box;"></textarea>
+    <p id="rep-error" style="color:var(--red); font-size:0.78rem; margin-top:6px; min-height:16px;"></p>
+    <div style="display:flex; gap:8px; margin-top:12px; justify-content:flex-end;">
+      <button class="modal-btn" onclick="closeRepModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="submitChatReport()">Submit</button>
+    </div>
+  </div>
+</div>
+
 <div id="chat-shell">
   <div id="disconnected-banner">⚠ Connection lost — messages may not be sending</div>
 
@@ -357,6 +374,39 @@
   const msgInput   = document.getElementById("msg-input");
   const messagesEl = document.getElementById("messages");
   const jumpBtn    = document.getElementById("jump-bottom");
+
+  // ── Report modal ──────────────────────────────────────────
+  let repPendingId = null, repPendingUsername = null, repPendingMsg = null;
+
+  function openRepModal(id, username, message) {
+    repPendingId = id; repPendingUsername = username; repPendingMsg = message;
+    const preview = message.length > 100 ? message.substring(0, 100) + "…" : message;
+    document.getElementById("rep-msg-preview").textContent = `"${preview}"`;
+    document.getElementById("rep-reason").value = "";
+    document.getElementById("rep-error").textContent = "";
+    const bg = document.getElementById("rep-modal-bg");
+    bg.style.display = "flex";
+    setTimeout(() => document.getElementById("rep-reason").focus(), 100);
+  }
+
+  function closeRepModal() {
+    document.getElementById("rep-modal-bg").style.display = "none";
+    repPendingId = repPendingUsername = repPendingMsg = null;
+  }
+
+  function submitChatReport() {
+    const reason = document.getElementById("rep-reason").value.trim();
+    socket.emit("report_message", {
+      id: repPendingId, username: repPendingUsername,
+      message: repPendingMsg, reason
+    });
+    closeRepModal();
+    showError("✓ Report submitted.");
+  }
+
+  document.getElementById("rep-reason").addEventListener("keydown", e => {
+    if (e.key === "Escape") closeRepModal();
+  });
 
   // ── Jump-to-bottom button ─────────────────────────────────
   const NEAR_BOTTOM_PX = 120;
@@ -622,6 +672,11 @@
     const actions = document.createElement("div");
     actions.className = "msg-actions";
     actions.appendChild(makeActionBtn("↩", "Reply", () => startReply(msg.id, msg.username, msg.message)));
+    if (!isSelf) {
+      const rep = makeActionBtn("🚩", "Report", () => openRepModal(msg.id, msg.username, msg.message));
+      rep.classList.add("report");
+      actions.appendChild(rep);
+    }
     if (isSelf || myMsgIds.has(msg.id)) {
       actions.appendChild(makeActionBtn("✏", "Edit", () => {
         startEdit(msg.id, row.querySelector(".bubble-body")?.textContent || msg.message);

@@ -194,17 +194,48 @@ def handle_delete(data):
     message_ownership.pop(msg_id, None)
     socketio.emit("message_deleted", {"id": msg_id}, to="chat")
 
-
-@socketio.on("disconnect")
-def handle_disconnect():
+@socketio.on("report_message")
+def handle_report_message(data):
     sid = request.sid
-    if sid in active_sessions:
-        username = active_sessions.pop(sid)["username"]
-        dead_ids = [k for k, v in message_ownership.items() if v == sid]
-        for k in dead_ids:
-            message_ownership.pop(k, None)
-        emit("user_left", {
-            "username":     username,
-            "online_count": _online_count(),
-        }, to="chat")
-        app_log.info(f"[chat] {username} disconnected. Online: {_online_count()}")
+    ip  = request.remote_addr
+    if sid not in active_sessions:
+        return
+    try:
+        msg_id = int(data.get("id"))
+    except (TypeError, ValueError):
+        return
+
+    reported_username = str(data.get("username", ""))[:64]
+    message_text      = str(data.get("message",  ""))[:500]
+    reason            = str(data.get("reason",   ""))[:300]
+
+    reported_ip = ""
+    for sess in active_sessions.values():
+        if sess["username"] == reported_username:
+            reported_ip = sess["ip"]
+            break
+
+    rid = f.create_report(
+        reporter_ip=ip,
+        reported_username=reported_username,
+        reported_ip=reported_ip,
+        message_id=msg_id,
+        message_text=message_text,
+        reason=reason,
+        source="chat",
+    )
+    app_log.info(f"[chat] Report #{rid}: {ip} reported msg #{msg_id} by '{reported_username}'")
+
+# Exposed for the consolidated disconnect handler in channels_events.py
+def _cleanup_chat(sid: str) -> None:
+    if sid not in active_sessions:
+        return
+    username = active_sessions.pop(sid)["username"]
+    dead_ids = [k for k, v in message_ownership.items() if v == sid]
+    for k in dead_ids:
+        message_ownership.pop(k, None)
+    socketio.emit("user_left", {
+        "username":     username,
+        "online_count": _online_count(),
+    }, to="chat")
+    app_log.info(f"[chat] {username} disconnected. Online: {_online_count()}")

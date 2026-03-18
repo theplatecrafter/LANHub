@@ -4,15 +4,30 @@
 {% block head %}
 <style>
   /* ── Full-height layout ──────────────────────────────── */
-  .page-wrap {
+    html, body {
+    height: 100%;
+    overflow: hidden;
+    }
+    body {
+    display: flex;
+    flex-direction: column;
+    }
+    .page-wrap {
     padding: 0 !important;
-    height: calc(100vh - 56px - 33px);
-    display: flex; flex-direction: column;
-  }
-  .container {
-    max-width: 100% !important; padding: 0 !important;
-    flex: 1; display: flex; min-height: 0;
-  }
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    }
+    .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+    }
 
   /* ── Sidebar ─────────────────────────────────────────── */
   #sidebar {
@@ -528,6 +543,21 @@
 
   </div>
 
+  <!-- Report modal -->
+<div id="ch-rep-modal-bg" class="modal-bg" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+  <div class="modal-box" style="min-width:300px; max-width:420px; width:90%;">
+    <h3>🚩 Report Message</h3>
+    <p id="ch-rep-msg-preview" style="font-size:0.82rem; color:var(--text-dim); border-left:2px solid var(--border-hi); padding-left:8px; margin:10px 0; word-break:break-word;"></p>
+    <textarea id="ch-rep-reason" placeholder="Reason (optional)…"
+      style="width:100%; resize:vertical; min-height:64px; background:var(--bg); border:1px solid var(--border-hi); border-radius:var(--radius); color:var(--text-bright); font-family:var(--font-mono); font-size:0.8rem; padding:8px; outline:none; box-sizing:border-box;"></textarea>
+    <p id="ch-rep-error" style="color:var(--red); font-size:0.78rem; margin-top:6px; min-height:16px;"></p>
+    <div style="display:flex; gap:8px; margin-top:12px; justify-content:flex-end;">
+      <button class="modal-btn" onclick="closeChRepModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="submitChReport()">Submit</button>
+    </div>
+  </div>
+</div>
+
 </div>
 {% endblock %}
 
@@ -537,6 +567,28 @@
   const MAX_CHARS = {{ MAX_CHARS }};
   const HISTORY   = {{ HISTORY }};
   const socket    = _socket;
+
+  let chRepState = null;
+
+    function openChRepModal(channelId, id, username, message) {
+    chRepState = { channelId, id, username, message };
+    const preview = message.length > 100 ? message.substring(0, 100) + "…" : message;
+    document.getElementById("ch-rep-preview").textContent = `"${preview}"`;
+    document.getElementById("ch-rep-reason").value = "";
+    document.getElementById("ch-rep-modal-bg").style.display = "flex";
+    setTimeout(() => document.getElementById("ch-rep-reason").focus(), 100);
+    }
+    function closeChRepModal() {
+    document.getElementById("ch-rep-modal-bg").style.display = "none";
+    chRepState = null;
+    }
+    function submitChReport() {
+    if (!chRepState) return;
+    const reason = document.getElementById("ch-rep-reason").value.trim();
+    socket.emit("ch_report_message", { ...chRepState, reason });
+    closeChRepModal();
+    showToast("Report submitted.", true);
+    }
 
   let myUsername = null;
   // Per-channel state: { channelId: { lastSender, myMsgIds, oldestId, noMore, loadingOlder, replyState, editState } }
@@ -1035,6 +1087,11 @@
     actions.className = "msg-actions";
     actions.appendChild(makeActionBtn("↩", "Reply", () =>
       startReply(channelId, msg.id, msg.username, msg.message)));
+    if (!isSelf) {
+    const rep = makeActionBtn("🚩", "Report", () => openChRepModal(channelId, msg.id, msg.username, msg.message));
+    rep.classList.add("report");
+    actions.appendChild(rep);
+    }
     if (isSelf || (st && st.myMsgIds.has(msg.id))) {
       actions.appendChild(makeActionBtn("✏", "Edit", () => {
         const cur = row.querySelector(".bubble-body")?.textContent || msg.message;

@@ -40,8 +40,15 @@ def api_upload():
 
     tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
 
+    if f.check_profanity(display_name):
+        return jsonify({"ok": False, "error": "Display name contains disallowed words."}), 400
+    for tag in tags:
+        if f.check_profanity(tag):
+            return jsonify({"ok": False, "error": f"Tag '{tag}' contains disallowed words."}), 400
+
     try:
         upload = f.dropzone_save(file, display_name, tags, ip, password)
+        
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     except Exception as e:

@@ -251,6 +251,38 @@ def handle_ch_delete(data):
         "id": msg_id, "channel_id": channel_id
     }, to=_room(channel_id))
 
+@socketio.on("ch_report_message")
+def handle_ch_report(data):
+    sid = request.sid
+    ip  = request.remote_addr
+    if sid not in ch_sessions:
+        return
+    try:
+        msg_id = int(data.get("id"))
+    except (TypeError, ValueError):
+        return
+
+    reported_username = str(data.get("username", ""))[:64]
+    message_text      = str(data.get("message",  ""))[:500]
+    reason            = str(data.get("reason",   ""))[:300]
+
+    # Try to find the reported user's IP from active channel sessions
+    reported_ip = ""
+    for info in ch_sessions.values():
+        if info.get("username") == reported_username:
+            reported_ip = info.get("ip", "")
+            break
+
+    rid = f.create_report(
+        reporter_ip=ip,
+        reported_username=reported_username,
+        reported_ip=reported_ip,
+        message_id=msg_id,
+        message_text=message_text,
+        reason=reason,
+        source="channels",
+    )
+    app_log.info(f"[channels] Report #{rid}: {ip} reported msg #{msg_id} by '{reported_username}'")
 
 # ── Load older messages ─────────────────────────────────────────────────────────
 @socketio.on("ch_load_older")
@@ -275,21 +307,29 @@ def handle_ch_load_older(data):
 
 # ── Disconnect ──────────────────────────────────────────────────────────────────
 @socketio.on("disconnect")
-def handle_ch_disconnect():
-    sid  = request.sid
+def handle_disconnect_all():
+    sid = request.sid
+
+    # ── Chat cleanup ───────────────────────────────────────
+    from socket_events.chat_events import _cleanup_chat
+    _cleanup_chat(sid)
+
+    # ── Console cleanup ────────────────────────────────────
+    from socket_events.console_events import _cleanup as _cleanup_console
+    _cleanup_console(sid)
+
+    # ── Channels cleanup ───────────────────────────────────
     info = ch_sessions.pop(sid, None)
-    if not info:
-        return
-
-    username = info.get("username", "")
-    for channel_id in list(info.get("channels", set())):
-        socketio.emit("ch_user_left", {
-            "channel_id":   channel_id,
-            "username":     username,
-            "online_count": _online(channel_id),
-        }, to=_room(channel_id))
-
-    # Clean up owned messages
-    dead = [k for k, v in ch_msg_ownership.items() if v == sid]
-    for k in dead:
-        ch_msg_ownership.pop(k, None)
+    if info:
+        username = info.get("username", "")
+        for channel_id in list(info.get("channels", set())):
+            socketio.emit("ch_user_left", {
+                "channel_id":   channel_id,
+                "username":     username,
+                "online_count": _online(channel_id),
+            }, to=_room(channel_id))
+        dead = [k for k, v in ch_msg_ownership.items() if v == sid]
+        for k in dead:
+            ch_msg_ownership.pop(k, None)
+        if username:
+            app_log.info(f"[channels] {username} disconnected.")
