@@ -83,7 +83,7 @@ sudo visudo
 ```
 A nano window should open. Anywhere in the file, paste in:
 ```
-<username> ALL=(ALL) NOPASSWD: /bin/systemctl restart lanhub
+<username> ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart lanhub
 ```
 where ```<username>``` is the username you logged in with the server computer.
 

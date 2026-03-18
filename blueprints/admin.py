@@ -226,18 +226,12 @@ def server_update():
 @admin_bp.route("/server/restart", methods=["POST"])
 @require_role("DEV")
 def server_restart():
-    """Restarts the lanhub systemd service."""
+    """Restarts by sending SIGTERM to self — systemd Restart=always brings it back."""
+    import signal, os
     app_log.info(f"[admin] {_name()!r} triggered service restart")
     try:
-        result = subprocess.run(
-            ["sudo", "systemctl", "restart", "lanhub"],
-            capture_output=True, text=True, timeout=15
-        )
-        return jsonify({
-            "ok":     result.returncode == 0,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-        })
+        os.kill(os.getpid(), signal.SIGTERM)
+        return jsonify({"ok": True, "stdout": "Restart signal sent.", "stderr": ""})
     except Exception as e:
         return jsonify({"ok": False, "stdout": "", "stderr": str(e)})
 
