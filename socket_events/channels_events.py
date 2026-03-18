@@ -325,6 +325,7 @@ def handle_disconnect_all():
     # Uno Cleanup
     from socket_events.uno_events import _cleanup_uno
     _cleanup_uno(sid)
+    
 
     # ── Channels cleanup ───────────────────────────────────
     info = ch_sessions.pop(sid, None)
