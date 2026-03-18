@@ -26,7 +26,9 @@ from blueprints.channels import channels_bp
 from blueprints.feedback import feedback_bp
 from blueprints.polls import polls_bp
 from blueprints.updates import updates_bp
-
+from blueprints.chess import chess_bp
+from blueprints.tetris import tetris_bp
+from blueprints.uno import uno_bp
 
 
 
@@ -36,6 +38,10 @@ import socket_events.chat_events
 import socket_events.global_events
 import socket_events.console_events
 import socket_events.channels_events
+import socket_events.chess_events
+import socket_events.tetris_events
+import socket_events.uno_events
+
 
 
 socketio.init_app(app)
@@ -50,6 +56,9 @@ app.register_blueprint(channels_bp)
 app.register_blueprint(feedback_bp)
 app.register_blueprint(polls_bp)
 app.register_blueprint(updates_bp)
+app.register_blueprint(chess_bp)
+app.register_blueprint(tetris_bp)
+app.register_blueprint(uno_bp)
 
 
 ###########################################

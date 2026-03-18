@@ -317,6 +317,14 @@ def handle_disconnect_all():
     # ── Console cleanup ────────────────────────────────────
     from socket_events.console_events import _cleanup as _cleanup_console
     _cleanup_console(sid)
+    
+    # ── Chess cleanup ──────────────────────────────────────
+    from socket_events.chess_events import _cleanup_chess
+    _cleanup_chess(sid)
+    
+    # Uno Cleanup
+    from socket_events.uno_events import _cleanup_uno
+    _cleanup_uno(sid)
 
     # ── Channels cleanup ───────────────────────────────────
     info = ch_sessions.pop(sid, None)

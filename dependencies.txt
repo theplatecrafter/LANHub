@@ -4,3 +4,4 @@ flask-socketio
 psutil
 apscheduler
 better-profanity
+python-chess
