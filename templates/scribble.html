@@ -134,8 +134,10 @@
     #chat-input-row   { display:flex;border-top:2px solid #d4cfc4; }
     #chat-input       { flex:1;padding:9px 10px;background:#f7f4ed;border:none;outline:none;color:#1c1917;font-family:'Syne',sans-serif;font-size:.75rem; }
     #chat-input::placeholder { color:#a8a29e; }
+    #chat-input:disabled { background:#f0ece4;color:#a8a29e;cursor:not-allowed; }
     #chat-send { padding:0 12px;background:#f7f4ed;border:none;border-left:1.5px solid #d4cfc4;color:#78716c;font-size:.9rem;cursor:pointer;transition:color .12s; }
     #chat-send:hover { color:#2563eb; }
+    #chat-send:disabled { color:#d4cfc4;cursor:not-allowed; }
 
     /* LOBBY */
     #lobby {
@@ -306,6 +308,7 @@
         <div class="socard">
           <div class="so-title" id="so-title">Waiting…</div>
           <div class="so-sub so-blink" id="so-sub">waiting for players</div>
+          <div id="so-countdown" style="display:none;font-family:'Share Tech Mono',monospace;font-size:2.4rem;font-weight:900;color:#2563eb;margin-top:12px;text-shadow:0 0 12px rgba(37,99,235,.3);"></div>
         </div>
       </div>
     </div>
@@ -495,7 +498,8 @@ socket.on('scr_hint',d=>{document.getElementById('bar-word').textContent=fmtWord
 socket.on('scr_correct',()=>{
   const fl=document.getElementById('correct-flash');
   fl.classList.add('show');setTimeout(()=>fl.classList.remove('show'),700);
-  document.getElementById('chat-input').placeholder='✅ Correct! Keep chatting…';
+  // Guessed correctly — lock chat so they can't accidentally reveal the word
+  _setChatEnabled(false,'✅ You got it! Wait for the next round…');
 });
 socket.on('scr_username_err',d=>{
   const inp=document.getElementById('l-name');
@@ -506,18 +510,53 @@ socket.on('scr_username_err',d=>{
   setTimeout(()=>{inp.style.borderColor='';inp.style.boxShadow='';if(sub){sub.style.color='';sub.textContent='◈ Draw & Guess on the LAN ◈';}},3000);
 });
 
+function _setChatEnabled(enabled, placeholder) {
+  const inp  = document.getElementById('chat-input');
+  const send = document.getElementById('chat-send');
+  inp.disabled  = !enabled;
+  send.disabled = !enabled;
+  inp.placeholder = placeholder;
+}
+
 function applyState(d){
   updatePlayers(d.players);updateBar(d);
   if(!(d.state==='choosing'&&d.drawer_sid===mySid))hide('word-choose');
   hide('round-end');hide('status-overlay');
   document.getElementById('scr-toolbar').style.display='none';
-  document.getElementById('chat-input').placeholder='Guess or chat…';
   isDrawer=d.drawer_sid===mySid;
-  if(d.state==='waiting'){show('status-overlay','flex');document.getElementById('so-title').textContent='⏳ Waiting…';document.getElementById('so-sub').textContent='Need more players to start';}
-  else if(d.state==='choosing'){show('status-overlay','flex');document.getElementById('so-title').textContent=isDrawer?'🎨 You are choosing…':`🎨 ${esc(d.drawer_name||'?')} is choosing…`;document.getElementById('so-sub').textContent=isDrawer?'Pick a word!':'Get ready to guess!';}
-  else if(d.state==='drawing'){hide('status-overlay');if(isDrawer){document.getElementById('scr-toolbar').style.display='flex';document.getElementById('chat-input').placeholder="You're drawing!";}updateWordDisplay(d);}
-  else if(d.state==='round_end'){showRoundEnd(d);}
-  else if(d.state==='game_end'){showGameEnd(d);}
+
+  // Work out whether this player can chat
+  const me = d.players?.find(p=>p.sid===mySid);
+  const alreadyGuessed = !!(me?.guessed);
+
+  if(d.state==='waiting'){
+    show('status-overlay','flex');
+    document.getElementById('so-title').textContent='⏳ Waiting…';
+    document.getElementById('so-sub').textContent='Need more players to start';
+    _setChatEnabled(true,'Guess or chat…');
+  } else if(d.state==='choosing'){
+    show('status-overlay','flex');
+    document.getElementById('so-title').textContent=isDrawer?'🎨 You are choosing…':`🎨 ${esc(d.drawer_name||'?')} is choosing…`;
+    document.getElementById('so-sub').textContent=isDrawer?'Pick a word!':'Get ready to guess!';
+    _setChatEnabled(true,'Guess or chat…');
+  } else if(d.state==='drawing'){
+    hide('status-overlay');
+    if(isDrawer){
+      document.getElementById('scr-toolbar').style.display='flex';
+      _setChatEnabled(false,"You're drawing — no chatting!");
+    } else if(alreadyGuessed){
+      _setChatEnabled(false,'✅ You guessed it — keep quiet!');
+    } else {
+      _setChatEnabled(true,'Type your guess…');
+    }
+    updateWordDisplay(d);
+  } else if(d.state==='round_end'){
+    showRoundEnd(d);
+    _setChatEnabled(true,'Guess or chat…');
+  } else if(d.state==='game_end'){
+    showGameEnd(d);
+    _setChatEnabled(true,'Guess or chat…');
+  }
   startTimer(d.timer_end,d.state);
 }
 function updatePlayers(players){
@@ -541,10 +580,14 @@ function fmtWord(w){return(w||'').toUpperCase().split('').join(' ');}
 function startTimer(end,st){
   if(timerInt)clearInterval(timerInt);
   const el=document.getElementById('bar-timer');
-  if(!end||st==='waiting'||st==='game_end'){el.textContent='—';el.className='';return;}
+  const cd=document.getElementById('so-countdown');
+  // Hide the in-card countdown whenever we're not in game_end
+  if(st!=='game_end'&&cd){cd.style.display='none';document.getElementById('so-sub').classList.add('so-blink');}
+  if(!end||st==='waiting'){el.textContent='—';el.className='';return;}
   function tick(){
     const rem=Math.max(0,Math.ceil(end-Date.now()/1000));
     el.textContent=rem;el.className=rem<=10?'crit':rem<=20?'warn':'';
+    if(cd&&st==='game_end')cd.textContent=rem;
     if(rem<=0)clearInterval(timerInt);
   }
   tick();timerInt=setInterval(tick,500);
@@ -574,7 +617,9 @@ function showGameEnd(d){
   hide('round-end');show('status-overlay','flex');
   const sorted=[...d.players].sort((a,b)=>b.score-a.score);
   document.getElementById('so-title').textContent=sorted[0]?`🏆 ${esc(sorted[0].name)} wins!`:'🏆 Game Over!';
-  document.getElementById('so-sub').textContent='New game starting soon…';
+  document.getElementById('so-sub').textContent='New game starting soon...';
+  document.getElementById('so-sub').classList.remove('so-blink');
+  document.getElementById('so-countdown').style.display='block';
 }
 function appendChat(msg){
   const box=document.getElementById('chat-messages');
@@ -586,7 +631,8 @@ function appendChat(msg){
 }
 function sendGuess(){
   const inp=document.getElementById('chat-input'),txt=inp.value.trim();
-  if(!txt)return;socket.emit('scribble_guess',{text:txt});inp.value='';
+  if(!txt||inp.disabled)return;
+  socket.emit('scribble_guess',{text:txt});inp.value='';
 }
 function joinGame(){
   const n=document.getElementById('l-name').value.trim();

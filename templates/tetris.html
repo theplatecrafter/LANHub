@@ -1,8 +1,122 @@
-{% extends "base.html" %}
-{% block title %}LANHub — Tetris{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Tetris — LANHub</title>
 
-{% block head %}
+<!-- Load base theme so CSS vars exist -->
+<link id="theme-ss" rel="stylesheet" href="/static/themes/dark.css"/>
+<script>(function(){var s=localStorage.getItem('lanhub-theme')||'dark';document.getElementById('theme-ss').href='/static/themes/'+s+'.css';})();</script>
+
+<!-- Arcade fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet">
+
 <style>
+/* ══════════════════════════════════════════════════════════════
+   TETRIS — ELECTRIC ARCADE STANDALONE
+   Defines all CSS vars the original template expects,
+   then applies neon arcade overrides on top.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Define ALL vars the original CSS uses ─────────────────── */
+:root {
+  --bg:           #050508;
+  --bg-panel:     rgba(10,8,22,.95);
+  --bg-card:      rgba(14,10,28,.90);
+  --bg-hover:     rgba(155,89,255,.08);
+  --text:         #c8d0f0;
+  --text-bright:  #e0e8ff;
+  --text-dim:     rgba(200,210,255,.38);
+  --border:       rgba(155,89,255,.22);
+  --border-hi:    rgba(155,89,255,.55);
+  --cyan:         #00ffee;
+  --cyan-dim:     rgba(0,255,238,.08);
+  --red:          #ff2060;
+  --red-dim:      rgba(255,32,96,.10);
+  --green:        #00e67a;
+  --green-dim:    rgba(0,230,122,.10);
+  --amber:        #ffe600;
+  --amber-dim:    rgba(255,230,0,.08);
+  --font-mono:    'Share Tech Mono', monospace;
+  --font-ui:      'Share Tech Mono', monospace;
+  --radius:       6px;
+  --radius-lg:    14px;
+  --transition:   0.15s ease;
+}
+
+/* ── Base layout ────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  display: flex; flex-direction: column;
+  font-family: 'Share Tech Mono', monospace;
+  background: var(--bg); color: var(--text-bright);
+}
+
+/* ── Scanlines (CRT effect) ─────────────────────────────────── */
+body::after {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg, transparent 0px, transparent 2px,
+    rgba(0,0,0,.07) 2px, rgba(0,0,0,.07) 4px
+  );
+}
+
+/* ── Neon grid background ───────────────────────────────────── */
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(rgba(155,89,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(155,89,255,.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ── TOPBAR ─────────────────────────────────────────────────── */
+#tet-topbar {
+  height: 50px; flex-shrink: 0; position: relative; z-index: 20;
+  background: rgba(4,4,10,.98);
+  border-bottom: 1px solid rgba(155,89,255,.3);
+  display: flex; align-items: center; padding: 0 18px; gap: 16px;
+}
+#tet-topbar::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  animation: tb-sweep 4s ease-in-out infinite;
+}
+@keyframes tb-sweep { 0%,100%{opacity:.2}50%{opacity:.9} }
+.topbar-brand {
+  font-family: 'Orbitron', monospace; font-weight: 900; font-size: .95rem;
+  letter-spacing: .22em; color: var(--cyan);
+  text-shadow: 0 0 14px var(--cyan), 0 0 28px rgba(0,255,238,.3);
+}
+.topbar-back {
+  font-size: .6rem; color: var(--text-dim); text-decoration: none;
+  padding: 4px 11px; border: 1px solid rgba(155,89,255,.25); border-radius: 5px;
+  transition: all .15s; display: flex; align-items: center; gap: 5px;
+}
+.topbar-back:hover { color: var(--cyan); border-color: var(--cyan); background: var(--cyan-dim); }
+.topbar-back svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+#topbar-player { margin-left: auto; font-size: .68rem; color: var(--text-dim); letter-spacing: .08em; }
+
+/* ── page-wrap + container: match what base.html provides ───── */
+.page-wrap {
+  padding: 0 !important; flex: 1;
+  display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden;
+  position: relative; z-index: 1;
+}
+.container {
+  max-width: 100% !important; padding: 0 !important;
+  flex: 1; display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden; width: 100%;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ORIGINAL TEMPLATE CSS — preserved verbatim from tetris.html
+   ══════════════════════════════════════════════════════════════ */
+
   html, body { height: 100%; overflow: hidden; }
   body { display: flex; flex-direction: column; }
   .page-wrap  {
@@ -430,10 +544,83 @@
     .side-panel { width: 60px; }
     .panel-score-val { font-size: 0.82rem; }
   }
-</style>
-{% endblock %}
 
-{% block content %}
+/* ══════════════════════════════════════════════════════════════
+   ARCADE OVERRIDES — applied on top of original styles
+   ══════════════════════════════════════════════════════════════ */
+
+/* Orbitron on all headings inside cards */
+.t-card h2 {
+  font-family: 'Orbitron', monospace !important;
+  font-size: 1rem !important;
+  letter-spacing: .18em !important;
+  text-shadow: 0 0 12px rgba(0,255,238,.45) !important;
+}
+
+/* Score value — neon glow */
+.panel-score-val {
+  font-family: 'Orbitron', monospace !important;
+  color: var(--cyan) !important;
+  text-shadow: 0 0 8px rgba(0,255,238,.4) !important;
+}
+
+/* Board labels */
+.board-label { font-family: 'Orbitron', monospace !important; letter-spacing: .14em !important; }
+.board-label.you { text-shadow: 0 0 8px rgba(0,255,238,.4) !important; }
+.board-label.opp { text-shadow: 0 0 8px rgba(255,32,96,.4) !important; }
+
+/* Canvas glows */
+#player-canvas   { box-shadow: 0 0 22px rgba(0,255,238,.25), 0 0 44px rgba(0,255,238,.08) !important; }
+#opponent-canvas { box-shadow: 0 0 22px rgba(255,32,96,.25),  0 0 44px rgba(255,32,96,.08)  !important; }
+
+/* VS divider */
+#vs-divider {
+  font-family: 'Orbitron', monospace !important;
+  color: rgba(155,89,255,.8) !important;
+  text-shadow: 0 0 14px rgba(155,89,255,.5) !important;
+}
+
+/* Countdown */
+#countdown-overlay {
+  font-family: 'Orbitron', monospace !important;
+  font-size: 8rem !important;
+  text-shadow: 0 0 40px var(--cyan), 0 0 80px rgba(0,255,238,.4) !important;
+}
+
+/* Game toast */
+#game-toast {
+  background: rgba(8,6,20,.96) !important;
+  border: 1px solid var(--cyan) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 0 20px rgba(0,255,238,.2) !important;
+  padding: 6px 20px !important;
+}
+
+/* Garbage blocks */
+.garbage-block { box-shadow: 0 0 6px rgba(255,32,96,.5) !important; }
+
+/* Settings FAB */
+#settings-fab:hover { box-shadow: 0 0 20px rgba(0,255,238,.3) !important; }
+</style>
+</head>
+<body>
+
+<!-- ── Topbar ──────────────────────────────────────────────── -->
+<nav id="tet-topbar">
+  <a href="/" class="topbar-back">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    LANHub
+  </a>
+  <span class="topbar-brand">TETRIS</span>
+  <span id="topbar-player"></span>
+</nav>
+
+<!-- ── page-wrap + container (replaces base.html shell) ─────── -->
+<main class="page-wrap"><div class="container">
+
+<!-- ════════════════════════════════════════════════════════════
+     ORIGINAL CONTENT (formerly block content)
+     ════════════════════════════════════════════════════════════ -->
 
 <!-- ── Screens ──────────────────────────────────────────── -->
 
@@ -504,18 +691,33 @@
 <div id="screen-bot" class="t-screen">
   <div class="t-card">
     <button class="t-back" onclick="showScreen('screen-solo')">← Back</button>
-    <h2>Bot Difficulty</h2>
-    <button class="t-btn" onclick="startBotGame('easy')">
-      <span class="t-ico">🌱</span>
-      <div class="t-info"><span class="t-lbl">Easy</span><span class="t-desc">Slow, makes mistakes</span></div>
-    </button>
-    <button class="t-btn" onclick="startBotGame('medium')">
-      <span class="t-ico">⚡</span>
-      <div class="t-info"><span class="t-lbl">Medium</span><span class="t-desc">Steady and accurate</span></div>
-    </button>
-    <button class="t-btn" onclick="startBotGame('hard')">
-      <span class="t-ico">💀</span>
-      <div class="t-info"><span class="t-lbl">Hard</span><span class="t-desc">Near-perfect play</span></div>
+    <h2>vs Bot</h2>
+    <div class="t-subtitle">All bot levels play perfectly — speed is the only variable.</div>
+
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;">Bot Speed</span>
+        <span id="bot-speed-label" style="font-family:var(--font-mono);font-size:.78rem;color:var(--cyan);min-width:80px;text-align:right;">Normal (300ms)</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:.7rem;color:var(--text-dim);white-space:nowrap;">⚡ Fast</span>
+        <input type="range" id="bot-speed-slider" min="50" max="1500" step="50" value="1000"
+               oninput="updateBotSpeedLabel(this.value)"
+               style="flex:1;accent-color:var(--cyan);"/>
+        <span style="font-size:.7rem;color:var(--text-dim);white-space:nowrap;">🐢 Slow</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.56rem;color:var(--text-dim);padding:0 2px;">
+        <span>50ms</span>
+        <span>200ms</span>
+        <span>500ms</span>
+        <span>1000ms</span>
+        <span>1500ms</span>
+      </div>
+    </div>
+
+    <button class="t-btn" onclick="startBotGame()" style="justify-content:center;margin-top:4px;">
+      <span class="t-ico">🤖</span>
+      <span class="t-lbl">Start Game</span>
     </button>
   </div>
 </div>
@@ -761,10 +963,23 @@
 
 </div>
 
+</div></main><!-- close container + page-wrap -->
 
-{% endblock %}
-
-{% block scripts %}
+<!-- ════════════════════════════════════════════════════════════
+     SOCKET + ORIGINAL SCRIPTS (formerly block scripts)
+     ════════════════════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+// Bootstrap _socket exactly as base.html does
+const _socket = io();
+_socket.on('connect', () => _socket.emit('page_open', { path: window.location.pathname }));
+// Update topbar username when login succeeds (hooked after DOMContentLoaded runs)
+_socket.on('tetris_login_ack', data => {
+  if (data.ok && document.getElementById('topbar-player')) {
+    document.getElementById('topbar-player').textContent = data.username;
+  }
+});
+</script>
 <script>
 "use strict";
 document.addEventListener("DOMContentLoaded", function() {
@@ -1279,8 +1494,10 @@ function renderOpponentBoard(ctx, board, score) {
 // ═══════════════════════════════════════════════════════════════
 // BOT AI — Dellacherie heuristic
 // ═══════════════════════════════════════════════════════════════
-const BOT_THINK = { easy: 900, medium: 300, hard: 80 };
-const BOT_ERROR = { easy: 0.25, medium: 0.05, hard: 0 };
+// Bot: always perfect accuracy, speed set by slider (ms between moves)
+let botThinkMs = 300; // default — overwritten by slider before game starts
+const BOT_THINK = { easy: 900, medium: 300, hard: 80 }; // kept for compat, not used
+const BOT_ERROR = { easy: 0, medium: 0, hard: 0 };      // all zero — perfect accuracy
 
 function evaluateBoard(board) {
   const heights = Array(COLS).fill(0);
@@ -1425,13 +1642,15 @@ function startSolo() {
   startGame();
 }
 
-function startBotGame(diff) {
+function startBotGame() {
+  botThinkMs = parseInt(document.getElementById('bot-speed-slider')?.value || 300);
   gameMode = 'vsbot';
-  botDifficulty = diff;
+  botDifficulty = 'hard'; // always use hard accuracy
   showScreen(null);
   document.getElementById('opponent-wrap').style.display = '';
   document.getElementById('vs-divider').style.display = 'flex';
-  document.getElementById('opponent-label').textContent = 'BOT (' + diff + ')';
+  const speedLabel = botThinkMs >= 1000 ? 'Slow' : botThinkMs >= 500 ? 'Normal' : botThinkMs >= 150 ? 'Fast' : 'Max';
+  document.getElementById('opponent-label').textContent = 'BOT (' + speedLabel + ')';
   countdown(() => {
     startGame();
     startBotOpponent();
@@ -1451,7 +1670,7 @@ function startBotOpponent() {
     },
   });
   botGame.alive = true;
-  botThinkTimer = BOT_THINK[botDifficulty];
+  botThinkTimer = botThinkMs;
 }
 
 // ── Multiplayer ───────────────────────────────────────────────
@@ -1652,7 +1871,7 @@ function loop(ts) {
     // Bot AI decision
     botThinkTimer -= dt;
     if (botThinkTimer <= 0) {
-      botThinkTimer = BOT_THINK[botDifficulty];
+      botThinkTimer = botThinkMs;
       const move = botBestMove(botGame, botDifficulty);
       if (move) {
         botGame.current.state = move.state;
@@ -1942,6 +2161,18 @@ function showGameToast(msg) {
 }
 
 // ── Utilities ─────────────────────────────────────────────────
+function updateBotSpeedLabel(val) {
+  val = parseInt(val);
+  let label;
+  if      (val >= 1200) label = 'Very Slow (' + val + 'ms)';
+  else if (val >= 700)  label = 'Slow ('      + val + 'ms)';
+  else if (val >= 350)  label = 'Normal ('    + val + 'ms)';
+  else if (val >= 150)  label = 'Fast ('      + val + 'ms)';
+  else                  label = 'Max ('       + val + 'ms)';
+  const el = document.getElementById('bot-speed-label');
+  if (el) el.textContent = label;
+}
+
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -1954,6 +2185,7 @@ window.submitUsername = submitUsername;
 window.showScreen = showScreen;
 window.startSolo = startSolo;
 window.startBotGame = startBotGame;
+window.updateBotSpeedLabel = updateBotSpeedLabel;
 window.joinRandomQueue = joinRandomQueue;
 window.leaveQueue = leaveQueue;
 window.respondChallenge = respondChallenge;
@@ -1975,4 +2207,5 @@ window.mbStopRepeat = mbStopRepeat;
 
 }); // end DOMContentLoaded
 </script>
-{% endblock %}
+</body>
+</html>

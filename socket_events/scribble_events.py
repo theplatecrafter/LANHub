@@ -332,7 +332,8 @@ def _end_round(room: dict):
 def _end_game(room: dict):
     c = _cfg()
     _cancel_timer(room)
-    room['state'] = 'game_end'
+    room['state']     = 'game_end'
+    room['timer_end'] = time.time() + c['GAMEEND_SECS']
     _push_state(room)
     _broadcast(room, 'scr_chat_msg', {'sys': True, 'text': '🏆  Game over! Final scores:'})
 
@@ -348,6 +349,7 @@ def _end_game(room: dict):
                 r['round']      = 0
                 r['turn_order'] = list(r['players'].keys())
                 random.shuffle(r['turn_order'])
+                r['state'] = 'waiting'
                 _start_choosing(r)
             else:
                 r['state'] = 'waiting'

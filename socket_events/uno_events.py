@@ -116,16 +116,23 @@ def _handle_game_result(room_id: str, event: str, extra: dict = None):
         _broadcast_game(room_id)
 
     elif event == 'game_over':
-        room['status'] = 'finished'
+        room['status'] = 'post_game'
+        room['ready_continue'] = set()   # sids of humans who clicked Continue
         rankings = sorted(game.players, key=lambda p: p.get('rank') or 999)
-        payload  = {'rankings': [{'username': p['username'], 'rank': p.get('rank'),
-                                   'is_bot': p.get('is_bot', False)} for p in rankings]}
-        for p in room['players'] + room['spectators']:
-            socketio.emit('uno_game_over', payload, to=p['sid'])
-        # Clear room_id for everyone
-        for p in room['players'] + room['spectators']:
-            if p['sid'] in uno_sessions:
-                uno_sessions[p['sid']]['room_id'] = None
+        payload = {
+            'rankings':   [{'username': p['username'], 'rank': p.get('rank'),
+                            'is_bot': p.get('is_bot', False)} for p in rankings],
+            'creator_sid': room['creator_sid'],
+        }
+        # Everyone still in the room (players + spectators) gets the game-over screen
+        all_room_sids = [p['sid'] for p in room['players'] + room['spectators'] if p['sid']]
+        for sid in all_room_sids:
+            socketio.emit('uno_game_over', {
+                **payload,
+                'is_creator': sid == room['creator_sid'],
+            }, to=sid)
+        # Bots auto-ready immediately — they never need to click Continue
+        # (no action needed; creator Continue triggers the restart for all)
         _emit_lobby()
 
 def _schedule_bot(room_id: str, delay: float = 1.3):
@@ -222,6 +229,74 @@ def _cleanup_uno(sid: str):
         room['players'] = [p for p in room['players'] if p['sid'] != sid]
 
 # ── Socket handlers ────────────────────────────────────────────────────────────
+
+@socketio.on('uno_continue_game')
+def handle_continue_game(_=None):
+     """Creator clicks Continue — resets the room and sends everyone to the waiting room."""
+     sid     = request.sid
+     room_id = uno_sessions.get(sid, {}).get('room_id')
+     room    = rooms.get(room_id)
+     if not room or room['status'] != 'post_game':
+         emit('uno_error', {'message': 'No post-game room to continue.'}); return
+     if room['creator_sid'] != sid:
+         emit('uno_error', {'message': 'Only the room creator can continue.'}); return
+
+     # Move all spectators back to players (they finished the last game)
+     for s in room['spectators']:
+         if s['sid'] and s['sid'] in uno_sessions:
+             room['players'].append({'sid': s['sid'], 'username': s['username']})
+     room['spectators'] = []
+
+     # Reset room to waiting state
+     room['status']          = 'waiting'
+     room['game']            = None
+     room['ready_continue']  = set()
+
+     # Keep room_id in sessions for everyone still present
+     for p in room['players']:
+         if p['sid'] and p['sid'] in uno_sessions:
+             uno_sessions[p['sid']]['room_id'] = room_id
+
+     # Send everyone back to the waiting-room view
+     socketio.emit('uno_return_to_room', {'room_id': room_id}, room=_rn(room_id))
+     _emit_room(room_id)
+     _emit_lobby()
+     app_log.info(f"[uno] Room {room_id} continued by {uno_sessions[sid]['username']!r}")
+
+
+@socketio.on('uno_leave_postgame')
+def handle_leave_postgame(_=None):
+     """Non-creator player leaves after the game instead of continuing."""
+     sid     = request.sid
+     room_id = uno_sessions.get(sid, {}).get('room_id')
+     room    = rooms.get(room_id)
+     if not room or room['status'] != 'post_game':
+         return
+
+     # Remove from players and spectators
+     room['players']    = [p for p in room['players']    if p['sid'] != sid]
+     room['spectators'] = [p for p in room['spectators'] if p['sid'] != sid]
+
+     if sid in uno_sessions:
+         uno_sessions[sid]['room_id'] = None
+
+     emit('uno_left_room')
+
+     # If the creator left, transfer or close
+     if room['creator_sid'] == sid:
+         human_players = [p for p in room['players'] if p['sid']]
+         if human_players:
+             room['creator_sid'] = human_players[0]['sid']
+             socketio.emit('uno_you_are_creator', {}, to=room['creator_sid'])
+             # Update their game-over screen to show the Continue button
+             socketio.emit('uno_now_creator', {}, to=room['creator_sid'])
+         else:
+             # Everyone left — delete the room
+             del rooms[room_id]
+             _emit_lobby()
+             return
+
+     _emit_lobby()
 
 @socketio.on('uno_set_username')
 def handle_set_username(data):

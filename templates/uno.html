@@ -1,489 +1,735 @@
-{% extends "base.html" %}
-{% block title %}LANHub — UNO{% endblock %}
-
-{% block head %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>UNO — LANHub</title>
+<link id="theme-ss" rel="stylesheet" href="/static/themes/dark.css"/>
+<script>(function(){var s=localStorage.getItem('lanhub-theme')||'dark';document.getElementById('theme-ss').href='/static/themes/'+s+'.css';})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  /* ── Layout ────────────────────────────────────────────── */
-  html, body { height: 100%; overflow: hidden; }
-  body { display: flex; flex-direction: column; }
-  .page-wrap  { padding:0!important; flex:1; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
-  .container  { max-width:100%!important; padding:0!important; flex:1; display:flex; min-height:0; overflow:hidden; }
+/* ═══════════════════════════════════════════════════════
+   UNO — FULL SCREEN STANDALONE
+   ═══════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans-serif;color:#eaf2ff}
 
-  .view { display:none; flex:1; min-height:0; width:100%; min-width:0; }
-  .view.active { display:flex; }
+/* ── CSS vars ─────────────────────────────────────────── */
+:root{
+  --cw:58px;--ch:88px;--cw-lg:80px;--ch-lg:120px;
+  --red:#ef4444;--green:#22c55e;--blue:#3b82f6;--yellow:#eab308;
+  --wild-bg:conic-gradient(from 225deg,#ef4444 0 90deg,#eab308 90deg 180deg,#22c55e 180deg 270deg,#3b82f6 270deg 360deg);
+  --turn-glow:rgba(0,255,180,.18);
+  --card-back:linear-gradient(145deg,#1e1b4b,#312e81);
+  --radius:8px;--radius-lg:16px;
+  --shadow-card:0 4px 20px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.15);
+  --trans:.22s cubic-bezier(.34,1.1,.64,1);
+}
 
-  /* ── Username overlay ─────────────────────────────────── */
-  #un-overlay {
-    position:fixed; inset:0; background:rgba(0,0,0,.8); backdrop-filter:blur(8px);
-    display:flex; align-items:center; justify-content:center; z-index:600;
-  }
-  .un-box {
-    background:var(--bg-panel); border:1px solid var(--border-hi);
-    border-radius:var(--radius); padding:36px; width:340px; max-width:90vw;
-    box-shadow:0 24px 64px rgba(0,0,0,.6); animation:modal-in .2s ease;
-  }
-  @keyframes modal-in { from{opacity:0;transform:translateY(12px)scale(.97)} to{opacity:1;transform:none} }
-  .un-logo { font-size:2.8rem; text-align:center; margin-bottom:12px; }
-  .un-title { font-size:1.1rem; font-weight:800; text-align:center; margin-bottom:4px; }
-  .un-sub   { font-family:var(--font-mono); font-size:.72rem; color:var(--text-dim); text-align:center; margin-bottom:20px; }
-  .un-err   { color:var(--red); font-family:var(--font-mono); font-size:.72rem; min-height:16px; margin-bottom:8px; }
-  .un-btn   { width:100%; padding:10px; background:var(--cyan); color:var(--bg); border:none; border-radius:var(--radius); font-family:var(--font-mono); font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; cursor:pointer; }
-  .un-btn:hover { opacity:.85; }
+/* ── ROOT SHELL ───────────────────────────────────────── */
+#uno-root{
+  display:flex;flex-direction:column;
+  width:100vw;height:100vh;overflow:hidden;
+  position:relative;
+  background:radial-gradient(ellipse at 50% 110%,#1e1060 0%,#0a0812 60%);
+}
 
-  /* ── Invite toast ─────────────────────────────────────── */
-  #invite-toast {
-    position:fixed; top:20px; right:20px; z-index:500;
-    background:var(--bg-panel); border:1px solid var(--cyan);
-    border-radius:var(--radius); padding:16px 18px; min-width:280px;
-    box-shadow:0 8px 32px rgba(0,212,255,.15);
-    display:none; flex-direction:column; gap:10px; animation:modal-in .2s ease;
-  }
-  #invite-toast.open { display:flex; }
-  .it-eyebrow { font-family:var(--font-mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.12em; color:var(--cyan); }
-  .it-creator { font-size:.95rem; font-weight:700; color:var(--text-bright); }
-  .it-room    { font-family:var(--font-mono); font-size:.72rem; color:var(--text-dim); }
-  .it-btns    { display:flex; gap:8px; }
-  .it-accept  { flex:1; padding:7px; background:var(--cyan); color:var(--bg); border:none; border-radius:var(--radius); font-family:var(--font-mono); font-size:.72rem; font-weight:700; cursor:pointer; }
-  .it-decline { flex:1; padding:7px; background:transparent; border:1px solid var(--border); color:var(--text-dim); border-radius:var(--radius); font-family:var(--font-mono); font-size:.72rem; cursor:pointer; }
-  .it-decline:hover { border-color:var(--red); color:var(--red); }
+/* ── Animated suit-colour ambient (CSS only, not canvas — no slither bleed) */
+#uno-root::before{
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse at 18% 18%, rgba(255,77,77,.07)  0%,transparent 45%),
+    radial-gradient(ellipse at 82% 78%, rgba(59,130,246,.07) 0%,transparent 45%),
+    radial-gradient(ellipse at 80% 18%, rgba(234,179,8,.06)  0%,transparent 45%),
+    radial-gradient(ellipse at 20% 82%, rgba(34,197,94,.06)  0%,transparent 45%);
+  animation:bg-breathe 8s ease-in-out infinite alternate;
+}
+@keyframes bg-breathe{
+  0%  {opacity:.55;transform:scale(1)   rotate(0deg);}
+  100%{opacity:1;  transform:scale(1.08)rotate(1deg);}
+}
 
-  /* ── Color picker overlay ─────────────────────────────── */
-  #color-overlay {
-    display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
-    z-index:400; align-items:center; justify-content:center;
-  }
-  #color-overlay.open { display:flex; }
-  .color-box {
-    background:var(--bg-panel); border:1px solid var(--border-hi);
-    border-radius:var(--radius); padding:24px; text-align:center;
-  }
-  .color-box p { font-family:var(--font-mono); font-size:.65rem; text-transform:uppercase; letter-spacing:.12em; color:var(--text-dim); margin-bottom:16px; }
-  .color-btns { display:flex; gap:10px; }
-  .color-pick-btn {
-    width:72px; height:72px; border-radius:10px; border:3px solid white;
-    font-size:1.6rem; cursor:pointer; transition:transform .12s, box-shadow .12s;
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:0 2px 8px rgba(0,0,0,.4);
-  }
-  .color-pick-btn:hover { transform:scale(1.1); box-shadow:0 4px 16px rgba(0,0,0,.6); }
-  .cpb-red    { background:linear-gradient(145deg,#f44336,#b71c1c); }
-  .cpb-green  { background:linear-gradient(145deg,#4caf50,#1b5e20); }
-  .cpb-blue   { background:linear-gradient(145deg,#2196f3,#0d47a1); }
-  .cpb-yellow { background:linear-gradient(145deg,#ffeb3b,#f57f17); }
+/* ── TOPBAR ───────────────────────────────────────────── */
+#uno-topbar{
+  position:relative;z-index:10;
+  height:52px;flex-shrink:0;
+  background:rgba(10,8,18,.85);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  backdrop-filter:blur(12px);
+  display:flex;align-items:center;padding:0 18px;gap:14px;
+}
+.topbar-brand{
+  font-size:1.1rem;font-weight:900;letter-spacing:.2em;
+  background:linear-gradient(90deg,#ff4d4d,#ffd700,#4dff91,#4da6ff);
+  background-size:300% 100%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  animation:brand-shift 4s linear infinite;
+}
+@keyframes brand-shift{0%{background-position:0%}100%{background-position:300%}}
+.topbar-back{
+  font-size:.62rem;color:rgba(255,255,255,.35);text-decoration:none;
+  letter-spacing:.08em;font-family:'Share Tech Mono',monospace;
+  padding:4px 11px;border:1px solid rgba(255,255,255,.12);border-radius:6px;
+  transition:all .15s;display:flex;align-items:center;gap:5px;
+}
+.topbar-back:hover{color:#fff;border-color:rgba(255,255,255,.35);}
+.topbar-back svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
+#topbar-turn{
+  margin-left:auto;font-family:'Share Tech Mono',monospace;
+  font-size:.75rem;letter-spacing:.1em;padding:5px 14px;
+  border-radius:20px;border:1px solid transparent;
+  transition:all .3s;white-space:nowrap;
+}
+#topbar-turn.my-turn{
+  color:#00ffb4;border-color:#00ffb4;
+  background:rgba(0,255,180,.1);
+  box-shadow:0 0 18px rgba(0,255,180,.35);
+  animation:turn-pulse 1.2s ease-in-out infinite;
+}
+@keyframes turn-pulse{0%,100%{box-shadow:0 0 18px rgba(0,255,180,.35)}50%{box-shadow:0 0 34px rgba(0,255,180,.65)}}
+#topbar-turn.other-turn{color:rgba(255,255,255,.38);border-color:rgba(255,255,255,.1);}
+#direction-wrap{
+  font-size:1.4rem;
+  animation:spin-slow 3s linear infinite;
+  display:inline-block;
+}
+#direction-wrap.ccw{animation-direction:reverse;}
+@keyframes spin-slow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
-  /* ── Toast ────────────────────────────────────────────── */
-  #uno-toast {
-    position:fixed; bottom:20px; right:20px; z-index:700; pointer-events:none;
-    background:var(--bg-panel); border:1px solid var(--border-hi); border-radius:var(--radius);
-    padding:9px 18px; font-family:var(--font-mono); font-size:.75rem;
-    opacity:0; transform:translateY(8px); transition:all .2s;
-  }
-  #uno-toast.show { opacity:1; transform:none; }
-  #uno-toast.ok   { border-color:var(--green); color:var(--green); }
-  #uno-toast.err  { border-color:var(--red);   color:var(--red); }
-  #uno-toast.info { border-color:var(--cyan);  color:var(--cyan); }
+/* ── VIEWS ────────────────────────────────────────────── */
+.uno-view{display:none;flex:1;min-height:0;width:100%;overflow:hidden;position:relative;z-index:1;}
+.uno-view.active{display:flex;flex-direction:column;}
 
-  /* ════════════════════════════════════════════════════════
-     LOBBY VIEW
-     ════════════════════════════════════════════════════════ */
-  #view-lobby {
-    overflow-y:auto; background:var(--bg); align-items:center;
-  }
-  .lobby-inner { width:100%; max-width:900px; padding:32px; display:flex; flex-direction:column; gap:24px; }
+/* ═══════════════════════════════════════════════════════
+   USERNAME OVERLAY
+   ═══════════════════════════════════════════════════════ */
+#un-overlay{
+  position:fixed;inset:0;z-index:800;
+  background:rgba(0,0,0,.88);backdrop-filter:blur(16px);
+  display:flex;align-items:center;justify-content:center;
+}
+.un-box{
+  background:linear-gradient(145deg,#12101e,#1e1a30);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:var(--radius-lg);padding:40px 44px;
+  width:360px;max-width:94vw;text-align:center;
+  box-shadow:0 32px 80px rgba(0,0,0,.7);
+  animation:pop-in .35s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes pop-in{from{transform:scale(.65);opacity:0}to{transform:scale(1);opacity:1}}
+.un-logo{
+  font-size:4rem;font-weight:900;letter-spacing:.15em;
+  background:linear-gradient(135deg,#ff4d4d,#ffd700);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  line-height:1;margin-bottom:6px;
+  filter:drop-shadow(0 0 20px rgba(255,100,50,.5));
+}
+.un-sub{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:rgba(255,255,255,.3);letter-spacing:.2em;text-transform:uppercase;margin-bottom:28px;}
+.un-input{
+  width:100%;padding:12px 16px;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.15);border-radius:var(--radius);
+  color:#fff;font-family:'Share Tech Mono',monospace;font-size:.9rem;
+  text-align:center;outline:none;transition:all .18s;margin-bottom:14px;
+}
+.un-input:focus{border-color:rgba(255,215,0,.6);box-shadow:0 0 0 3px rgba(255,215,0,.12);}
+.un-input::placeholder{color:rgba(255,255,255,.22);}
+.un-btn{
+  width:100%;padding:12px;border-radius:var(--radius);border:none;
+  background:linear-gradient(135deg,#ff4d4d,#ffd700);
+  color:#1a0a00;font-family:'Share Tech Mono',monospace;font-size:.85rem;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+  box-shadow:0 0 24px rgba(255,150,50,.45);transition:all .15s;
+}
+.un-btn:hover{box-shadow:0 0 36px rgba(255,150,50,.65);transform:translateY(-1px);}
+.un-err{color:#ff6b6b;font-family:'Share Tech Mono',monospace;font-size:.72rem;min-height:18px;margin-top:6px;}
 
-  .lobby-hero { display:flex; align-items:center; gap:16px; padding-bottom:20px; border-bottom:1px solid var(--border); }
-  .lobby-icon { font-size:3rem; }
-  .lobby-hero h1 { font-size:1.8rem; font-weight:800; margin:0; }
-  .lobby-hero p  { font-family:var(--font-mono); font-size:.72rem; color:var(--text-dim); margin:4px 0 0; }
+/* ═══════════════════════════════════════════════════════
+   LOBBY VIEW
+   ═══════════════════════════════════════════════════════ */
+#view-lobby{overflow-y:auto;align-items:center;justify-content:flex-start;background:transparent;}
+.lobby-inner{
+  width:100%;max-width:860px;padding:28px 24px;
+  display:flex;flex-direction:column;gap:22px;
+  margin:0 auto;
+}
+.lobby-hero{
+  display:flex;align-items:center;gap:16px;padding-bottom:18px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.lobby-hero-icon{
+  font-size:3.5rem;
+  filter:drop-shadow(0 0 16px rgba(255,180,50,.6));
+  animation:card-float 3s ease-in-out infinite;
+}
+@keyframes card-float{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}
+.lobby-hero h1{font-size:2rem;font-weight:900;letter-spacing:.05em;}
+.lobby-hero p{font-family:'Share Tech Mono',monospace;font-size:.72rem;color:rgba(255,255,255,.35);margin-top:4px;}
 
-  /* Tabs */
-  .lobby-tabs { display:flex; gap:0; border-bottom:1px solid var(--border); }
-  .l-tab {
-    padding:10px 20px; font-family:var(--font-mono); font-size:.72rem; text-transform:uppercase;
-    letter-spacing:.1em; color:var(--text-dim); cursor:pointer; border-bottom:2px solid transparent;
-    transition:all .12s; background:none; border-top:none; border-left:none; border-right:none;
-  }
-  .l-tab:hover { color:var(--text-bright); }
-  .l-tab.active { color:var(--cyan); border-bottom-color:var(--cyan); }
+/* Tabs */
+.l-tabs{display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,.08);}
+.l-tab{
+  padding:10px 22px;font-family:'Share Tech Mono',monospace;font-size:.72rem;
+  text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.35);
+  cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .15s;background:none;border-top:none;border-left:none;border-right:none;
+}
+.l-tab:hover{color:rgba(255,255,255,.7);}
+.l-tab.active{color:#ffd700;border-bottom-color:#ffd700;}
 
-  .l-pane { display:none; padding:20px 0; }
-  .l-pane.active { display:block; }
+.l-pane{display:none;padding:20px 0;}
+.l-pane.active{display:block;}
 
-  /* Create form */
-  .create-form { display:flex; flex-direction:column; gap:12px; max-width:480px; }
-  .cf-row { display:flex; gap:10px; }
-  .cf-row .cf-fg { flex:1; }
-  .cf-fg { display:flex; flex-direction:column; gap:5px; }
-  .cf-fg label { font-family:var(--font-mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text-dim); }
-  .cf-fg input, .cf-fg select {
-    padding:8px 10px; background:var(--bg); border:1px solid var(--border-hi);
-    border-radius:var(--radius); color:var(--text-bright); font-family:var(--font-mono);
-    font-size:.8rem; outline:none; transition:border-color .15s; width:100%;
-  }
-  .cf-fg input:focus, .cf-fg select:focus { border-color:var(--cyan); }
+/* Create form */
+.create-form{display:flex;flex-direction:column;gap:14px;max-width:500px;}
+.cf-fg{display:flex;flex-direction:column;gap:6px;}
+.cf-fg label{font-family:'Share Tech Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.35);}
+.cf-fg input,.cf-fg select{
+  padding:9px 12px;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);
+  color:#fff;font-family:'Share Tech Mono',monospace;font-size:.82rem;outline:none;
+  transition:border-color .15s;
+}
+.cf-fg input:focus,.cf-fg select:focus{border-color:rgba(255,215,0,.5);}
+.cf-fg select option{background:#1e1a30;}
+.cf-row{display:flex;gap:12px;}
+.cf-row .cf-fg{flex:1;}
 
-  .privacy-toggle { display:flex; gap:6px; }
-  .priv-btn {
-    flex:1; padding:8px 4px; background:var(--bg); border:1px solid var(--border);
-    border-radius:var(--radius); font-family:var(--font-mono); font-size:.72rem;
-    color:var(--text-dim); cursor:pointer; text-align:center; transition:all .12s;
-  }
-  .priv-btn.active { border-color:var(--cyan); color:var(--cyan); background:var(--cyan-dim); }
+.privacy-toggle{display:flex;gap:8px;}
+.priv-btn{
+  flex:1;padding:9px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);
+  color:rgba(255,255,255,.4);font-family:'Share Tech Mono',monospace;font-size:.72rem;
+  cursor:pointer;text-align:center;transition:all .15s;
+}
+.priv-btn.active{border-color:#ffd700;color:#ffd700;background:rgba(255,215,0,.08);}
 
-  .create-btn-main {
-    padding:10px 24px; background:var(--cyan); color:var(--bg); border:none;
-    border-radius:var(--radius); font-family:var(--font-mono); font-size:.78rem;
-    font-weight:700; text-transform:uppercase; letter-spacing:.08em; cursor:pointer;
-    align-self:flex-start; transition:opacity .15s;
-  }
-  .create-btn-main:hover { opacity:.85; }
+.create-btn-main{
+  padding:11px 28px;background:linear-gradient(135deg,#ffd700,#ff8c00);
+  color:#1a0a00;border:none;border-radius:var(--radius);
+  font-family:'Share Tech Mono',monospace;font-size:.8rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;cursor:pointer;
+  align-self:flex-start;box-shadow:0 0 20px rgba(255,180,0,.3);transition:all .15s;
+}
+.create-btn-main:hover{box-shadow:0 0 32px rgba(255,180,0,.5);transform:translateY(-1px);}
 
-  /* Room search */
-  .find-header { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
-  #room-search {
-    flex:1; min-width:160px; padding:8px 12px; background:var(--bg);
-    border:1px solid var(--border-hi); border-radius:var(--radius);
-    color:var(--text-bright); font-family:var(--font-mono); font-size:.8rem; outline:none;
-  }
-  #room-search:focus { border-color:var(--cyan); }
-  .type-filter-btns { display:flex; gap:6px; }
-  .tfb {
-    padding:6px 12px; background:transparent; border:1px solid var(--border);
-    border-radius:20px; color:var(--text-dim); font-family:var(--font-mono); font-size:.68rem;
-    cursor:pointer; transition:all .12s;
-  }
-  .tfb:hover  { border-color:var(--border-hi); color:var(--text); }
-  .tfb.active { border-color:var(--cyan); color:var(--cyan); background:var(--cyan-dim); }
+/* Find rooms */
+.find-header{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+#room-search{
+  flex:1;min-width:160px;padding:9px 13px;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);
+  color:#fff;font-family:'Share Tech Mono',monospace;font-size:.8rem;outline:none;
+}
+#room-search:focus{border-color:rgba(255,215,0,.4);}
+.type-filter-btns{display:flex;gap:6px;}
+.tfb{
+  padding:7px 14px;background:transparent;border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;color:rgba(255,255,255,.4);font-family:'Share Tech Mono',monospace;
+  font-size:.68rem;cursor:pointer;transition:all .12s;
+}
+.tfb.active{border-color:#ffd700;color:#ffd700;background:rgba(255,215,0,.06);}
 
-  #rooms-list { display:flex; flex-direction:column; gap:8px; }
-  .room-card {
-    background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius);
-    padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px;
-    transition:border-color .12s;
-  }
-  .room-card:hover { border-color:var(--border-hi); }
-  .rc-info { flex:1; min-width:0; }
-  .rc-title { font-size:.9rem; font-weight:700; color:var(--text-bright); }
-  .rc-meta  { display:flex; gap:8px; flex-wrap:wrap; font-family:var(--font-mono); font-size:.62rem; color:var(--text-dim); margin-top:4px; }
-  .rc-type-badge { padding:1px 8px; border-radius:20px; background:var(--bg-card); border:1px solid var(--border); }
-  .join-room-btn {
-    padding:7px 18px; background:var(--cyan); color:var(--bg); border:none;
-    border-radius:var(--radius); font-family:var(--font-mono); font-size:.72rem;
-    font-weight:700; cursor:pointer; flex-shrink:0; transition:opacity .12s;
-  }
-  .join-room-btn:hover { opacity:.85; }
-  .no-rooms { font-family:var(--font-mono); font-size:.8rem; color:var(--text-dim); text-align:center; padding:30px 0; }
+.room-card{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:var(--radius);padding:14px 18px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  transition:all .15s;margin-bottom:8px;
+}
+.room-card:hover{border-color:rgba(255,215,0,.3);background:rgba(255,215,0,.04);}
+.rc-title{font-size:.9rem;font-weight:700;color:#fff;}
+.rc-meta{display:flex;gap:8px;flex-wrap:wrap;font-family:'Share Tech Mono',monospace;font-size:.62rem;color:rgba(255,255,255,.35);margin-top:4px;}
+.rc-type-badge{padding:1px 8px;border-radius:20px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);}
+.join-room-btn{
+  padding:7px 18px;background:linear-gradient(135deg,#ffd700,#ff8c00);color:#1a0a00;border:none;
+  border-radius:var(--radius);font-family:'Share Tech Mono',monospace;font-size:.72rem;font-weight:700;
+  cursor:pointer;flex-shrink:0;transition:all .12s;
+}
+.join-room-btn:hover{box-shadow:0 0 16px rgba(255,180,0,.5);}
+.no-rooms{font-family:'Share Tech Mono',monospace;font-size:.8rem;color:rgba(255,255,255,.25);text-align:center;padding:30px 0;}
 
-  /* ════════════════════════════════════════════════════════
-     ROOM VIEW (waiting room)
-     ════════════════════════════════════════════════════════ */
-  #view-room { overflow-y:auto; background:var(--bg); align-items:center; }
-  .room-inner { width:100%; max-width:760px; padding:28px; display:flex; flex-direction:column; gap:20px; }
+/* ═══════════════════════════════════════════════════════
+   ROOM VIEW
+   ═══════════════════════════════════════════════════════ */
+#view-room{overflow-y:auto;align-items:center;justify-content:flex-start;background:transparent;}
+.room-inner{width:100%;max-width:700px;padding:28px 24px;display:flex;flex-direction:column;gap:18px;margin:0 auto;}
+.room-header{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08);}
+.room-title-big{font-size:1.5rem;font-weight:800;color:#fff;}
+.room-badge{padding:2px 12px;border-radius:20px;font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;}
+.rb-type{background:rgba(255,215,0,.12);color:#ffd700;border:1px solid rgba(255,215,0,.3);}
+.rb-priv{background:rgba(255,255,255,.06);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1);}
 
-  .room-header {
-    display:flex; align-items:center; gap:12px; padding-bottom:16px; border-bottom:1px solid var(--border);
-  }
-  .room-title-big { font-size:1.4rem; font-weight:800; color:var(--text-bright); }
-  .room-badge {
-    padding:2px 10px; border-radius:20px; font-family:var(--font-mono); font-size:.62rem;
-    letter-spacing:.1em; text-transform:uppercase;
-  }
-  .rb-type { background:var(--cyan-dim); color:var(--cyan); border:1px solid var(--cyan); }
-  .rb-priv { background:var(--bg-card); color:var(--text-dim); border:1px solid var(--border); }
+.rs-label{font-family:'Share Tech Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.3);margin-bottom:8px;}
+.player-entry{
+  display:flex;align-items:center;gap:10px;padding:9px 14px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);
+}
+.pe-name{flex:1;font-family:'Share Tech Mono',monospace;font-size:.82rem;color:#fff;}
+.pe-crown{color:#ffd700;}
+.pe-kick{
+  padding:3px 10px;background:transparent;border:1px solid rgba(255,255,255,.1);
+  border-radius:var(--radius);color:rgba(255,255,255,.35);font-family:'Share Tech Mono',monospace;
+  font-size:.62rem;cursor:pointer;transition:all .12s;
+}
+.pe-kick:hover{border-color:#ff4d4d;color:#ff4d4d;}
+.bot-entry{
+  display:flex;align-items:center;gap:10px;padding:9px 14px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);
+}
+.be-name{flex:1;font-family:'Share Tech Mono',monospace;font-size:.82rem;color:rgba(255,255,255,.5);}
+.be-diff{padding:1px 8px;border-radius:20px;font-family:'Share Tech Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;}
+.be-diff.easy  {background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.3);}
+.be-diff.medium{background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3);}
+.be-diff.hard  {background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);}
+.be-rm{
+  padding:3px 10px;background:transparent;border:1px solid rgba(255,255,255,.08);
+  border-radius:var(--radius);color:rgba(255,255,255,.3);font-family:'Share Tech Mono',monospace;font-size:.62rem;cursor:pointer;transition:all .12s;
+}
+.be-rm:hover{border-color:#ff4d4d;color:#ff4d4d;}
 
-  .room-section { display:flex; flex-direction:column; gap:8px; }
-  .rs-label { font-family:var(--font-mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.14em; color:var(--text-dim); }
+.add-bot-row{display:flex;gap:8px;align-items:center;}
+.bot-diff-select{
+  padding:7px 11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  border-radius:var(--radius);color:#fff;font-family:'Share Tech Mono',monospace;font-size:.75rem;outline:none;
+}
+.bot-diff-select option{background:#1e1a30;}
+.add-bot-btn{
+  padding:7px 16px;background:transparent;border:1px dashed rgba(255,255,255,.2);
+  border-radius:var(--radius);color:rgba(255,255,255,.45);font-family:'Share Tech Mono',monospace;
+  font-size:.72rem;cursor:pointer;transition:all .12s;
+}
+.add-bot-btn:hover{border-color:#ffd700;color:#ffd700;}
 
-  .player-list { display:flex; flex-direction:column; gap:5px; }
-  .player-entry {
-    display:flex; align-items:center; gap:10px; padding:9px 12px;
-    background:var(--bg-panel); border:1px solid var(--border);
-    border-radius:var(--radius);
-  }
-  .pe-avatar { font-size:1.2rem; width:28px; text-align:center; }
-  .pe-name { flex:1; font-family:var(--font-mono); font-size:.82rem; color:var(--text-bright); }
-  .pe-crown { color:var(--amber); font-size:.75rem; }
-  .pe-kick {
-    padding:3px 10px; background:transparent; border:1px solid var(--border);
-    border-radius:var(--radius); color:var(--text-dim); font-family:var(--font-mono);
-    font-size:.62rem; cursor:pointer; transition:all .12s;
-  }
-  .pe-kick:hover { border-color:var(--red); color:var(--red); }
+.avail-list{display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto;}
+.avail-entry{
+  display:flex;align-items:center;justify-content:space-between;padding:7px 12px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);
+  font-family:'Share Tech Mono',monospace;font-size:.78rem;color:#fff;
+}
+.invite-btn{
+  padding:4px 12px;background:transparent;border:1px solid rgba(255,215,0,.4);
+  border-radius:var(--radius);color:#ffd700;font-family:'Share Tech Mono',monospace;
+  font-size:.65rem;cursor:pointer;transition:all .12s;
+}
+.invite-btn:hover{background:rgba(255,215,0,.12);}
 
-  .bot-entry {
-    display:flex; align-items:center; gap:10px; padding:9px 12px;
-    background:var(--bg-card); border:1px solid var(--border);
-    border-radius:var(--radius);
-  }
-  .be-icon { font-size:1.1rem; }
-  .be-name { flex:1; font-family:var(--font-mono); font-size:.82rem; color:var(--text-dim); }
-  .be-diff { padding:1px 8px; border-radius:20px; font-family:var(--font-mono); font-size:.58rem; text-transform:uppercase; letter-spacing:.08em; }
-  .be-diff.easy   { background:rgba(57,217,138,.15); color:var(--green); border:1px solid var(--green); }
-  .be-diff.medium { background:rgba(245,166,35,.15);  color:var(--amber); border:1px solid var(--amber); }
-  .be-diff.hard   { background:var(--red-dim);         color:var(--red);   border:1px solid var(--red); }
-  .be-rm {
-    padding:3px 10px; background:transparent; border:1px solid var(--border);
-    border-radius:var(--radius); color:var(--text-dim); font-family:var(--font-mono);
-    font-size:.62rem; cursor:pointer; transition:all .12s;
-  }
-  .be-rm:hover { border-color:var(--red); color:var(--red); }
+.room-controls{display:flex;gap:8px;flex-wrap:wrap;}
+.rc-btn{
+  padding:10px 20px;background:transparent;border:1px solid rgba(255,255,255,.15);
+  border-radius:var(--radius);color:rgba(255,255,255,.5);font-family:'Share Tech Mono',monospace;
+  font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;transition:all .12s;
+}
+.rc-btn:hover{border-color:rgba(255,255,255,.35);color:#fff;}
+.rc-btn.start{background:linear-gradient(135deg,#ffd700,#ff8c00);color:#1a0a00;border-color:transparent;font-weight:700;box-shadow:0 0 20px rgba(255,180,0,.3);}
+.rc-btn.start:hover{box-shadow:0 0 32px rgba(255,180,0,.5);}
+.rc-btn.start:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;}
+.rc-btn.leave:hover{border-color:#ff4d4d;color:#ff4d4d;}
+.wait-banner{
+  font-family:'Share Tech Mono',monospace;font-size:.72rem;color:rgba(255,255,255,.35);
+  padding:12px;background:rgba(255,255,255,.04);border-radius:var(--radius);
+  border:1px solid rgba(255,255,255,.08);text-align:center;letter-spacing:.06em;
+}
 
-  .room-controls { display:flex; gap:8px; flex-wrap:wrap; }
-  .rc-btn {
-    padding:9px 18px; background:transparent; border:1px solid var(--border);
-    border-radius:var(--radius); color:var(--text-dim); font-family:var(--font-mono);
-    font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; cursor:pointer;
-    transition:all .12s;
-  }
-  .rc-btn:hover      { border-color:var(--border-hi); color:var(--text); }
-  .rc-btn.start      { background:var(--cyan); color:var(--bg); border-color:var(--cyan); font-weight:700; }
-  .rc-btn.start:hover { opacity:.85; }
-  .rc-btn.start:disabled { opacity:.35; cursor:not-allowed; }
-  .rc-btn.leave:hover { border-color:var(--red); color:var(--red); }
+/* ═══════════════════════════════════════════════════════
+   GAME VIEW
+   ═══════════════════════════════════════════════════════ */
+#view-game{
+  background:transparent;
+}
 
-  .add-bot-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .bot-diff-select { padding:7px 10px; background:var(--bg); border:1px solid var(--border-hi); border-radius:var(--radius); color:var(--text-bright); font-family:var(--font-mono); font-size:.75rem; outline:none; }
-  .add-bot-btn {
-    padding:7px 14px; background:transparent; border:1px dashed var(--border-hi);
-    border-radius:var(--radius); color:var(--text-dim); font-family:var(--font-mono);
-    font-size:.72rem; cursor:pointer; transition:all .12s;
-  }
-  .add-bot-btn:hover { border-color:var(--cyan); color:var(--cyan); }
+/* Turn atmosphere — full-screen tint */
+#turn-atmosphere{
+  position:absolute;inset:0;pointer-events:none;z-index:0;
+  transition:background 0.6s ease;
+}
+#turn-atmosphere.my-turn{
+  background:radial-gradient(ellipse at 50% 110%,rgba(0,255,180,.08) 0%,transparent 60%);
+}
 
-  /* Available players for invite */
-  .avail-list { display:flex; flex-direction:column; gap:5px; max-height:180px; overflow-y:auto; }
-  .avail-entry {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:7px 12px; background:var(--bg-panel); border:1px solid var(--border);
-    border-radius:var(--radius); font-family:var(--font-mono); font-size:.78rem;
-    color:var(--text-bright);
-  }
-  .invite-btn {
-    padding:4px 12px; background:transparent; border:1px solid var(--cyan);
-    border-radius:var(--radius); color:var(--cyan); font-family:var(--font-mono);
-    font-size:.65rem; cursor:pointer; transition:all .12s;
-  }
-  .invite-btn:hover { background:var(--cyan); color:var(--bg); }
+/* Opponents row */
+#opponents-row{
+  position:relative;z-index:2;
+  display:flex;align-items:flex-start;justify-content:center;flex-wrap:wrap;
+  gap:10px;padding:12px 18px;flex-shrink:0;
+}
+.opp-card{
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:10px 14px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);
+  min-width:90px;max-width:120px;
+  transition:all .3s;
+}
+.opp-card.active-player{
+  border-color:rgba(255,215,0,.7);
+  background:rgba(255,215,0,.08);
+  box-shadow:0 0 22px rgba(255,215,0,.3),0 0 6px rgba(255,215,0,.15) inset;
+  animation:opp-active-pulse 1.5s ease-in-out infinite;
+}
+@keyframes opp-active-pulse{
+  0%,100%{box-shadow:0 0 22px rgba(255,215,0,.3),0 0 6px rgba(255,215,0,.15) inset}
+  50%    {box-shadow:0 0 38px rgba(255,215,0,.55),0 0 10px rgba(255,215,0,.2) inset}
+}
+.opp-card.finished{opacity:.4;border-style:dashed;}
+.opp-name{
+  font-family:'Share Tech Mono',monospace;font-size:.62rem;
+  color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;
+}
+.opp-card.active-player .opp-name{color:#ffd700;font-weight:700;}
+.opp-card-backs{display:flex;}
+.mini-card-back{
+  width:14px;height:22px;border-radius:2px;
+  background:linear-gradient(145deg,#1e1b4b,#312e81);
+  border:1px solid rgba(255,255,255,.25);margin-left:-3px;flex-shrink:0;
+  transition:transform .15s;
+}
+.opp-card-backs .mini-card-back:first-child{margin-left:0;}
+.opp-count{font-family:'Share Tech Mono',monospace;font-size:.6rem;color:rgba(255,255,255,.4);}
+.uno-badge{
+  background:linear-gradient(135deg,#ff4d4d,#ff0000);color:#fff;
+  font-family:'Share Tech Mono',monospace;font-size:.55rem;font-weight:900;
+  padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.06em;
+  animation:uno-badge-pulse 0.7s ease-in-out infinite;
+  box-shadow:0 0 12px rgba(255,50,50,.6);
+}
+@keyframes uno-badge-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
-  .wait-banner { font-family:var(--font-mono); font-size:.72rem; color:var(--text-dim); padding:10px; background:var(--bg-card); border-radius:var(--radius); border:1px solid var(--border); }
+/* ── CENTER ───────────────────────────────────────────── */
+#game-center{
+  position:relative;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  gap:32px;padding:0 20px;flex:1;min-height:0;
+}
+.gc-item{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.gc-label{
+  font-family:'Share Tech Mono',monospace;font-size:.58rem;
+  text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.3);
+}
 
-  /* ════════════════════════════════════════════════════════
-     GAME VIEW
-     ════════════════════════════════════════════════════════ */
-  #view-game {
-    background:var(--bg); display:flex; flex-direction:column;
-    align-items:stretch;
-  }
+/* ── PENDING DRAW BADGE ───────────────────────────────── */
+#pending-draw-badge{
+  background:linear-gradient(135deg,#ff4d4d,#cc0000);color:#fff;
+  font-family:'Share Tech Mono',monospace;font-size:.85rem;font-weight:900;
+  padding:6px 14px;border-radius:20px;border:2px solid rgba(255,255,255,.3);
+  box-shadow:0 0 20px rgba(255,50,50,.6);display:none;
+  animation:badge-pop .3s cubic-bezier(.34,1.56,.64,1) both;
+}
+#pending-draw-badge.visible{display:block;}
+@keyframes badge-pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
 
-  /* Top bar */
-  #game-topbar {
-    display:flex; align-items:center; gap:12px; padding:8px 20px;
-    background:var(--bg-panel); border-bottom:1px solid var(--border); flex-shrink:0;
-  }
-  #game-room-title { font-weight:700; font-size:.88rem; color:var(--text-bright); }
-  #direction-icon  { font-size:1.3rem; transition:transform .3s; }
-  #current-turn-label {
-    margin-left:auto; font-family:var(--font-mono); font-size:.72rem; color:var(--text-dim);
-  }
-  #current-turn-label.my-turn { color:var(--cyan); font-weight:700; }
+/* ═══════════════════════════════════════════════════════
+   UNO CARDS — 3D FLIP SYSTEM
+   ═══════════════════════════════════════════════════════ */
+.card-scene{
+  perspective:600px;
+  width:var(--cw);height:var(--ch);flex-shrink:0;
+}
+.card-scene.lg{width:var(--cw-lg);height:var(--ch-lg);}
 
-  /* Opponents row */
-  #opponents-row {
-    display:flex; align-items:flex-start; justify-content:center; flex-wrap:wrap;
-    gap:10px; padding:14px 20px; flex-shrink:0; min-height:110px;
-  }
-  .opp-card {
-    display:flex; flex-direction:column; align-items:center; gap:5px;
-    padding:10px 14px; background:var(--bg-panel); border:1px solid var(--border);
-    border-radius:var(--radius); min-width:90px; transition:border-color .15s, box-shadow .15s;
-  }
-  .opp-card.active-player {
-    border-color:var(--cyan); box-shadow:0 0 12px rgba(0,212,255,.25);
-  }
-  .opp-card.finished { opacity:.45; border-style:dashed; }
-  .opp-name { font-family:var(--font-mono); font-size:.65rem; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px; }
-  .opp-card-backs { display:flex; }
-  .mini-card-back {
-    width:16px; height:24px; border-radius:2px; background:linear-gradient(145deg,#1a237e,#311b92);
-    border:1px solid rgba(255,255,255,.3); margin-left:-4px; flex-shrink:0;
-  }
-  .mini-card-back:first-child { margin-left:0; }
-  .opp-count { font-family:var(--font-mono); font-size:.62rem; color:var(--text-dim); }
-  .uno-badge {
-    background:var(--red); color:#fff; font-family:var(--font-mono);
-    font-size:.55rem; font-weight:900; padding:1px 6px; border-radius:10px;
-    text-transform:uppercase; letter-spacing:.06em;
-  }
-  .bot-indicator { font-size:.7rem; opacity:.5; }
+.uno-card{
+  width:var(--cw);height:var(--ch);
+  border-radius:var(--radius);
+  border:2.5px solid rgba(255,255,255,.8);
+  box-shadow:var(--shadow-card);
+  display:inline-flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  position:relative;font-weight:900;flex-shrink:0;
+  user-select:none;
+  transition:transform var(--trans),box-shadow var(--trans);
+  /* 3D flip */
+  transform-style:preserve-3d;
+  backface-visibility:hidden;
+}
+.uno-card.lg{width:var(--cw-lg);height:var(--ch-lg);border-radius:10px;}
+.uno-card.back  {background:var(--card-back);}
+.uno-card.red   {background:linear-gradient(145deg,#ef4444,#7f1d1d);color:#fff;}
+.uno-card.green {background:linear-gradient(145deg,#22c55e,#14532d);color:#fff;}
+.uno-card.blue  {background:linear-gradient(145deg,#3b82f6,#1e3a8a);color:#fff;}
+.uno-card.yellow{background:linear-gradient(145deg,#eab308,#713f12);color:#fff;}
+.uno-card.wild  {background:var(--wild-bg);color:#fff;}
 
-  /* Game center */
-  #game-center {
-    display:flex; align-items:center; justify-content:center;
-    gap:28px; padding:8px 20px; flex-shrink:0;
-  }
-  .gc-item { display:flex; flex-direction:column; align-items:center; gap:6px; }
-  .gc-label { font-family:var(--font-mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text-dim); }
+.card-face{font-size:1.4rem;line-height:1;z-index:1;text-shadow:1px 1px 3px rgba(0,0,0,.5);}
+.uno-card.lg .card-face{font-size:2.2rem;}
+.card-corner{
+  position:absolute;font-size:.5rem;font-weight:900;line-height:1;
+  text-shadow:1px 1px 2px rgba(0,0,0,.5);
+}
+.card-corner.tl{top:4px;left:5px;}
+.card-corner.br{bottom:4px;right:5px;transform:rotate(180deg);}
+.uno-card.lg .card-corner.tl{top:6px;left:7px;font-size:.75rem;}
+.uno-card.lg .card-corner.br{bottom:6px;right:7px;font-size:.75rem;}
+.back-label{
+  font-family:'Share Tech Mono',monospace;font-size:.68rem;font-weight:900;
+  color:rgba(255,255,255,.75);letter-spacing:.06em;
+}
+.uno-card.lg.back .back-label{font-size:1rem;}
 
-  /* ── UNO Cards ────────────────────────────────────────── */
-  :root {
-    --card-w: 60px; --card-h: 90px;
-    --card-w-lg: 88px; --card-h-lg: 132px;
-  }
+/* Card oval decoration */
+.uno-card::before{
+  content:'';position:absolute;width:75%;height:85%;
+  border-radius:50%;border:2px solid rgba(255,255,255,.2);
+  pointer-events:none;
+}
 
-  .uno-card {
-    width:var(--card-w); height:var(--card-h); border-radius:8px;
-    border:3px solid rgba(255,255,255,.85);
-    box-shadow:0 2px 10px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.2);
-    display:inline-flex; flex-direction:column; align-items:center; justify-content:center;
-    position:relative; font-weight:900; flex-shrink:0; user-select:none;
-    transition:transform .12s, box-shadow .12s;
-  }
-  .uno-card.lg {
-    width:var(--card-w-lg); height:var(--card-h-lg); border-radius:10px;
-  }
-  .uno-card.back   { background:linear-gradient(145deg,#1a237e,#311b92); }
-  .uno-card.red    { background:linear-gradient(145deg,#ef5350,#b71c1c); color:#fff; }
-  .uno-card.green  { background:linear-gradient(145deg,#66bb6a,#1b5e20); color:#fff; }
-  .uno-card.blue   { background:linear-gradient(145deg,#42a5f5,#0d47a1); color:#fff; }
-  .uno-card.yellow { background:linear-gradient(145deg,#ffee58,#f9a825); color:#333; }
-  .uno-card.wild   {
-    background:conic-gradient(from 225deg at 50% 50%,
-      #ef5350 0deg 90deg, #ffee58 90deg 180deg, #66bb6a 180deg 270deg, #42a5f5 270deg 360deg);
-    color:#fff;
-  }
+/* Playable hover */
+.uno-card.playable{
+  outline:2.5px solid rgba(0,255,180,.8);
+  outline-offset:2px;cursor:pointer;
+}
+.uno-card.playable:hover{
+  transform:translateY(-18px) scale(1.08);
+  box-shadow:0 12px 32px rgba(0,255,180,.5),var(--shadow-card);
+  outline-color:#00ffb4;
+  z-index:10;
+}
+.uno-card.not-playable{opacity:.65;cursor:default;}
 
-  .card-face {
-    font-size:1.5rem; line-height:1; z-index:1;
-    text-shadow:1px 1px 3px rgba(0,0,0,.4);
-  }
-  .uno-card.lg .card-face { font-size:2.4rem; }
-  .uno-card.yellow .card-face { text-shadow:1px 1px 2px rgba(0,0,0,.3); }
+/* Deal animation */
+@keyframes deal-in{
+  from{transform:translateY(-60px) rotateY(90deg);opacity:0}
+  to{transform:none;opacity:1}
+}
+.card-deal{animation:deal-in .35s cubic-bezier(.34,1.2,.64,1) both;}
 
-  .card-corner {
-    position:absolute; font-size:.55rem; font-weight:900; line-height:1;
-    text-shadow:1px 1px 1px rgba(0,0,0,.4);
-  }
-  .card-corner.tl { top:4px; left:5px; }
-  .card-corner.br { bottom:4px; right:5px; transform:rotate(180deg); }
-  .uno-card.lg .card-corner.tl { top:6px; left:7px; font-size:.8rem; }
-  .uno-card.lg .card-corner.br { bottom:6px; right:7px; font-size:.8rem; }
+/* Flip animation */
+@keyframes flip-in{
+  0%  {transform:rotateY(-90deg);opacity:0}
+  60% {transform:rotateY(10deg)}
+  100%{transform:rotateY(0deg);opacity:1}
+}
+.card-flip{animation:flip-in .4s cubic-bezier(.34,1.1,.64,1) both;}
 
-  .uno-card.back .back-label {
-    font-family:var(--font-mono); font-size:.7rem; font-weight:900;
-    color:rgba(255,255,255,.8); letter-spacing:.06em;
-  }
-  .uno-card.lg.back .back-label { font-size:1rem; }
+/* Play from hand */
+@keyframes card-played{
+  0%  {transform:translateY(0) scale(1)}
+  40% {transform:translateY(-40px) scale(1.15) rotateZ(-5deg)}
+  100%{transform:translateY(-80px) scale(.8) rotateZ(10deg);opacity:0}
+}
 
-  /* Hand cards */
-  .uno-card.hand-card { cursor:default; }
-  .uno-card.playable  {
-    outline:3px solid #00bcd4; outline-offset:2px; cursor:pointer;
-  }
-  .uno-card.playable:hover { transform:translateY(-14px); box-shadow:0 8px 20px rgba(0,188,212,.4); }
-  .uno-card.not-playable { opacity:.6; cursor:default; }
+/* ── MY HAND AREA ─────────────────────────────────────── */
+#my-area{
+  position:relative;z-index:2;
+  display:flex;flex-direction:column;align-items:center;
+  padding:8px 16px 16px;flex-shrink:0;
+  background:linear-gradient(to top,rgba(0,0,0,.5) 0%,transparent 100%);
+}
 
-  /* Pending draw badge */
-  #pending-draw-badge {
-    background:var(--red); color:#fff; font-family:var(--font-mono);
-    font-size:.8rem; font-weight:900; padding:4px 10px;
-    border-radius:20px; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,.4);
-    display:none;
-  }
-  #pending-draw-badge.visible { display:block; }
+/* Turn glow ring around my area */
+#my-area::before{
+  content:'';position:absolute;inset:0;border-radius:var(--radius-lg);
+  border:2px solid transparent;transition:border-color .5s,box-shadow .5s;pointer-events:none;
+}
+#my-area.my-turn::before{
+  border-color:rgba(0,255,180,.45);
+  box-shadow:0 0 28px rgba(0,255,180,.2);
+}
 
-  /* My hand */
-  #my-area {
-    flex:1; display:flex; flex-direction:column; align-items:center;
-    justify-content:flex-end; padding:8px 16px 16px; min-height:0;
-  }
-  #hand-scroll {
-    display:flex; overflow-x:auto; gap:-6px; padding:16px 8px 8px;
-    scrollbar-width:thin; max-width:100%; align-items:flex-end;
-  }
-  #hand-scroll::-webkit-scrollbar { height:4px; }
-  #hand-scroll .uno-card { margin-right:-6px; }
-  #hand-scroll .uno-card:last-child { margin-right:0; }
-  #hand-scroll .uno-card:hover { z-index:10; position:relative; }
+.hand-meta{
+  display:flex;align-items:center;gap:12px;margin-bottom:8px;width:100%;max-width:900px;
+}
+.hand-label{
+  font-family:'Share Tech Mono',monospace;font-size:.62rem;
+  text-transform:uppercase;letter-spacing:.14em;color:rgba(255,255,255,.3);
+}
+.hand-label.my-turn-label{color:#00ffb4;}
 
-  .hand-controls { display:flex; gap:10px; align-items:center; margin-top:8px; }
-  #draw-btn {
-    padding:9px 20px; background:var(--bg-panel); border:1px solid var(--border-hi);
-    border-radius:var(--radius); color:var(--text-bright); font-family:var(--font-mono);
-    font-size:.75rem; font-weight:700; cursor:pointer; transition:all .15s;
-  }
-  #draw-btn:hover:not(:disabled) { border-color:var(--cyan); color:var(--cyan); background:var(--cyan-dim); }
-  #draw-btn:disabled { opacity:.3; cursor:not-allowed; }
+#uno-self-badge{
+  display:none;font-family:'Share Tech Mono',monospace;font-size:.78rem;font-weight:900;
+  color:#fff;background:linear-gradient(135deg,#ff4d4d,#ff0000);
+  padding:4px 14px;border-radius:20px;border:2px solid rgba(255,255,255,.4);
+  box-shadow:0 0 16px rgba(255,50,50,.6);
+  animation:uno-badge-pulse 0.7s ease-in-out infinite;
+  margin-left:auto;
+}
+#uno-self-badge.visible{display:block;}
 
-  #spectator-badge {
-    display:none; font-family:var(--font-mono); font-size:.72rem; color:var(--amber);
-    padding:6px 14px; border:1px solid var(--amber); border-radius:20px;
-    background:rgba(245,166,35,.1);
-  }
-  #spectator-badge.visible { display:block; }
+#spectator-badge{
+  display:none;font-family:'Share Tech Mono',monospace;font-size:.72rem;color:#ffd700;
+  padding:6px 14px;border:1px solid rgba(255,215,0,.3);border-radius:20px;
+  background:rgba(255,215,0,.06);
+}
+#spectator-badge.visible{display:block;}
 
-  .hand-label {
-    font-family:var(--font-mono); font-size:.6rem; text-transform:uppercase;
-    letter-spacing:.14em; color:var(--text-dim); margin-bottom:4px;
-    align-self:flex-start; padding-left:8px;
-  }
-  #uno-self-badge {
-    display:none; font-family:var(--font-mono); font-size:.8rem; font-weight:900;
-    color:#fff; background:var(--red); padding:4px 14px; border-radius:20px;
-    border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,.4);
-    animation:uno-pulse 1s ease-in-out infinite;
-  }
-  #uno-self-badge.visible { display:block; }
-  @keyframes uno-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+#hand-scroll{
+  display:flex;overflow-x:auto;
+  padding:16px 12px 8px;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent;
+  max-width:100%;align-items:flex-end;
+  gap:0;
+}
+#hand-scroll::-webkit-scrollbar{height:3px;}
+#hand-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px;}
+#hand-scroll .uno-card{margin-right:-10px;}
+#hand-scroll .uno-card:last-child{margin-right:0;}
+#hand-scroll .uno-card:hover{position:relative;}
 
-  /* ════════════════════════════════════════════════════════
-     GAME OVER VIEW
-     ════════════════════════════════════════════════════════ */
-  #view-gameover {
-    align-items:center; justify-content:center; background:var(--bg); overflow-y:auto;
-  }
-  .go-box {
-    background:var(--bg-panel); border:1px solid var(--border-hi);
-    border-radius:var(--radius); padding:40px; max-width:460px; width:90%;
-    display:flex; flex-direction:column; align-items:center; gap:16px;
-    animation:modal-in .3s ease;
-  }
-  .go-title { font-size:2rem; font-weight:900; }
-  .rankings { width:100%; display:flex; flex-direction:column; gap:6px; }
-  .rank-row {
-    display:flex; align-items:center; gap:12px; padding:10px 14px;
-    background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
-  }
-  .rank-num { font-family:var(--font-mono); font-size:1.2rem; font-weight:900; color:var(--text-dim); width:28px; text-align:center; }
-  .rank-row.r1 .rank-num { color:var(--amber); }
-  .rank-row.r2 .rank-num { color:var(--text-dim); }
-  .rank-name { flex:1; font-weight:700; color:var(--text-bright); }
-  .rank-bot  { font-family:var(--font-mono); font-size:.65rem; color:var(--text-dim); }
-  .go-btns { display:flex; gap:10px; }
-  .go-btn {
-    padding:10px 22px; border-radius:var(--radius); font-family:var(--font-mono);
-    font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
-    cursor:pointer; transition:all .12s; border:none;
-  }
-  .go-btn.primary { background:var(--cyan); color:var(--bg); }
-  .go-btn.ghost   { background:transparent; border:1px solid var(--border); color:var(--text-dim); }
-  .go-btn.ghost:hover { border-color:var(--border-hi); color:var(--text); }
+.hand-controls{display:flex;gap:10px;align-items:center;margin-top:6px;}
+#draw-btn{
+  padding:9px 24px;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.2);border-radius:var(--radius);
+  color:#fff;font-family:'Share Tech Mono',monospace;font-size:.78rem;font-weight:700;
+  cursor:pointer;transition:all .15s;letter-spacing:.06em;
+}
+#draw-btn:hover:not(:disabled){
+  border-color:#00ffb4;color:#00ffb4;background:rgba(0,255,180,.08);
+  box-shadow:0 0 16px rgba(0,255,180,.2);
+}
+#draw-btn:disabled{opacity:.3;cursor:not-allowed;}
+#draw-btn.my-turn-draw{
+  background:rgba(0,255,180,.1);border-color:rgba(0,255,180,.5);color:#00ffb4;
+  box-shadow:0 0 16px rgba(0,255,180,.2);
+  animation:draw-btn-pulse 1.5s ease-in-out infinite;
+}
+@keyframes draw-btn-pulse{0%,100%{box-shadow:0 0 16px rgba(0,255,180,.2)}50%{box-shadow:0 0 28px rgba(0,255,180,.4)}}
+
+/* ── DECK CARD AREA ───────────────────────────────────── */
+#deck-card{cursor:pointer;transition:transform var(--trans),box-shadow var(--trans);}
+#deck-card:hover{transform:translateY(-4px) scale(1.04);box-shadow:0 8px 28px rgba(255,255,255,.2),var(--shadow-card);}
+#deck-count{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:rgba(255,255,255,.3);}
+
+/* ── DISCARD PILE ─────────────────────────────────────── */
+#discard-pile{transition:all .25s cubic-bezier(.34,1.2,.64,1);}
+
+/* ═══════════════════════════════════════════════════════
+   OVERLAYS
+   ═══════════════════════════════════════════════════════ */
+
+/* Color picker */
+#color-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);
+  backdrop-filter:blur(14px);z-index:400;align-items:center;justify-content:center;
+}
+#color-overlay.open{display:flex;}
+.color-box{
+  background:linear-gradient(145deg,#12101e,#1e1a30);
+  border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-lg);
+  padding:28px 32px;text-align:center;
+  box-shadow:0 32px 80px rgba(0,0,0,.7);
+  animation:pop-in .25s cubic-bezier(.34,1.56,.64,1) both;
+}
+.color-box p{font-family:'Share Tech Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.16em;color:rgba(255,255,255,.4);margin-bottom:20px;}
+.color-btns{display:flex;gap:12px;}
+.color-pick-btn{
+  width:80px;height:80px;border-radius:12px;border:3px solid rgba(255,255,255,.5);
+  font-size:1.8rem;cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(0,0,0,.4);
+}
+.color-pick-btn:hover{transform:scale(1.15) translateY(-4px);box-shadow:0 8px 28px rgba(0,0,0,.6);border-color:#fff;}
+.cpb-red   {background:linear-gradient(145deg,#ef4444,#7f1d1d);}
+.cpb-green {background:linear-gradient(145deg,#22c55e,#14532d);}
+.cpb-blue  {background:linear-gradient(145deg,#3b82f6,#1e3a8a);}
+.cpb-yellow{background:linear-gradient(145deg,#eab308,#713f12);}
+
+/* Invite toast */
+#invite-toast{
+  position:fixed;top:20px;right:20px;z-index:500;
+  background:linear-gradient(145deg,#12101e,#1e1a30);
+  border:1px solid rgba(0,255,180,.3);border-radius:var(--radius);
+  padding:16px 20px;min-width:290px;
+  box-shadow:0 8px 32px rgba(0,255,180,.15);
+  display:none;flex-direction:column;gap:10px;
+  animation:slide-in-right .3s cubic-bezier(.34,1.2,.64,1) both;
+}
+@keyframes slide-in-right{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+#invite-toast.open{display:flex;}
+.it-eyebrow{font-family:'Share Tech Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:#00ffb4;}
+.it-creator{font-size:.95rem;font-weight:700;color:#fff;}
+.it-room{font-family:'Share Tech Mono',monospace;font-size:.72rem;color:rgba(255,255,255,.4);}
+.it-btns{display:flex;gap:8px;}
+.it-accept{
+  flex:1;padding:7px;background:linear-gradient(135deg,#00ffb4,#00cc8e);color:#001a0f;
+  border:none;border-radius:var(--radius);font-family:'Share Tech Mono',monospace;font-size:.72rem;font-weight:700;cursor:pointer;
+}
+.it-decline{
+  flex:1;padding:7px;background:transparent;border:1px solid rgba(255,255,255,.15);
+  color:rgba(255,255,255,.4);border-radius:var(--radius);font-family:'Share Tech Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .12s;
+}
+.it-decline:hover{border-color:#ff4d4d;color:#ff4d4d;}
+
+/* Toast */
+#uno-toast{
+  position:fixed;bottom:22px;right:22px;z-index:700;pointer-events:none;
+  background:rgba(20,18,32,.95);border:1px solid rgba(255,255,255,.12);
+  border-radius:var(--radius);padding:10px 18px;
+  font-family:'Share Tech Mono',monospace;font-size:.76rem;
+  opacity:0;transform:translateY(8px);transition:all .22s;
+  backdrop-filter:blur(8px);
+}
+#uno-toast.show{opacity:1;transform:none;}
+#uno-toast.ok {border-color:rgba(0,255,180,.4);color:#00ffb4;}
+#uno-toast.err{border-color:rgba(255,77,77,.4);color:#ff4d4d;}
+#uno-toast.info{border-color:rgba(255,215,0,.4);color:#ffd700;}
+
+/* Game Over */
+#view-gameover{
+  align-items:center;justify-content:center;background:transparent;overflow-y:auto;
+}
+.go-box{
+  background:linear-gradient(145deg,#12101e,#1e1a30);
+  border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-lg);
+  padding:44px;max-width:480px;width:90%;
+  display:flex;flex-direction:column;align-items:center;gap:18px;
+  box-shadow:0 32px 80px rgba(0,0,0,.7);
+  animation:pop-in .4s cubic-bezier(.34,1.56,.64,1) both;
+}
+.go-title{font-size:2.2rem;font-weight:900;text-align:center;}
+.rankings{width:100%;display:flex;flex-direction:column;gap:8px;}
+.rank-row{
+  display:flex;align-items:center;gap:14px;padding:11px 16px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:var(--radius);transition:all .2s;
+}
+.rank-row.r1{border-color:rgba(255,215,0,.4);background:rgba(255,215,0,.06);}
+.rank-row.r2{border-color:rgba(192,192,192,.25);background:rgba(192,192,192,.03);}
+.rank-num{font-family:'Share Tech Mono',monospace;font-size:1.3rem;font-weight:900;color:rgba(255,255,255,.3);width:32px;text-align:center;}
+.rank-row.r1 .rank-num{color:#ffd700;}
+.rank-row.r2 .rank-num{color:#c0c0c0;}
+.rank-name{flex:1;font-weight:700;color:#fff;}
+.rank-bot{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:rgba(255,255,255,.3);}
+.go-btns{display:flex;gap:10px;}
+.go-btn{
+  padding:11px 24px;border-radius:var(--radius);font-family:'Share Tech Mono',monospace;
+  font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;transition:all .15s;border:none;
+}
+.go-btn.primary{background:linear-gradient(135deg,#ffd700,#ff8c00);color:#1a0a00;box-shadow:0 0 20px rgba(255,180,0,.3);}
+.go-btn.primary:hover{box-shadow:0 0 32px rgba(255,180,0,.5);}
+.go-btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);}
+.go-btn.ghost:hover{border-color:rgba(255,255,255,.4);color:#fff;}
+
+/* ── RESPONSIVE ───────────────────────────────────────── */
+@media(max-width:600px){
+  #game-center{gap:16px;}
+  :root{--cw:48px;--ch:72px;--cw-lg:66px;--ch-lg:100px;}
+}
 </style>
-{% endblock %}
+</head>
+<body>
 
-{% block content %}
-<!-- Username overlay -->
+<div id="uno-root">
+
+<!-- ── Topbar ─────────────────────────────────────────── -->
+<nav id="uno-topbar">
+  <a href="/" class="topbar-back" id="back-btn">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    LANHub
+  </a>
+  <span class="topbar-brand">UNO</span>
+  <span id="direction-wrap" title="Direction">↻</span>
+  <div id="topbar-turn" class="other-turn">—</div>
+</nav>
+
+<!-- ── Username overlay ───────────────────────────────── -->
 <div id="un-overlay">
   <div class="un-box">
-    <div class="un-logo">🃏</div>
-    <div class="un-title">UNO</div>
-    <div class="un-sub">Pick a username for this session.</div>
-    <input type="text" id="un-input" maxlength="24" placeholder="Username…" autocomplete="off" style="margin-bottom:8px" />
+    <div class="un-logo">UNO</div>
+    <div class="un-sub">Pick a username for this session</div>
+    <input class="un-input" id="un-input" type="text" maxlength="24" placeholder="Username…" autocomplete="off"/>
     <div class="un-err" id="un-err"></div>
     <button class="un-btn" id="un-submit">Let's Play →</button>
   </div>
 </div>
 
-<!-- Invite toast -->
+<!-- ── Invite toast ───────────────────────────────────── -->
 <div id="invite-toast">
   <div class="it-eyebrow">🃏 UNO Invitation</div>
   <div class="it-creator" id="it-creator"></div>
@@ -494,7 +740,7 @@
   </div>
 </div>
 
-<!-- Color picker -->
+<!-- ── Color picker ───────────────────────────────────── -->
 <div id="color-overlay">
   <div class="color-box">
     <p>Choose a color</p>
@@ -507,42 +753,34 @@
   </div>
 </div>
 
-<!-- Toast -->
+<!-- ── Toast ──────────────────────────────────────────── -->
 <div id="uno-toast"></div>
 
-<!-- ════════════════════════════════ LOBBY ═══════════════════════════════════ -->
-<div id="view-lobby" class="view">
+<!-- ═══════ LOBBY ═══════════════════════════════════════ -->
+<div id="view-lobby" class="uno-view active">
   <div class="lobby-inner">
     <div class="lobby-hero">
-      <div class="lobby-icon">🃏</div>
+      <div class="lobby-hero-icon">🃏</div>
       <div>
         <h1>UNO</h1>
-        <p>Playing as <strong id="lobby-username"></strong></p>
+        <p>Playing as <strong id="lobby-username" style="color:#ffd700"></strong></p>
       </div>
     </div>
 
-    <div class="lobby-tabs">
-      <button class="l-tab active" onclick="switchLobbyTab('create', this)">＋ Create Room</button>
-      <button class="l-tab"        onclick="switchLobbyTab('find', this)">🔍 Find Room</button>
+    <div class="l-tabs">
+      <button class="l-tab active" onclick="switchLobbyTab('create',this)">＋ Create Room</button>
+      <button class="l-tab"        onclick="switchLobbyTab('find',this)">🔍 Find Room</button>
     </div>
 
-    <!-- Create pane -->
     <div class="l-pane active" id="lpane-create">
       <div class="create-form">
-        <div class="cf-fg">
-          <label>Room Title</label>
-          <input type="text" id="room-title-inp" placeholder="My UNO Room" maxlength="40" autocomplete="off" />
-        </div>
+        <div class="cf-fg"><label>Room Title</label><input type="text" id="room-title-inp" placeholder="My UNO Room" maxlength="40" autocomplete="off"/></div>
         <div class="cf-row">
-          <div class="cf-fg">
-            <label>Game Type</label>
-            <select id="room-type-sel">
-              <option value="classic">Classic UNO (2–10 players)</option>
-            </select>
+          <div class="cf-fg"><label>Game Type</label>
+            <select id="room-type-sel"><option value="classic">Classic UNO (2–10 players)</option></select>
           </div>
         </div>
-        <div class="cf-fg">
-          <label>Privacy</label>
+        <div class="cf-fg"><label>Privacy</label>
           <div class="privacy-toggle">
             <button class="priv-btn active" data-v="public"  onclick="selectPrivacy(this)">🌐 Public</button>
             <button class="priv-btn"        data-v="private" onclick="selectPrivacy(this)">🔒 Private</button>
@@ -552,757 +790,619 @@
       </div>
     </div>
 
-    <!-- Find pane -->
     <div class="l-pane" id="lpane-find">
       <div class="find-header">
-        <input type="text" id="room-search" placeholder="Search rooms…" oninput="filterRooms()" />
+        <input type="text" id="room-search" placeholder="Search rooms…" oninput="filterRooms()"/>
         <div class="type-filter-btns">
           <button class="tfb active" data-type="" onclick="setTypeFilter(this)">All</button>
           <button class="tfb" data-type="classic" onclick="setTypeFilter(this)">Classic</button>
         </div>
       </div>
       <div id="rooms-list">
-        <div class="no-rooms" id="no-rooms-msg">No public rooms available. Create one!</div>
+        <div class="no-rooms" id="no-rooms-msg">No public rooms. Create one!</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ════════════════════════════════ ROOM ════════════════════════════════════ -->
-<div id="view-room" class="view">
+<!-- ═══════ ROOM ═════════════════════════════════════════ -->
+<div id="view-room" class="uno-view">
   <div class="room-inner">
     <div class="room-header">
-      <div style="flex:1">
-        <div class="room-title-big" id="room-title-display"></div>
-      </div>
+      <div style="flex:1"><div class="room-title-big" id="room-title-display"></div></div>
       <span class="room-badge rb-type" id="room-type-badge"></span>
       <span class="room-badge rb-priv" id="room-priv-badge"></span>
     </div>
-
-    <!-- Players -->
-    <div class="room-section">
-      <div class="rs-label">Players (<span id="room-player-count">0</span> / <span id="room-max">10</span>)</div>
-      <div class="player-list" id="room-players-list"></div>
-    </div>
-
-    <!-- Bots -->
-    <div class="room-section" id="bots-section" style="display:none">
-      <div class="rs-label">Bots</div>
-      <div class="player-list" id="room-bots-list"></div>
-    </div>
-
-    <!-- Creator controls -->
+    <div><div class="rs-label">Players (<span id="room-player-count">0</span> / <span id="room-max">10</span>)</div><div id="room-players-list"></div></div>
+    <div id="bots-section" style="display:none"><div class="rs-label">Bots</div><div id="room-bots-list"></div></div>
     <div id="creator-controls" style="display:none">
-
-      <!-- Add bot -->
-      <div class="room-section">
+      <div style="margin-bottom:14px">
         <div class="rs-label">Add Bot</div>
         <div class="add-bot-row">
           <select class="bot-diff-select" id="bot-diff-sel">
-            <option value="easy">Easy</option>
-            <option value="medium" selected>Medium</option>
-            <option value="hard">Hard</option>
+            <option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option>
           </select>
           <button class="add-bot-btn" onclick="addBot()">＋ Add Bot</button>
         </div>
       </div>
-
-      <!-- Invite (private only) -->
-      <div class="room-section" id="invite-section" style="display:none">
+      <div id="invite-section" style="display:none">
         <div class="rs-label">Invite Players</div>
         <div class="avail-list" id="available-players-list"></div>
-        <div class="no-rooms" id="no-avail-msg" style="padding:10px 0;display:none">No players available to invite.</div>
+        <div id="no-avail-msg" style="font-family:'Share Tech Mono',monospace;font-size:.72rem;color:rgba(255,255,255,.25);padding:8px 0;display:none">No players available to invite.</div>
       </div>
     </div>
-
-    <!-- Wait banner (public, non-creator) -->
-    <div class="wait-banner" id="wait-banner" style="display:none">
-      ⏳ Waiting for the room creator to start the game…
-    </div>
-
-    <!-- Action buttons -->
+    <div class="wait-banner" id="wait-banner" style="display:none">⏳ Waiting for the room creator to start…</div>
     <div class="room-controls">
       <button class="rc-btn start" id="start-btn" onclick="startGame()" disabled>▶ Start Game</button>
       <button class="rc-btn leave" onclick="leaveRoom()">← Leave Room</button>
     </div>
-
-    <div style="font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim)" id="room-status-hint"></div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.62rem;color:rgba(255,255,255,.25)" id="room-status-hint"></div>
   </div>
 </div>
 
-<!-- ════════════════════════════════ GAME ════════════════════════════════════ -->
-<div id="view-game" class="view">
-  <div id="game-topbar">
-    <span id="game-room-title">UNO</span>
-    <span id="direction-icon">↻</span>
-    <span id="current-turn-label">—</span>
-  </div>
+<!-- ═══════ GAME ══════════════════════════════════════════ -->
+<div id="view-game" class="uno-view">
+  <div id="turn-atmosphere"></div>
 
   <div id="opponents-row"></div>
 
   <div id="game-center">
-    <!-- Deck -->
     <div class="gc-item">
       <div class="gc-label">Deck</div>
-      <div class="uno-card back lg" id="deck-card" onclick="drawCard()" style="cursor:pointer">
-        <span class="back-label">UNO</span>
+      <div class="card-scene lg">
+        <div class="uno-card back lg" id="deck-card" onclick="drawCard()">
+          <span class="back-label">UNO</span>
+        </div>
       </div>
-      <div id="deck-count" style="font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim)"></div>
+      <div id="deck-count"></div>
     </div>
 
-    <!-- Pending draw badge -->
     <div id="pending-draw-badge"></div>
 
-    <!-- Discard -->
     <div class="gc-item">
       <div class="gc-label">Discard</div>
-      <div id="discard-pile" class="uno-card lg back">
-        <span class="back-label">UNO</span>
+      <div class="card-scene lg">
+        <div class="uno-card back lg" id="discard-pile"><span class="back-label">UNO</span></div>
       </div>
     </div>
   </div>
 
-  <!-- My area -->
   <div id="my-area">
-    <div class="hand-label" id="hand-label">Your Hand</div>
-    <span id="uno-self-badge">UNO!</span>
+    <div class="hand-meta">
+      <span class="hand-label" id="hand-label">Your Hand</span>
+      <span id="uno-self-badge">UNO!</span>
+      <span id="spectator-badge">👁 Spectating</span>
+    </div>
     <div id="hand-scroll"></div>
     <div class="hand-controls">
       <button id="draw-btn" disabled onclick="drawCard()">Draw</button>
-      <div id="spectator-badge">👁 Spectating</div>
     </div>
   </div>
 </div>
 
-<!-- ════════════════════════════════ GAME OVER ═══════════════════════════════ -->
-<div id="view-gameover" class="view">
+<!-- ═══════ GAME OVER ════════════════════════════════════ -->
+<div id="view-gameover" class="uno-view">
   <div class="go-box">
-    <div id="go-icon" style="font-size:2.5rem">🃏</div>
+    <div id="go-icon" style="font-size:3rem">🃏</div>
     <div class="go-title" id="go-title">Game Over</div>
     <div class="rankings" id="go-rankings"></div>
-    <div class="go-btns">
+
+    <!-- Creator controls -->
+    <div id="go-creator-btns" class="go-btns" style="display:none;">
+      <button class="go-btn primary" onclick="continueGame()">▶ Continue</button>
+      <button class="go-btn ghost"   onclick="leavePostGame()">← Leave Room</button>
+    </div>
+
+    <!-- Non-creator waiting -->
+    <div id="go-waiting" style="display:none;flex-direction:column;align-items:center;gap:12px;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:rgba(255,255,255,.35);letter-spacing:.1em;text-align:center;">
+        ⏳ Waiting for the room creator to continue…
+      </div>
+      <button class="go-btn ghost" onclick="leavePostGame()">← Leave Room</button>
+    </div>
+
+    <!-- Fallback (disconnected from room) -->
+    <div id="go-solo-btns" class="go-btns">
       <button class="go-btn primary" onclick="backToLobby()">Play Again</button>
       <button class="go-btn ghost"   onclick="backToLobby()">Back to Lobby</button>
     </div>
   </div>
 </div>
 
-{% endblock %}
+</div><!-- /#uno-root -->
 
-{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script>
-  const socket     = _socket;
-  let myUsername   = null;
-  let mySid        = null;
-  let currentRoomId = null;
-  let isCreator    = false;
-  let isPrivate    = false;
-  let selectedPrivacy = 'public';
-  let roomTypeFilter  = '';
-  let allRooms        = [];
-  let pendingInvite   = null;
-  let gameState       = null;
-  let amSpectator     = false;
+// ── Bootstrap socket (same as base.html) ──────────────────────────────────
+const _socket = io();
+_socket.on('connect', () => _socket.emit('page_open', {path: window.location.pathname}));
+window.addEventListener('pagehide',     () => _socket.emit('uno_leave_route'));
+window.addEventListener('beforeunload', () => _socket.emit('uno_leave_route'));
 
-  window.addEventListener('pagehide', () => socket.emit('uno_leave_route'));
-  window.addEventListener('beforeunload', () => socket.emit('uno_leave_route'));
+// ═══════════════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════════════
+const socket      = _socket;
+let myUsername    = null;
+let mySid         = null;
+let currentRoomId = null;
+let isCreator     = false;
+let isPrivate     = false;
+let selectedPrivacy = 'public';
+let roomTypeFilter  = '';
+let allRooms        = [];
+let pendingInvite   = null;
+let gameState       = null;
+let amSpectator     = false;
+let prevTopCard     = null;  // for flip detection
 
-  // ── Card label helpers ────────────────────────────────────
-  function renderAvailablePlayers(avail) {
-    // Only relevant when we're the creator of a private room
-    if (!isCreator || !isPrivate) return;
-    const availEl = document.getElementById('available-players-list');
-    const noMsg   = document.getElementById('no-avail-msg');
-    if (!availEl) return;
-    availEl.innerHTML = '';
-    const others = (avail || []).filter(p => p.sid !== mySid);
-    if (!others.length) {
-      if (noMsg) noMsg.style.display = 'block';
-      return;
-    }
-    if (noMsg) noMsg.style.display = 'none';
-    others.forEach(p => {
-      const div = document.createElement('div');
-      div.className = 'avail-player-row';
-      div.innerHTML =
-        `<span class="ap-name">${escHtml(p.username)}</span>` +
-        `<button class="ap-invite-btn" onclick="invitePlayer('${p.sid}')">Invite</button>`;
-      availEl.appendChild(div);
-    });
-  }
+const CARD_LABELS = {'skip':'⊘','reverse':'⟳','draw2':'+2','wild':'★','wild4':'+4'};
+function cLabel(v){ return CARD_LABELS[v]||v; }
 
-  const CARD_LABELS = {
-    'skip':'⊘', 'reverse':'⟳', 'draw2':'+2', 'wild':'★', 'wild4':'+4'
-  };
-  function cLabel(v) { return CARD_LABELS[v] || v; }
+function isPlayable(card,topCard,pending){
+  if(!topCard) return false;
+  if(pending>0 && card.value!=='draw2' && card.value!=='wild4') return false;
+  if(card.color==='wild') return true;
+  const tc=topCard.chosen_color||topCard.color;
+  if(card.color===tc) return true;
+  if(card.value===topCard.value) return true;
+  return false;
+}
 
-  function makeCard(card, options = {}) {
-    const { playable=false, large=false, back=false } = options;
-    if (back) {
-      const sz = large ? ' lg' : '';
-      return `<div class="uno-card back${sz}"><span class="back-label">UNO</span></div>`;
-    }
-    const color    = card.chosen_color || card.color;
-    const label    = cLabel(card.value);
-    const playClass = playable ? ' playable' : ' not-playable';
-    const sz        = large ? ' lg' : '';
-    return `<div class="uno-card ${color}${sz}${playClass}">
-      <span class="card-corner tl">${label}</span>
-      <span class="card-face">${label}</span>
-      <span class="card-corner br">${label}</span>
-    </div>`;
-  }
+// ── Views ─────────────────────────────────────────────
+function showView(v){
+  document.querySelectorAll('.uno-view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v)?.classList.add('active');
+}
 
-  function isPlayable(card, topCard, pendingDraw) {
-    if (!topCard) return false;
-    if (pendingDraw > 0 && card.value !== 'draw2' && card.value !== 'wild4') return false;
-    if (card.color === 'wild') return true;
-    const tc = topCard.chosen_color || topCard.color;
-    if (card.color === tc) return true;
-    if (card.value === topCard.value) return true;
-    return false;
-  }
+// ── Toast ─────────────────────────────────────────────
+function showToast(msg,type='info'){
+  const el=document.getElementById('uno-toast');
+  el.textContent=msg;el.className='show '+type;
+  clearTimeout(el._t);el._t=setTimeout(()=>{el.className=type;},3200);
+}
 
-  // ── Views ─────────────────────────────────────────────────
-  function showView(v) {
-    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-    document.getElementById('view-' + v)?.classList.add('active');
-  }
-
-  // ── Toast ─────────────────────────────────────────────────
-  function showToast(msg, type='info') {
-    const el = document.getElementById('uno-toast');
-    el.textContent = msg; el.className = 'show ' + type;
-    clearTimeout(el._t);
-    el._t = setTimeout(() => { el.className = type; }, 3200);
-  }
-
-  // ── Username ──────────────────────────────────────────────
-  document.getElementById('un-input').addEventListener('keydown', e => { if(e.key==='Enter') submitUsername(); });
-  document.getElementById('un-submit').addEventListener('click', submitUsername);
-
-  function submitUsername() {
-    const val = document.getElementById('un-input').value.trim();
-    const err = document.getElementById('un-err');
-    if (!val) { err.textContent='Username cannot be empty.'; return; }
-    if (val.length>24) { err.textContent='Max 24 chars.'; return; }
-    err.textContent='';
-    socket.emit('uno_set_username', { username: val });
-  }
-
-  socket.on('uno_username_ack', data => {
-    if (!data.ok) { document.getElementById('un-err').textContent = data.error; return; }
-    myUsername = data.username;
-    document.getElementById('lobby-username').textContent = myUsername;
-    document.getElementById('un-overlay').style.display = 'none';
-    showView('lobby');
-    socket.emit('uno_get_lobby');
-  });
-
-  // ── Lobby ─────────────────────────────────────────────────
-  function switchLobbyTab(tab, btn) {
-    document.querySelectorAll('.l-tab').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.l-pane').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('lpane-' + tab).classList.add('active');
-  }
-
-  function selectPrivacy(btn) {
-    document.querySelectorAll('.priv-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedPrivacy = btn.dataset.v;
-  }
-
-  function setTypeFilter(btn) {
-    document.querySelectorAll('.tfb').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    roomTypeFilter = btn.dataset.type;
-    filterRooms();
-  }
-
-  function filterRooms() {
-    const q = document.getElementById('room-search').value.toLowerCase();
-    const filtered = allRooms.filter(r =>
-      (!roomTypeFilter || r.uno_type === roomTypeFilter) &&
-      (!q || r.title.toLowerCase().includes(q))
-    );
-    renderRooms(filtered);
-  }
-
-  function renderRooms(list) {
-    const el    = document.getElementById('rooms-list');
-    const noMsg = document.getElementById('no-rooms-msg');
-    el.querySelectorAll('.room-card').forEach(c => c.remove());
-    if (!list.length) { noMsg.style.display='block'; return; }
-    noMsg.style.display='none';
-    list.forEach(r => {
-      const div = document.createElement('div');
-      div.className = 'room-card';
-      div.innerHTML = `
-        <div class="rc-info">
-          <div class="rc-title">${escHtml(r.title)}</div>
-          <div class="rc-meta">
-            <span class="rc-type-badge">${escHtml(r.type_name)}</span>
-            <span>${r.players}/${r.max} players</span>
-          </div>
-        </div>
-        <button class="join-room-btn" onclick="joinRoom('${r.id}')">Join</button>
-      `;
-      el.appendChild(div);
-    });
-  }
-
-  socket.on('uno_lobby', data => {
-    mySid = data.my_sid;
-    allRooms = data.rooms || [];
-    filterRooms();
-  });
-
-  // ── Create room ───────────────────────────────────────────
-  function createRoom() {
-    const title = document.getElementById('room-title-inp').value.trim() || 'My Room';
-    const type  = document.getElementById('room-type-sel').value;
-    socket.emit('uno_create_room', { title, uno_type: type, privacy: selectedPrivacy });
-  }
-
-  socket.on('uno_room_created', data => {
-    currentRoomId = data.room_id;
-    showView('room');
-  });
-
-  socket.on('uno_available_update', data => {
-     renderAvailablePlayers(data.available || []);
-  });
-
-
-  // ── Join room ─────────────────────────────────────────────
-  function joinRoom(roomId) {
-    socket.emit('uno_join_room', { room_id: roomId });
-  }
-
-  socket.on('uno_joined_room', data => {
-    currentRoomId = data.room_id;
-    showView('room');
-  });
-
-  // ── Room state ────────────────────────────────────────────
-  socket.on('uno_available_update', data => {
-  // Only act if we're currently in the room view as a private room creator
-  if (!isCreator || !isPrivate) return;
-  const avList  = document.getElementById('available-players-list');
-  const noAvail = document.getElementById('no-avail-msg');
-  if (!avList) return;
-  avList.innerHTML = '';
-  const avail = (data.available || []).filter(p => p.sid !== mySid);
-  if (!avail.length) {
-    noAvail.style.display = 'block';
-  } else {
-    noAvail.style.display = 'none';
-    avail.forEach(p => {
-      const el = document.createElement('div');
-      el.className = 'avail-entry';
-      el.innerHTML = `<span>${escHtml(p.username)}</span>
-        <button class="invite-btn" onclick="invitePlayer('${p.sid}')">Invite</button>`;
-      avList.appendChild(el);
-    });
-  }
+// ── Username ──────────────────────────────────────────
+document.getElementById('un-input').addEventListener('keydown',e=>{if(e.key==='Enter')submitUsername();});
+document.getElementById('un-submit').addEventListener('click',submitUsername);
+function submitUsername(){
+  const val=document.getElementById('un-input').value.trim();
+  const err=document.getElementById('un-err');
+  if(!val){err.textContent='Username cannot be empty.';return;}
+  if(val.length>24){err.textContent='Max 24 chars.';return;}
+  err.textContent='';
+  socket.emit('uno_set_username',{username:val});
+}
+socket.on('uno_username_ack',data=>{
+  if(!data.ok){document.getElementById('un-err').textContent=data.error;return;}
+  myUsername=data.username;
+  document.getElementById('lobby-username').textContent=myUsername;
+  document.getElementById('un-overlay').style.display='none';
+  showView('lobby');
+  socket.emit('uno_get_lobby');
 });
 
-  socket.on('uno_room_state', data => {
-    mySid     = data.my_sid;
-    isCreator = data.is_creator;
-    isPrivate = data.privacy === 'private';
+// ── Lobby ─────────────────────────────────────────────
+function switchLobbyTab(tab,btn){
+  document.querySelectorAll('.l-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.l-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('lpane-'+tab).classList.add('active');
+}
+function selectPrivacy(btn){
+  document.querySelectorAll('.priv-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');selectedPrivacy=btn.dataset.v;
+}
+function setTypeFilter(btn){
+  document.querySelectorAll('.tfb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');roomTypeFilter=btn.dataset.type;filterRooms();
+}
+function filterRooms(){
+  const q=document.getElementById('room-search').value.toLowerCase();
+  const filtered=allRooms.filter(r=>
+    (!roomTypeFilter||r.uno_type===roomTypeFilter)&&
+    (!q||r.title.toLowerCase().includes(q))
+  );renderRooms(filtered);
+}
+function renderRooms(list){
+  const el=document.getElementById('rooms-list');
+  const noMsg=document.getElementById('no-rooms-msg');
+  el.querySelectorAll('.room-card').forEach(c=>c.remove());
+  if(!list.length){noMsg.style.display='block';return;}
+  noMsg.style.display='none';
+  list.forEach(r=>{
+    const div=document.createElement('div');div.className='room-card';
+    div.innerHTML=`<div class="rc-info"><div class="rc-title">${escHtml(r.title)}</div><div class="rc-meta"><span class="rc-type-badge">${escHtml(r.type_name)}</span><span>${r.players}/${r.max} players</span></div></div><button class="join-room-btn" onclick="joinRoom('${r.id}')">Join</button>`;
+    el.appendChild(div);
+  });
+}
+socket.on('uno_lobby',data=>{
+  mySid=data.my_sid;allRooms=data.rooms||[];filterRooms();
+});
 
-    document.getElementById('room-title-display').textContent = data.title;
-    document.getElementById('room-type-badge').textContent    = data.type_name;
-    document.getElementById('room-priv-badge').textContent    = data.privacy === 'private' ? '🔒 Private' : '🌐 Public';
-    document.getElementById('room-player-count').textContent  = data.players.length + data.bots.length;
-    document.getElementById('room-max').textContent           = data.max_players;
+// ── Create / Join room ────────────────────────────────
+function createRoom(){
+  const title=document.getElementById('room-title-inp').value.trim()||'My Room';
+  const type=document.getElementById('room-type-sel').value;
+  socket.emit('uno_create_room',{title,uno_type:type,privacy:selectedPrivacy});
+}
+socket.on('uno_room_created',data=>{currentRoomId=data.room_id;showView('room');});
+function joinRoom(roomId){socket.emit('uno_join_room',{room_id:roomId});}
+socket.on('uno_joined_room',data=>{currentRoomId=data.room_id;showView('room');});
 
-    // Players
-    const pl = document.getElementById('room-players-list');
-    pl.innerHTML = '';
-    data.players.forEach(p => {
-      const el = document.createElement('div');
-      el.className = 'player-entry';
-      const isMe = p.sid === mySid;
-      el.innerHTML = `
-        <span class="pe-avatar">🧑</span>
-        <span class="pe-name">${escHtml(p.username)} ${isMe ? '<em style="color:var(--cyan);font-style:normal;font-size:.62rem">(you)</em>' : ''}</span>
-        ${p.sid === data.creator_sid ? '<span class="pe-crown" title="Room creator">👑</span>' : ''}
-        ${isCreator && !isMe ? `<button class="pe-kick" onclick="kickPlayer('${p.sid}')">Kick</button>` : ''}
-      `;
-      pl.appendChild(el);
+// ── Available players (real-time) ─────────────────────
+socket.on('uno_available_update',data=>{renderAvailablePlayers(data.available||[]);});
+function renderAvailablePlayers(avail){
+  if(!isCreator||!isPrivate)return;
+  const availEl=document.getElementById('available-players-list');
+  const noMsg=document.getElementById('no-avail-msg');
+  if(!availEl)return;availEl.innerHTML='';
+  const others=(avail||[]).filter(p=>p.sid!==mySid);
+  if(!others.length){if(noMsg)noMsg.style.display='block';return;}
+  if(noMsg)noMsg.style.display='none';
+  others.forEach(p=>{
+    const el=document.createElement('div');el.className='avail-entry';
+    el.innerHTML=`<span>${escHtml(p.username)}</span><button class="invite-btn" onclick="invitePlayer('${p.sid}')">Invite</button>`;
+    availEl.appendChild(el);
+  });
+}
+
+// ── Room state ────────────────────────────────────────
+socket.on('uno_room_state',data=>{
+  mySid=data.my_sid;isCreator=data.is_creator;isPrivate=data.privacy==='private';
+  document.getElementById('room-title-display').textContent=data.title;
+  document.getElementById('room-type-badge').textContent=data.type_name;
+  document.getElementById('room-priv-badge').textContent=data.privacy==='private'?'🔒 Private':'🌐 Public';
+  document.getElementById('room-player-count').textContent=data.players.length+data.bots.length;
+  document.getElementById('room-max').textContent=data.max_players;
+  const pl=document.getElementById('room-players-list');pl.innerHTML='';
+  data.players.forEach(p=>{
+    const el=document.createElement('div');el.className='player-entry';
+    const isMe=p.sid===mySid;
+    el.innerHTML=`<span style="font-size:1.1rem">🧑</span><span class="pe-name">${escHtml(p.username)}${isMe?' <em style="color:#ffd700;font-style:normal;font-size:.62rem">(you)</em>':''}</span>${p.sid===data.creator_sid?'<span class="pe-crown">👑</span>':''}${isCreator&&!isMe?`<button class="pe-kick" onclick="kickPlayer('${p.sid}')">Kick</button>`:''}`;
+    pl.appendChild(el);
+  });
+  const bl=document.getElementById('room-bots-list');
+  const bsec=document.getElementById('bots-section');
+  bl.innerHTML='';
+  if(data.bots.length){
+    bsec.style.display='block';
+    data.bots.forEach(b=>{
+      const el=document.createElement('div');el.className='bot-entry';
+      el.innerHTML=`<span>🤖</span><span class="be-name">${escHtml(b.username)}</span><span class="be-diff ${b.difficulty}">${b.difficulty}</span>${isCreator?`<button class="be-rm" onclick="removeBot('${b.id}')">✕</button>`:''}`;
+      bl.appendChild(el);
     });
+  }else bsec.style.display='none';
+  document.getElementById('creator-controls').style.display=isCreator?'block':'none';
+  const invSec=document.getElementById('invite-section');
+  invSec.style.display=(isCreator&&isPrivate)?'block':'none';
+  if(isCreator&&isPrivate) renderAvailablePlayers(data.available||[]);
+  document.getElementById('wait-banner').style.display=(!isCreator)?'block':'none';
+  const sb=document.getElementById('start-btn');
+  sb.disabled=!data.can_start||!isCreator;
+  document.getElementById('room-status-hint').textContent=`${data.players.length+data.bots.length}/${data.max_players} players · Need at least ${data.min_players}`;
+});
 
-    // Bots
-    const bl    = document.getElementById('room-bots-list');
-    const bsec  = document.getElementById('bots-section');
-    bl.innerHTML = '';
-    if (data.bots.length) {
-      bsec.style.display = 'block';
-      data.bots.forEach(b => {
-        const el = document.createElement('div');
-        el.className = 'bot-entry';
-        el.innerHTML = `
-          <span class="be-icon">🤖</span>
-          <span class="be-name">${escHtml(b.username)}</span>
-          <span class="be-diff ${b.difficulty}">${b.difficulty}</span>
-          ${isCreator ? `<button class="be-rm" onclick="removeBot('${b.id}')">✕</button>` : ''}
-        `;
-        bl.appendChild(el);
-      });
-    } else {
-      bsec.style.display = 'none';
-    }
+function kickPlayer(sid){socket.emit('uno_kick',{target_sid:sid});}
+function removeBot(id){socket.emit('uno_remove_bot',{bot_id:id});}
+function addBot(){socket.emit('uno_add_bot',{difficulty:document.getElementById('bot-diff-sel').value});}
+function invitePlayer(sid){socket.emit('uno_invite',{target_sid:sid});}
+function startGame(){socket.emit('uno_start_game');}
+function leaveRoom(){
+  socket.emit('uno_leave_room');currentRoomId=null;isCreator=false;
+  showView('lobby');socket.emit('uno_get_lobby');
+}
 
-    // Creator controls
-    const cc = document.getElementById('creator-controls');
-    cc.style.display = isCreator ? 'block' : 'none';
+socket.on('uno_you_are_creator',()=>{isCreator=true;showToast('You are now the room creator.','info');});
+socket.on('uno_kicked',()=>{currentRoomId=null;isCreator=false;showView('lobby');showToast('You were removed from the room.','err');socket.emit('uno_get_lobby');});
+socket.on('uno_left_room',()=>{showView('lobby');socket.emit('uno_get_lobby');});
+socket.on('uno_player_joined',data=>{showToast(`${data.username} joined!`,'info');});
+socket.on('uno_player_left',data=>{showToast(`${data.username} left (replaced by bot).`,'info');});
 
-    // Invite section (private + creator)
-    const invSec = document.getElementById('invite-section');
-    invSec.style.display = (isCreator && isPrivate) ? 'block' : 'none';
-    if (isCreator && isPrivate) {
-      const avList = document.getElementById('available-players-list');
-      const noAvail = document.getElementById('no-avail-msg');
-      avList.innerHTML = '';
-      renderAvailablePlayers(data.available || []);
-    }
+// ── Invite ─────────────────────────────────────────────
+socket.on('uno_invited',data=>{
+  pendingInvite=data;
+  document.getElementById('it-creator').textContent=`${data.creator_username} invited you`;
+  document.getElementById('it-room').textContent=`"${data.room_title}" · ${data.type_name}`;
+  document.getElementById('invite-toast').classList.add('open');
+});
+function respondInvite(accept){
+  document.getElementById('invite-toast').classList.remove('open');
+  if(!pendingInvite)return;
+  if(accept)socket.emit('uno_invite_response',{room_id:pendingInvite.room_id,accept:true});
+  pendingInvite=null;
+}
+socket.on('uno_invite_sent',data=>{showToast(`Invite sent to ${data.to}.`,'ok');});
 
-    // Wait banner (non-creator)
-    document.getElementById('wait-banner').style.display = (!isCreator) ? 'block' : 'none';
+// ── Game started ───────────────────────────────────────
+socket.on('uno_game_started',()=>{
+  amSpectator=false;prevTopCard=null;showView('game');
+  showToast('Game started! Good luck 🃏','info');
+});
+socket.on('uno_you_won',data=>{
+  amSpectator=true;
+  showToast(`🎉 You finished #${data.rank}! Spectating…`,'ok');
+  document.getElementById('spectator-badge').classList.add('visible');
+  document.getElementById('hand-label').textContent='All Hands (Spectating)';
+  document.getElementById('draw-btn').disabled=true;
+});
 
-    // Start button
-    const sb = document.getElementById('start-btn');
-    sb.disabled = !data.can_start || !isCreator;
-    const total  = data.players.length + data.bots.length;
-    const hint   = document.getElementById('room-status-hint');
-    hint.textContent = `${total}/${data.max_players} players · Need at least ${data.min_players}`;
-  });
+// ── Game state ─────────────────────────────────────────
+socket.on('uno_game_state',data=>{gameState=data;renderGame(data);});
 
-  function kickPlayer(sid) {
-    socket.emit('uno_kick', { target_sid: sid });
-  }
-  function removeBot(id) {
-    socket.emit('uno_remove_bot', { bot_id: id });
-  }
-  function addBot() {
-    const diff = document.getElementById('bot-diff-sel').value;
-    socket.emit('uno_add_bot', { difficulty: diff });
-  }
-  function invitePlayer(sid) {
-    socket.emit('uno_invite', { target_sid: sid });
-  }
-  function startGame() {
-    socket.emit('uno_start_game');
-  }
-  function leaveRoom() {
-    socket.emit('uno_leave_room');
-    currentRoomId = null; isCreator = false;
-    showView('lobby');
-    socket.emit('uno_get_lobby');
-  }
+function renderGame(state){
+  if(!state)return;
+  const myP      = state.players.find(p=>p.sid===mySid);
+  const isMyTurn = state.current_sid===mySid&&!amSpectator;
+  const topCard  = state.top_card;
+  const pending  = state.pending_draw;
 
-  socket.on('uno_you_are_creator', () => {
-    isCreator = true;
-    showToast('You are now the room creator.', 'info');
-  });
-  socket.on('uno_kicked', () => {
-    currentRoomId = null; isCreator = false;
-    showView('lobby'); showToast('You were removed from the room.', 'err');
-    socket.emit('uno_get_lobby');
-  });
-  socket.on('uno_left_room', () => {
-    showView('lobby'); socket.emit('uno_get_lobby');
-  });
-  socket.on('uno_player_joined', data => {
-    showToast(`${data.username} joined!`, 'info');
-  });
-  socket.on('uno_player_left', data => {
-    showToast(`${data.username} left (replaced by bot).`, 'info');
-  });
+  // Turn indicator
+  const turnEl=document.getElementById('topbar-turn');
+  const atmo  =document.getElementById('turn-atmosphere');
+  const myArea =document.getElementById('my-area');
+  const drawBtn=document.getElementById('draw-btn');
+  const handLbl=document.getElementById('hand-label');
 
-  // ── Invite system ─────────────────────────────────────────
-  socket.on('uno_invited', data => {
-    pendingInvite = data;
-    document.getElementById('it-creator').textContent = `${data.creator_username} invited you`;
-    document.getElementById('it-room').textContent    = `"${data.room_title}" · ${data.type_name}`;
-    document.getElementById('invite-toast').classList.add('open');
-  });
-
-  function respondInvite(accept) {
-    document.getElementById('invite-toast').classList.remove('open');
-    if (!pendingInvite) return;
-    if (accept) {
-      socket.emit('uno_invite_response', { room_id: pendingInvite.room_id, accept: true });
-    }
-    pendingInvite = null;
+  if(amSpectator){
+    turnEl.textContent=`${state.current_username||'?'}'s turn`;
+    turnEl.className='other-turn';
+    atmo.className='';myArea.className='';
+  }else if(isMyTurn){
+    turnEl.textContent=state.waiting_for_color?'✦ Choose a color!':'✦ YOUR TURN';
+    turnEl.className='my-turn';
+    atmo.className='my-turn';
+    myArea.classList.add('my-turn');
+    handLbl.className='hand-label my-turn-label';
+    drawBtn.classList.add('my-turn-draw');
+  }else{
+    turnEl.textContent=`${state.current_username||'?'}'s turn`;
+    turnEl.className='other-turn';
+    atmo.className='';
+    myArea.classList.remove('my-turn');
+    handLbl.className='hand-label';
+    drawBtn.classList.remove('my-turn-draw');
   }
 
-  socket.on('uno_invite_sent', data => {
-    showToast(`Invite sent to ${data.to}.`, 'ok');
-  });
+  // Direction
+  const dirEl=document.getElementById('direction-wrap');
+  dirEl.textContent=state.direction===1?'↻':'↺';
+  dirEl.className=state.direction===1?'':'ccw';
 
-  // ── Game started ──────────────────────────────────────────
-  socket.on('uno_game_started', () => {
-    amSpectator = false;
-    showView('game');
-    document.getElementById('game-room-title').textContent = 'UNO';
-  });
-
-  socket.on('uno_you_won', data => {
-    amSpectator = true;
-    showToast(`🎉 You finished in place #${data.rank}! Spectating remaining players…`, 'ok');
-    document.getElementById('spectator-badge').classList.add('visible');
-    document.getElementById('hand-label').textContent = 'All Hands (Spectating)';
-    document.getElementById('draw-btn').disabled = true;
-  });
-
-  // ── Game state ────────────────────────────────────────────
-  socket.on('uno_game_state', data => {
-    gameState = data;
-    renderGame(data);
-  });
-
-  function renderGame(state) {
-    if (!state) return;
-
-    // My player info
-    const myP       = state.players.find(p => p.sid === mySid);
-    const isMyTurn  = state.current_sid === mySid && !amSpectator;
-    const topCard   = state.top_card;
-    const pending   = state.pending_draw;
-
-    // Direction
-    document.getElementById('direction-icon').textContent   = state.direction === 1 ? '↻' : '↺';
-    document.getElementById('direction-icon').title         = state.direction === 1 ? 'Clockwise' : 'Counter-clockwise';
-
-    // Turn label
-    const tl = document.getElementById('current-turn-label');
-    if (amSpectator) {
-      tl.textContent = `${state.current_username || '?'}'s turn`; tl.className = '';
-    } else if (isMyTurn) {
-      tl.textContent = state.waiting_for_color ? 'Choose a color!' : 'Your turn!';
-      tl.className = 'my-turn';
-    } else {
-      tl.textContent = `${state.current_username || '?'}'s turn`; tl.className = '';
-    }
-
-    // Discard
-    const discardEl = document.getElementById('discard-pile');
-    if (topCard) {
-      discardEl.outerHTML; // we'll replace innerHTML
-      const wrapper = document.getElementById('discard-pile');
-      const color = topCard.chosen_color || topCard.color;
-      const label = cLabel(topCard.value);
-      wrapper.className = `uno-card lg ${color}`;
-      wrapper.innerHTML = `<span class="card-corner tl">${label}</span>
-        <span class="card-face">${label}</span>
-        <span class="card-corner br">${label}</span>`;
-    }
-
-    // Deck count
-    document.getElementById('deck-count').textContent = `${state.deck_count} cards`;
-
-    // Pending draw badge
-    const pdb = document.getElementById('pending-draw-badge');
-    if (pending > 0) {
-      pdb.textContent = `+${pending}`;
-      pdb.classList.add('visible');
-    } else {
-      pdb.classList.remove('visible');
-    }
-
-    // Draw button
-    const drawBtn = document.getElementById('draw-btn');
-    drawBtn.disabled = !isMyTurn || state.waiting_for_color || state.status === 'finished';
-    if (pending > 0 && isMyTurn) {
-      drawBtn.textContent = `Draw ${pending}`;
-    } else {
-      drawBtn.textContent = 'Draw';
-    }
-
-    // UNO badge (self)
-    const unoBadge = document.getElementById('uno-self-badge');
-    if (myP && myP.has_uno && !amSpectator) {
-      unoBadge.classList.add('visible');
-    } else {
-      unoBadge.classList.remove('visible');
-    }
-
-    // Color picker
-    if (state.waiting_for_color && isMyTurn) {
-      document.getElementById('color-overlay').classList.add('open');
-    } else {
-      document.getElementById('color-overlay').classList.remove('open');
-    }
-
-    // Opponents
-    renderOpponents(state);
-
-    // My hand (or all hands if spectator)
-    if (amSpectator) {
-      renderSpectatorHands(state);
-    } else if (myP) {
-      renderHand(myP.hand, topCard, pending, isMyTurn, state.waiting_for_color);
+  // Discard pile — animate flip if card changed
+  const discardEl=document.getElementById('discard-pile');
+  if(topCard){
+    const color=topCard.chosen_color||topCard.color;
+    const label=cLabel(topCard.value);
+    const cardKey=`${topCard.color}_${topCard.value}_${topCard.chosen_color||''}`;
+    if(!prevTopCard||cardKey!==(prevTopCard)){
+      discardEl.className=`uno-card lg ${color} card-flip`;
+      discardEl.innerHTML=`<span class="card-corner tl">${label}</span><span class="card-face">${label}</span><span class="card-corner br">${label}</span>`;
+      setTimeout(()=>discardEl.classList.remove('card-flip'),500);
+      prevTopCard=cardKey;
     }
   }
 
-  function renderOpponents(state) {
-    const row = document.getElementById('opponents-row');
-    row.innerHTML = '';
-    const others = state.players.filter(p => p.sid !== mySid);
+  // Deck count
+  document.getElementById('deck-count').textContent=`${state.deck_count} cards`;
 
-    others.forEach(p => {
-      const isActive = p.is_current;
-      const finished = p.finished;
-      const div = document.createElement('div');
-      div.className = `opp-card ${isActive ? 'active-player' : ''} ${finished ? 'finished' : ''}`;
+  // Pending draw badge
+  const pdb=document.getElementById('pending-draw-badge');
+  if(pending>0){pdb.textContent=`+${pending}`;pdb.classList.add('visible');}
+  else pdb.classList.remove('visible');
 
-      // Card backs (visual stack, max 7 shown)
-      const show  = Math.min(p.hand_count, 7);
-      const backs = Array(show).fill('<div class="mini-card-back"></div>').join('');
+  // Draw button
+  drawBtn.disabled=!isMyTurn||state.waiting_for_color||state.status==='finished';
+  drawBtn.textContent=(pending>0&&isMyTurn)?`Draw ${pending}`:'Draw';
 
-      div.innerHTML = `
-        ${p.is_bot ? '<span class="bot-indicator">🤖</span>' : ''}
-        <div class="opp-card-backs">${backs}</div>
-        <div class="opp-count">${p.hand_count} card${p.hand_count!==1?'s':''}</div>
-        <div class="opp-name" title="${escHtml(p.username)}">${escHtml(p.username)}</div>
-        ${p.has_uno ? '<span class="uno-badge">UNO!</span>' : ''}
-        ${p.finished ? `<span style="font-size:.65rem;color:var(--cyan)">#${p.rank}</span>` : ''}
-      `;
+  // UNO badge
+  const unoBadge=document.getElementById('uno-self-badge');
+  if(myP&&myP.has_uno&&!amSpectator)unoBadge.classList.add('visible');
+  else unoBadge.classList.remove('visible');
+
+  // Color picker
+  if(state.waiting_for_color&&isMyTurn)document.getElementById('color-overlay').classList.add('open');
+  else document.getElementById('color-overlay').classList.remove('open');
+
+  renderOpponents(state);
+
+  if(amSpectator)renderSpectatorHands(state);
+  else if(myP)renderHand(myP.hand,topCard,pending,isMyTurn,state.waiting_for_color);
+}
+
+function renderOpponents(state){
+  const row=document.getElementById('opponents-row');
+  // Use p.id (always unique) as the DOM key — p.sid is null for bots
+  const others=state.players.filter(p=>p.sid!==mySid);
+  const newKeys=new Set(others.map(p=>String(p.id)));
+  // Remove stale cards
+  row.querySelectorAll('.opp-card').forEach(el=>{if(!newKeys.has(el.dataset.pid))el.remove();});
+  others.forEach(p=>{
+    const key=String(p.id);
+    const isActive=p.is_current;
+    let div=row.querySelector(`[data-pid="${key}"]`);
+    if(!div){
+      div=document.createElement('div');
+      div.dataset.pid=key;
       row.appendChild(div);
-    });
-  }
-
-  function renderHand(hand, topCard, pending, isMyTurn, waitingColor) {
-    const scroll = document.getElementById('hand-scroll');
-    scroll.innerHTML = '';
-    if (!Array.isArray(hand)) return;
-
-    hand.forEach((card, idx) => {
-      const playable = isMyTurn && !waitingColor && isPlayable(card, topCard, pending);
-      const div = document.createElement('div');
-      const color = card.chosen_color || card.color;
-      const label = cLabel(card.value);
-      div.className = `uno-card ${color} hand-card ${playable ? 'playable' : 'not-playable'}`;
-      div.innerHTML = `<span class="card-corner tl">${label}</span>
-        <span class="card-face">${label}</span>
-        <span class="card-corner br">${label}</span>`;
-      if (playable) {
-        div.addEventListener('click', () => playCard(idx, card));
-      }
-      scroll.appendChild(div);
-    });
-  }
-
-  function renderSpectatorHands(state) {
-    // Spectators see all active players' hands
-    const scroll = document.getElementById('hand-scroll');
-    scroll.innerHTML = '';
-    const active = state.players.filter(p => !p.finished && Array.isArray(p.hand));
-    active.forEach(p => {
-      const header = document.createElement('div');
-      header.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;margin-right:12px';
-      header.innerHTML = `<span style="font-family:var(--font-mono);font-size:.6rem;color:var(--text-dim)">${escHtml(p.username)}</span>`;
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:-4px';
-      p.hand.forEach(card => {
-        const color = card.chosen_color || card.color;
-        const label = cLabel(card.value);
-        const d = document.createElement('div');
-        d.className = `uno-card ${color} not-playable`;
-        d.style.marginRight = '-6px';
-        d.innerHTML = `<span class="card-corner tl">${label}</span>
-          <span class="card-face">${label}</span>
-          <span class="card-corner br">${label}</span>`;
-        row.appendChild(d);
-      });
-      header.appendChild(row);
-      scroll.appendChild(header);
-    });
-  }
-
-  // ── Game actions ──────────────────────────────────────────
-  function playCard(idx, card) {
-    if (card.color === 'wild') {
-      // Open color picker; the pick handler will send the move
-      window._pendingWildIdx = idx;
-      document.getElementById('color-overlay').classList.add('open');
-    } else {
-      socket.emit('uno_play_card', { card_idx: idx });
     }
-  }
+    div.className=`opp-card${isActive?' active-player':''}${p.finished?' finished':''}`;
+    const show=Math.min(p.hand_count,7);
+    const backs=Array(show).fill('<div class="mini-card-back"></div>').join('');
+    div.innerHTML=`${p.is_bot?'<span style="font-size:.75rem;opacity:.5">🤖</span>':''}<div class="opp-card-backs">${backs}</div><div class="opp-count">${p.hand_count} card${p.hand_count!==1?'s':''}</div><div class="opp-name" title="${escHtml(p.username)}">${escHtml(p.username)}</div>${p.has_uno?'<span class="uno-badge">UNO!</span>':''}${p.finished?`<span style="font-size:.65rem;color:#ffd700">#${p.rank}</span>`:''}`;
+  });
+}
 
-  function chooseColor(color) {
-    document.getElementById('color-overlay').classList.remove('open');
-    if (window._pendingWildIdx !== undefined) {
-      socket.emit('uno_play_card', { card_idx: window._pendingWildIdx, chosen_color: color });
-      window._pendingWildIdx = undefined;
-    } else {
-      socket.emit('uno_choose_color', { color });
+let _handKey='';
+function renderHand(hand,topCard,pending,isMyTurn,waitingColor){
+  if(!Array.isArray(hand))return;
+  const scroll=document.getElementById('hand-scroll');
+  const newKey=hand.map(c=>c.color+'_'+c.value+'_'+(c.chosen_color||'')).join('|');
+  // Only full re-render when hand changed
+  if(newKey===_handKey&&!isMyTurn&&scroll.children.length>0){
+    // just update playability classes
+    [...scroll.children].forEach((el,idx)=>{
+      const card=hand[idx];if(!card)return;
+      const playable=isMyTurn&&!waitingColor&&isPlayable(card,topCard,pending);
+      el.className=`uno-card ${card.chosen_color||card.color}${playable?' playable':' not-playable'}`;
+    });
+    return;
+  }
+  _handKey=newKey;
+  scroll.innerHTML='';
+  hand.forEach((card,idx)=>{
+    const playable=isMyTurn&&!waitingColor&&isPlayable(card,topCard,pending);
+    const color=card.chosen_color||card.color;
+    const label=cLabel(card.value);
+    const div=document.createElement('div');
+    div.className=`uno-card ${color}${playable?' playable':' not-playable'} card-deal`;
+    div.style.animationDelay=(idx*0.04)+'s';
+    div.innerHTML=`<span class="card-corner tl">${label}</span><span class="card-face">${label}</span><span class="card-corner br">${label}</span>`;
+    if(playable){
+      div.addEventListener('click',()=>playCard(idx,card));
     }
-  }
+    scroll.appendChild(div);
+  });
+}
 
-  function drawCard() {
-    const state = gameState;
-    if (!state || state.current_sid !== mySid) return;
-    socket.emit('uno_draw_card');
-  }
+function renderSpectatorHands(state){
+  const scroll=document.getElementById('hand-scroll');
+  scroll.innerHTML='';
+  const active=state.players.filter(p=>!p.finished&&Array.isArray(p.hand));
+  active.forEach(p=>{
+    const header=document.createElement('div');
+    header.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px;margin-right:10px;';
+    header.innerHTML=`<span style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:rgba(255,255,255,.4)">${escHtml(p.username)}</span>`;
+    const row=document.createElement('div');row.style.cssText='display:flex;';
+    p.hand.forEach(card=>{
+      const color=card.chosen_color||card.color;
+      const label=cLabel(card.value);
+      const d=document.createElement('div');
+      d.className=`uno-card ${color} not-playable`;
+      d.style.marginRight='-8px';
+      d.innerHTML=`<span class="card-corner tl">${label}</span><span class="card-face">${label}</span><span class="card-corner br">${label}</span>`;
+      row.appendChild(d);
+    });
+    header.appendChild(row);scroll.appendChild(header);
+  });
+}
 
-  socket.on('uno_error', data => {
-    showToast(data.message, 'err');
+// ── Game actions ───────────────────────────────────────
+function playCard(idx,card){
+  if(card.color==='wild'){
+    window._pendingWildIdx=idx;
+    document.getElementById('color-overlay').classList.add('open');
+  }else{
+    socket.emit('uno_play_card',{card_idx:idx});
+  }
+}
+function chooseColor(color){
+  document.getElementById('color-overlay').classList.remove('open');
+  if(window._pendingWildIdx!==undefined){
+    socket.emit('uno_play_card',{card_idx:window._pendingWildIdx,chosen_color:color});
+    window._pendingWildIdx=undefined;
+  }else{
+    socket.emit('uno_choose_color',{color});
+  }
+}
+function drawCard(){
+  const state=gameState;
+  if(!state||state.current_sid!==mySid)return;
+  socket.emit('uno_draw_card');
+}
+socket.on('uno_error',data=>{showToast(data.message,'err');});
+
+// ── Game over ──────────────────────────────────────────
+function _showGameOver(data){
+  const rankings  = data.rankings || [];
+  const myRank    = rankings.find(r => !r.is_bot && r.username === myUsername);
+  const iAmCreator= data.is_creator === true;
+
+  let title='🃏 Game Over', icon='🃏';
+  if(myRank){
+    if(myRank.rank===1){title='🏆 You Win!';icon='🏆';}
+    else if(amSpectator){title=`🎉 Finished #${myRank.rank}!`;}
+    else{title='💀 You Lose.';icon='💀';}
+  }
+  document.getElementById('go-icon').textContent=icon;
+  document.getElementById('go-title').textContent=title;
+
+  const list=document.getElementById('go-rankings');list.innerHTML='';
+  const medals=['','🥇','🥈','🥉'];
+  rankings.forEach(r=>{
+    const el=document.createElement('div');el.className=`rank-row r${r.rank}`;
+    el.innerHTML=`<span class="rank-num">${medals[r.rank]||r.rank}</span><span class="rank-name">${escHtml(r.username)}</span>${r.is_bot?'<span class="rank-bot">🤖 Bot</span>':''}`;
+    list.appendChild(el);
   });
 
-  // ── Game over ─────────────────────────────────────────────
-  socket.on('uno_game_over', data => {
-    const rankings = data.rankings || [];
-    const myRank   = rankings.find(r => !r.is_bot && r.username === myUsername);
+  // Show the right set of buttons depending on role
+  document.getElementById('go-creator-btns').style.display = iAmCreator ? 'flex' : 'none';
+  document.getElementById('go-waiting').style.display      = (!iAmCreator && currentRoomId) ? 'flex' : 'none';
+  document.getElementById('go-solo-btns').style.display    = currentRoomId ? 'none' : 'flex';
 
-    let title = '🃏 Game Over';
-    if (myRank) {
-      if (myRank.rank === 1) title = '🏆 You Win!';
-      else if (amSpectator)  title = `🎉 You finished #${myRank.rank}!`;
-      else                   title = '💀 You Lose.';
-    }
-    document.getElementById('go-title').textContent = title;
+  showView('gameover');
+  amSpectator=false; prevTopCard=null; _handKey='';
+  document.getElementById('spectator-badge').classList.remove('visible');
+  document.getElementById('hand-label').textContent='Your Hand';
+}
 
-    const list = document.getElementById('go-rankings');
-    list.innerHTML = '';
-    rankings.forEach((r, i) => {
-      const el = document.createElement('div');
-      el.className = `rank-row r${r.rank}`;
-      const medals = ['','🥇','🥈','🥉'];
-      el.innerHTML = `
-        <span class="rank-num">${medals[r.rank] || r.rank}</span>
-        <span class="rank-name">${escHtml(r.username)}</span>
-        ${r.is_bot ? '<span class="rank-bot">🤖 Bot</span>' : ''}
-      `;
-      list.appendChild(el);
-    });
-    showView('gameover');
-    amSpectator = false;
-    document.getElementById('spectator-badge').classList.remove('visible');
-    document.getElementById('hand-label').textContent = 'Your Hand';
-  });
+socket.on('uno_game_over', data => {
+  isCreator = data.is_creator === true;
+  _showGameOver(data);
+});
 
-  function backToLobby() {
-    currentRoomId = null; isCreator = false; gameState = null;
-    document.getElementById('hand-scroll').innerHTML = '';
-    document.getElementById('opponents-row').innerHTML = '';
-    showView('lobby');
-    socket.emit('uno_get_lobby');
-  }
+// Server transferred creator role to us mid-post-game
+socket.on('uno_now_creator', () => {
+  isCreator = true;
+  document.getElementById('go-creator-btns').style.display = 'flex';
+  document.getElementById('go-waiting').style.display      = 'none';
+  showToast('You are now the room creator.','info');
+});
 
-  // ── Disconnect/reconnect ──────────────────────────────────
-  socket.on('disconnect', () => { showToast('Disconnected from server.', 'err'); });
-  socket.on('connect', () => {
-    if (myUsername) socket.emit('uno_set_username', { username: myUsername });
-  });
+// ── Post-game actions ──────────────────────────────────
+function continueGame(){
+  socket.emit('uno_continue_game');
+}
 
-  function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+function leavePostGame(){
+  socket.emit('uno_leave_postgame');
+  currentRoomId=null; isCreator=false; gameState=null; prevTopCard=null; _handKey='';
+  document.getElementById('hand-scroll').innerHTML='';
+  document.getElementById('opponents-row').innerHTML='';
+  document.getElementById('turn-atmosphere').className='';
+  document.getElementById('my-area').classList.remove('my-turn');
+  showView('lobby');
+  socket.emit('uno_get_lobby');
+}
+
+// Server sends everyone back to the waiting room when creator clicks Continue
+socket.on('uno_return_to_room', data => {
+  currentRoomId = data.room_id;
+  gameState = null; prevTopCard = null; _handKey = '';
+  document.getElementById('hand-scroll').innerHTML = '';
+  document.getElementById('opponents-row').innerHTML = '';
+  document.getElementById('turn-atmosphere').className = '';
+  document.getElementById('my-area').classList.remove('my-turn');
+  amSpectator = false;
+  document.getElementById('spectator-badge').classList.remove('visible');
+  document.getElementById('hand-label').textContent = 'Your Hand';
+  showView('room');
+});
+
+function backToLobby(){
+  // Only used if somehow no room exists (shouldn't happen normally)
+  currentRoomId=null; isCreator=false; gameState=null; prevTopCard=null; _handKey='';
+  document.getElementById('hand-scroll').innerHTML='';
+  document.getElementById('opponents-row').innerHTML='';
+  document.getElementById('turn-atmosphere').className='';
+  document.getElementById('my-area').classList.remove('my-turn');
+  showView('lobby'); socket.emit('uno_get_lobby');
+}
+
+socket.on('disconnect',()=>{showToast('Disconnected from server.','err');});
+socket.on('connect',()=>{if(myUsername)socket.emit('uno_set_username',{username:myUsername});});
+
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 </script>
-{% endblock %}
+</body>
+</html>
