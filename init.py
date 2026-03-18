@@ -29,15 +29,6 @@ def init_db():
             edited       INTEGER NOT NULL DEFAULT 0
         )
     """)
-    for col, defn in [
-        ("reply_to_id", "INTEGER REFERENCES chat_messages(id)"),
-        ("edited",      "INTEGER NOT NULL DEFAULT 0"),
-    ]:
-        try:
-            c.execute(f"ALTER TABLE chat_messages ADD COLUMN {col} {defn}")
-        except Exception:
-            pass
- 
     # ── admins ───────────────────────────────────────────────
     c.execute("""
         CREATE TABLE IF NOT EXISTS admins (
@@ -47,6 +38,77 @@ def init_db():
             role          TEXT    NOT NULL CHECK(role IN ('MOD','DEV'))
         )
     """)
+    
+    # ── ip_bans ──────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS ip_bans (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip         TEXT    NOT NULL UNIQUE,
+            reason     TEXT    DEFAULT '',
+            banned_by  TEXT    NOT NULL,
+            banned_at  REAL    NOT NULL,
+            expires_at REAL    DEFAULT NULL  -- NULL = permanent
+        )
+    """)
+ 
+    # ── reports ──────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS reports (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            reporter_ip        TEXT    NOT NULL,
+            reported_username  TEXT    NOT NULL,
+            reported_ip        TEXT    DEFAULT '',
+            message_id         INTEGER DEFAULT NULL,
+            message_text       TEXT    DEFAULT '',
+            reason             TEXT    DEFAULT '',
+            source TEXT NOT NULL DEFAULT 'chat',
+            timestamp          REAL    NOT NULL,
+            status             TEXT    NOT NULL DEFAULT 'pending'
+                                   CHECK(status IN ('pending','reviewed','dismissed')),
+            reviewed_by        TEXT    DEFAULT NULL,
+            reviewed_at        REAL    DEFAULT NULL
+        )
+    """)
+    
+    # ── uploads ──────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS uploads (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            stored_name    TEXT    NOT NULL UNIQUE,   -- UUID filename on disk
+            original_name  TEXT    NOT NULL,          -- original filename from user
+            display_name   TEXT    NOT NULL,
+            uploader_ip    TEXT    NOT NULL,
+            password_hash  TEXT    DEFAULT NULL,      -- NULL = public
+            size_bytes     INTEGER NOT NULL,
+            mime_type      TEXT    DEFAULT '',
+            timestamp      REAL    NOT NULL
+        )
+    """)
+ 
+    # ── upload_tags ───────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS upload_tags (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            upload_id  INTEGER NOT NULL REFERENCES uploads(id) ON DELETE CASCADE,
+            tag        TEXT    NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_upload_tags_tag       ON upload_tags(tag)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_upload_tags_upload_id ON upload_tags(upload_id)")
+ 
+    for col, defn in [
+        ("reply_to_id", "INTEGER REFERENCES chat_messages(id)"),
+        ("edited",      "INTEGER NOT NULL DEFAULT 0"),
+    ]:
+        try:
+            c.execute(f"ALTER TABLE chat_messages ADD COLUMN {col} {defn}")
+        except Exception:
+            pass
+        
+    try:
+        c.execute("ALTER TABLE reports ADD COLUMN source TEXT NOT NULL DEFAULT 'chat'")
+    except Exception:
+        pass
  
     # Seed initial DEV account if no admins exist yet
     c.execute("SELECT COUNT(*) FROM admins")

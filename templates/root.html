@@ -35,13 +35,13 @@
       <div class="card-desc">Push alerts and announcements to all connected devices.</div>
       <span class="card-badge">Coming Soon</span>
     </div>
-    <div class="feature-card accent-cyan soon">
+    <a href="/dropzone" class="feature-card accent-cyan">
       <div class="card-icon">📁</div>
       <div class="card-label">File Share</div>
       <div class="card-title">Drop Zone</div>
-      <div class="card-desc">Instantly share files with others on the LAN.</div>
-      <span class="card-badge">Coming Soon</span>
-    </div>
+      <div class="card-desc">Upload, tag, and share files with anyone on the LAN.</div>
+      <span class="card-badge">Live</span>
+    </a>
   </div>
 </div>
 
@@ -206,46 +206,54 @@
   <div class="card-grid stagger">
 
     {# MOD + DEV features #}
-    <div class="feature-card accent-red soon">
+    <a href="{{ url_for('admin.bans') }}" class="feature-card accent-red">
       <div class="card-icon">🚫</div>
       <div class="card-label">Moderation</div>
       <div class="card-title">IP Ban Manager</div>
       <div class="card-desc">Block or unblock IPs from accessing the hub.</div>
-      <span class="card-badge">Coming Soon</span>
-    </div>
+      <span class="card-badge">Live</span>
+    </a>
 
-    <div class="feature-card accent-red soon">
+    <a href="{{ url_for('admin.reports') }}" class="feature-card accent-red">
       <div class="card-icon">🏷️</div>
       <div class="card-label">Moderation</div>
       <div class="card-title">Report Queue</div>
       <div class="card-desc">Review user-submitted /report flags from chat.</div>
-      <span class="card-badge">Coming Soon</span>
-    </div>
+      <span class="card-badge">Live</span>
+    </a>
 
     {# DEV-only features #}
     {% if session.admin_role == 'DEV' %}
 
-    <div class="feature-card accent-red soon">
+    <a href="{{ url_for('admin.server_control') }}" class="feature-card accent-red">
       <div class="card-icon">🔄</div>
       <div class="card-label">Server</div>
       <div class="card-title">Restart / Update</div>
       <div class="card-desc">Trigger a git pull and service restart from the browser.</div>
-      <span class="card-badge">Coming Soon</span>
-    </div>
+      <span class="card-badge">DEV Only</span>
+    </a>
 
-    <div class="feature-card accent-red soon">
+    <a href="{{ url_for('admin.db_inspector') }}" class="feature-card accent-red">
       <div class="card-icon">🗃️</div>
       <div class="card-label">Database</div>
       <div class="card-title">DB Inspector</div>
       <div class="card-desc">Browse and query the app database in the browser.</div>
-      <span class="card-badge">Coming Soon</span>
-    </div>
+      <span class="card-badge">DEV Only</span>
+    </a>
 
     <a href="{{ url_for('admin.power') }}" class="feature-card accent-red">
       <div class="card-icon">👑</div>
       <div class="card-label">Admin</div>
       <div class="card-title">Admin Power Control</div>
       <div class="card-desc">Create, edit, or delete DEV/MOD admin accounts.</div>
+      <span class="card-badge">DEV Only</span>
+    </a>
+
+    <a href="{{ url_for('admin.console') }}" class="feature-card accent-red">
+      <div class="card-icon">🖥️</div>
+      <div class="card-label">System</div>
+      <div class="card-title">Server Console</div>
+      <div class="card-desc">Full Linux shell access directly in the browser.</div>
       <span class="card-badge">DEV Only</span>
     </a>
 

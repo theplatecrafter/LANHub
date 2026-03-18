@@ -16,6 +16,49 @@ def _online_count() -> int:
     return len(active_sessions)
 
 
+def _handle_report_command(sid: str, ip: str, raw: str) -> None:
+    """
+    Usage:  /report <username> [reason]
+    Or reply to a message with /report [reason]
+    """
+    from flask_socketio import emit as _emit
+ 
+    parts  = raw.split(None, 2)   # ["/report", username, reason?]
+    if len(parts) < 2:
+        _emit("error", {"message": "Usage: /report <username> [reason]"})
+        return
+ 
+    reported_username = parts[1]
+    reason            = parts[2] if len(parts) > 2 else ""
+ 
+    # Look up the reported user's IP from active_sessions
+    reported_ip = ""
+    for sess in active_sessions.values():
+        if sess["username"].lower() == reported_username.lower():
+            reported_ip = sess["ip"]
+            break
+ 
+    if not reported_ip and reported_username not in [
+        v["username"] for v in active_sessions.values()
+    ]:
+        _emit("error", {"message": f"User '{reported_username}' not found in chat."})
+        return
+ 
+    rid = f.create_report(
+        reporter_ip       = ip,
+        reported_username = reported_username,
+        reported_ip       = reported_ip,
+        message_id        = None,
+        message_text      = "",
+        reason            = reason,
+        source            = "chat",
+    )
+    _emit("error", {   # reuse error channel as a "system message" to the reporter only
+        "message": f"✓ Report #{rid} submitted. Thank you."
+    })
+    app_log.info(f"[chat] Report #{rid}: {ip} reported '{reported_username}' — {reason!r}")
+
+
 @socketio.on("join_chat")
 def handle_join(data):
     sid = request.sid
@@ -73,9 +116,17 @@ def handle_message(data):
     if len(message) > CHAT_MAX_CHARS:
         emit("error", {"message": f"Message too long (max {CHAT_MAX_CHARS} chars)."})
         return
+    
     if f.is_rate_limited(ip):
         emit("error", {"message": f"Slow down — max {CHAT_RATE_LIMIT} messages per {CHAT_RATE_WINDOW}s."})
         return
+    
+    message = (data.get("message") or "").strip()
+    # ── /report command ───────────────────────────────────────
+    if message.startswith("/report"):
+        _handle_report_command(sid, ip, message)
+        return
+    
     if f.check_profanity(message):
         emit("error", {"message": "Message contains disallowed words."})
         return

@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}LANHub — Report Queue{% endblock %}
+
+{% block head %}
+<style>
+  .page-wrap { padding: 0 !important; }
+  .admin-header {
+    display: flex; align-items: center; gap: 12px; padding: 14px 24px;
+    background: var(--bg-panel); border-bottom: 1px solid var(--border);
+  }
+  .admin-header h1 { font-size: 1.1rem; }
+  .role-badge { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 9px; border-radius: 20px; background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber); }
+  .admin-name { margin-left: auto; font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); }
+
+  /* Status tab bar */
+  .status-tabs { display: flex; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
+  .status-tab {
+    padding: 10px 22px; font-family: var(--font-mono); font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim);
+    border-bottom: 2px solid transparent; cursor: pointer; text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  .status-tab:hover { color: var(--text-bright); }
+  .status-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+  .admin-body { max-width: 960px; margin: 0 auto; padding: 24px; }
+
+  .report-card {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); margin-bottom: 12px; overflow: hidden;
+    transition: border-color 0.15s ease;
+  }
+  .report-card:hover { border-color: var(--border-hi); }
+  .report-card.reviewed  { border-left: 3px solid var(--green); opacity: 0.7; }
+  .report-card.dismissed { border-left: 3px solid var(--text-dim); opacity: 0.5; }
+  .report-card.pending   { border-left: 3px solid var(--amber); }
+
+  .report-header {
+    display: flex; align-items: center; gap: 12px; padding: 12px 18px;
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .report-id { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); }
+  .report-target { font-family: var(--font-mono); font-size: 0.9rem; color: var(--text-bright); font-weight: 700; }
+  .report-ip { font-family: var(--font-mono); font-size: 0.72rem; color: var(--cyan); }
+  .report-time { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim); margin-left: auto; }
+
+  .status-chip {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-family: var(--font-mono); font-size: 0.6rem;
+    text-transform: uppercase; letter-spacing: 0.08em; border: 1px solid;
+  }
+  .status-chip.pending   { color: var(--amber); border-color: var(--amber); background: var(--amber-dim); }
+  .status-chip.reviewed  { color: var(--green); border-color: var(--green); background: var(--green-dim); }
+  .status-chip.dismissed { color: var(--text-dim); border-color: var(--border); background: transparent; }
+
+  .report-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .report-field { display: flex; gap: 10px; align-items: baseline; }
+  .rf-label { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); min-width: 72px; flex-shrink: 0; }
+  .rf-val   { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text); }
+
+  .report-actions { display: flex; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .act-btn {
+    padding: 5px 14px; border-radius: var(--radius); font-family: var(--font-mono); font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid var(--border);
+    background: transparent; color: var(--text-dim); cursor: pointer; transition: all 0.12s ease;
+  }
+  .act-btn:hover                 { border-color: var(--cyan); color: var(--cyan); }
+  .act-btn.reviewed:hover        { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+  .act-btn.dismissed:hover       { border-color: var(--text-dim); color: var(--text-dim); }
+  .act-btn.ban-and-review:hover  { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+  .act-btn:disabled              { opacity: 0.3; cursor: not-allowed; }
+
+  .empty-state { text-align: center; padding: 60px 20px; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim); }
+  .empty-icon  { font-size: 2rem; margin-bottom: 12px; display: block; }
+
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; padding: 10px 18px;
+    border-radius: var(--radius); font-family: var(--font-mono); font-size: 0.8rem; border: 1px solid;
+    z-index: 999; pointer-events: none; opacity: 0; transform: translateY(8px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.ok  { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  #toast.err { background: var(--red-dim);   border-color: var(--red);   color: var(--red); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <h1>🏷️ Report Queue</h1>
+  <span class="role-badge">{{ session.admin_role }}</span>
+  <span class="admin-name">{{ session.admin_name }}</span>
+</div>
+
+<div class="status-tabs">
+  <a href="?status=pending"   class="status-tab {{ 'active' if current_status == 'pending' }}">Pending</a>
+  <a href="?status=reviewed"  class="status-tab {{ 'active' if current_status == 'reviewed' }}">Reviewed</a>
+  <a href="?status=dismissed" class="status-tab {{ 'active' if current_status == 'dismissed' }}">Dismissed</a>
+  <a href="?status=all"       class="status-tab {{ 'active' if current_status == 'all' }}">All</a>
+</div>
+
+<div class="admin-body">
+  {% if not reports %}
+  <div class="empty-state">
+    <span class="empty-icon">📭</span>
+    No reports with status "{{ current_status }}".
+  </div>
+  {% endif %}
+
+  {% for r in reports %}
+  <div class="report-card {{ r.status }}" id="report-{{ r.id }}">
+    <div class="report-header">
+      <span class="report-id">#{{ r.id }}</span>
+      <span class="report-target">{{ r.reported_username }}</span>
+      {% if r.reported_ip %}<span class="report-ip">{{ r.reported_ip }}</span>{% endif %}
+      <span class="status-chip {{ r.status }}">{{ r.status }}</span>
+      <span class="source-chip" style="
+        font-family:var(--font-mono); font-size:0.6rem; letter-spacing:0.08em;
+        text-transform:uppercase; padding:2px 8px; border-radius:20px;
+        background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim);
+        ">{{ r.source }}</span>
+        
+      <span class="report-time">{{ r.timestamp | int | timestamp_fmt }}</span>
+    </div>
+
+    <div class="report-body">
+      <div class="report-field">
+        <span class="rf-label">Reason</span>
+        <span class="rf-val">{{ r.reason or '(no reason given)' }}</span>
+      </div>
+      {% if r.message_text %}
+      <div class="report-field">
+        <span class="rf-label">Message</span>
+        <span class="rf-val">"{{ r.message_text }}"</span>
+      </div>
+      {% endif %}
+      <div class="report-field">
+        <span class="rf-label">Reporter</span>
+        <span class="rf-val">{{ r.reporter_ip }}</span>
+      </div>
+      {% if r.reviewed_by %}
+      <div class="report-field">
+        <span class="rf-label">Reviewed by</span>
+        <span class="rf-val">{{ r.reviewed_by }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if r.status == 'pending' %}
+    <div class="report-actions">
+      <button class="act-btn reviewed"
+        onclick="takeAction({{ r.id }}, 'reviewed', false)">
+        ✓ Mark Reviewed
+      </button>
+      <button class="act-btn dismissed"
+        onclick="takeAction({{ r.id }}, 'dismissed', false)">
+        Dismiss
+      </button>
+      {% if r.reported_ip %}
+      <button class="act-btn ban-and-review"
+        onclick="takeAction({{ r.id }}, 'reviewed', true)">
+        🚫 Ban IP + Resolve
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div id="toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function showToast(msg, ok) {
+    const el = document.getElementById("toast");
+    el.textContent = msg; el.className = "show " + (ok ? "ok" : "err");
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.className = ok ? "ok" : "err"; }, 3000);
+  }
+
+  async function takeAction(id, action, ban) {
+    const res  = await fetch(`/admin/reports/${id}/action`, {
+      method: "POST",
+      body: new URLSearchParams({ action, ban: ban ? "1" : "0" }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(ban ? "Report resolved and IP banned." : "Report updated.", true);
+      const card = document.getElementById(`report-${id}`);
+      if (card) {
+        card.classList.remove("pending");
+        card.classList.add(action);
+        card.querySelector(".report-actions")?.remove();
+        card.querySelector(".status-chip").textContent = action;
+        card.querySelector(".status-chip").className   = `status-chip ${action}`;
+      }
+    } else {
+      showToast(data.error, false);
+    }
+  }
+</script>
+{% endblock %}

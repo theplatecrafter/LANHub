@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block title %}LANHub — Server Console{% endblock %}
+
+{% block head %}
+{# Load xterm 4.x — stable, widely available on CDNs #}
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/xterm/4.19.0/xterm.min.css" />
+
+<style>
+  .page-wrap {
+    padding: 0 !important;
+    height: calc(100vh - 56px - 33px);
+    display: flex; flex-direction: column;
+  }
+  .container {
+    max-width: 100% !important; padding: 0 !important;
+    flex: 1; display: flex; flex-direction: column; min-height: 0;
+  }
+
+  #console-shell {
+    display: flex; flex-direction: column;
+    flex: 1; min-height: 0; background: #0d0d0d;
+  }
+
+  /* ── Toolbar ──────────────────────────────────────────── */
+  #console-toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 20px; flex-shrink: 0;
+    background: var(--bg-panel); border-bottom: 1px solid var(--border);
+  }
+  #console-toolbar h1 {
+    font-size: 0.88rem; margin: 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dev-badge {
+    font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 20px;
+    background: var(--red-dim); color: var(--red); border: 1px solid var(--red);
+  }
+
+  #conn-status {
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim);
+  }
+  .cdot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text-dim); flex-shrink: 0; transition: background 0.3s;
+  }
+  .cdot.connected    { background: var(--green); box-shadow: 0 0 5px var(--green); }
+  .cdot.disconnected { background: var(--red);   box-shadow: 0 0 5px var(--red); }
+
+  .tb-btn {
+    padding: 4px 12px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); font-family: var(--font-mono);
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
+    cursor: pointer; transition: all 0.12s ease; white-space: nowrap;
+  }
+  .tb-btn:hover        { border-color: var(--cyan); color: var(--cyan); }
+  .tb-btn.danger:hover { border-color: var(--red);  color: var(--red); }
+
+  #font-info {
+    font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .admin-lbl {
+    font-family: var(--font-mono); font-size: 0.68rem;
+    color: var(--text-dim); margin-left: auto; white-space: nowrap;
+  }
+
+  /* ── Terminal wrap ────────────────────────────────────── */
+  #terminal-wrap {
+    flex: 1; min-height: 0; overflow: hidden;
+    padding: 8px 4px 4px 10px;
+    background: #0d0d0d;
+    position: relative;
+  }
+
+  /* Make xterm fill the container */
+  #terminal, .xterm, .xterm-viewport, .xterm-screen {
+    height: 100% !important;
+  }
+  .xterm-viewport { overflow-y: hidden !important; }
+
+  /* ── Shell-exited overlay ─────────────────────────────── */
+  #exited-overlay {
+    display: none; position: absolute; inset: 0;
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(4px);
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; z-index: 10;
+  }
+  #exited-overlay.visible { display: flex; }
+  #exited-overlay p {
+    font-family: var(--font-mono); color: var(--text-bright); font-size: 0.9rem;
+    margin: 0;
+  }
+  #exited-overlay small {
+    font-family: var(--font-mono); color: var(--text-dim); font-size: 0.72rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="console-shell">
+
+  <div id="console-toolbar">
+    <h1>🖥 Server Console <span class="dev-badge">DEV only</span></h1>
+
+    <div id="conn-status">
+      <span class="cdot" id="cdot"></span>
+      <span id="conn-label">Connecting…</span>
+    </div>
+
+    <span id="font-info">Font: <strong id="fsize">14</strong>px</span>
+    <button class="tb-btn" onclick="changeFontSize(-1)" title="Smaller font">A−</button>
+    <button class="tb-btn" onclick="changeFontSize(+1)" title="Larger font">A+</button>
+    <button class="tb-btn" onclick="clearTerm()">Clear</button>
+    <button class="tb-btn danger" onclick="killShell()">✕ Kill</button>
+
+    <span class="admin-lbl">{{ session.admin_name }}</span>
+  </div>
+
+  <div id="terminal-wrap">
+    <div id="terminal"></div>
+
+    <div id="exited-overlay">
+      <p>Shell process exited.</p>
+      <small>Your commands have no effect until you restart.</small>
+      <button class="tb-btn" onclick="restartShell()">↻ Restart Shell</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{# Load xterm core — 4.19.0 is stable and fully on cdnjs #}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/4.19.0/xterm.min.js"></script>
+{# FitAddon for xterm 4.x — available on unpkg #}
+<script src="https://unpkg.com/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.js"></script>
+
+<script>
+  // ── Shared socket from base.html ──────────────────────────
+  const socket = _socket;
+
+  let term        = null;
+  let fitAddon    = null;
+  let fontSize    = 14;
+  let shellAlive  = false;
+
+  // ── Build the terminal ────────────────────────────────────
+  function buildTerminal() {
+    if (term) {
+      try { term.dispose(); } catch (_) {}
+    }
+
+    term = new Terminal({
+      cursorBlink: true,
+      fontSize:    fontSize,
+      fontFamily:  "'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace",
+      theme: {
+        background:  "#0d0d0d",
+        foreground:  "#c9d6e3",
+        cursor:      "#00d4ff",
+        selectionBackground: "#2a3d54",
+        black:       "#0d0d0d",
+        red:         "#ff4d6a",
+        green:       "#39d98a",
+        yellow:      "#f5a623",
+        blue:        "#00d4ff",
+        magenta:     "#a78bfa",
+        cyan:        "#00b4d8",
+        white:       "#c9d6e3",
+        brightBlack: "#525a66",
+        brightRed:   "#ff6b6b",
+        brightGreen: "#6ddc8b",
+        brightWhite: "#eaf2ff",
+      },
+      scrollback:       5000,
+      convertEol:       false,
+      allowTransparency: false,
+    });
+
+    // FitAddon (xterm-addon-fit@0.5.0 exports as FitAddon.FitAddon)
+    if (typeof FitAddon !== "undefined" && FitAddon.FitAddon) {
+      fitAddon = new FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+    }
+
+    term.open(document.getElementById("terminal"));
+    doFit();
+
+    // Forward keystrokes to the server
+    term.onData(data => {
+      if (shellAlive) socket.emit("console_input", { data });
+    });
+
+    // Forward resize to the server
+    term.onResize(({ cols, rows }) => {
+      socket.emit("console_resize", { cols, rows });
+    });
+  }
+
+  // ── Fit terminal to container ─────────────────────────────
+  function doFit() {
+    if (!fitAddon) return;
+    try {
+      fitAddon.fit();
+    } catch (_) {}
+  }
+
+  // ── Start / restart shell ─────────────────────────────────
+  function startShell() {
+    const cols = term ? term.cols : 80;
+    const rows = term ? term.rows : 24;
+    socket.emit("console_start", { cols, rows });
+  }
+
+  function restartShell() {
+    document.getElementById("exited-overlay").classList.remove("visible");
+    startShell();
+  }
+
+  function killShell() {
+    if (!confirm("Kill the current shell session?")) return;
+    socket.emit("console_stop");
+    shellAlive = false;
+    setStatus(false, "Killed");
+    document.getElementById("exited-overlay").classList.add("visible");
+  }
+
+  // ── Socket event handlers ─────────────────────────────────
+  socket.on("console_ready", () => {
+    shellAlive = true;
+    setStatus(true, "Connected");
+    document.getElementById("exited-overlay").classList.remove("visible");
+    if (term) term.focus();
+  });
+
+  socket.on("console_output", data => {
+    if (term) term.write(data.data);
+  });
+
+  socket.on("console_exit", () => {
+    shellAlive = false;
+    setStatus(false, "Shell exited");
+    if (term) term.writeln("\r\n\x1b[33m[process exited]\x1b[0m");
+    document.getElementById("exited-overlay").classList.add("visible");
+  });
+
+  // Re-start shell if the socket reconnects (page was in background, etc.)
+  socket.on("connect", () => {
+    if (term && !shellAlive) startShell();
+  });
+
+  // ── Toolbar actions ───────────────────────────────────────
+  function clearTerm() {
+    if (term) term.clear();
+  }
+
+  function changeFontSize(delta) {
+    fontSize = Math.max(8, Math.min(30, fontSize + delta));
+    document.getElementById("fsize").textContent = fontSize;
+    if (term) {
+      term.options.fontSize = fontSize;
+      doFit();
+    }
+  }
+
+  // ── Status dot ────────────────────────────────────────────
+  function setStatus(connected, label) {
+    document.getElementById("cdot").className  = "cdot " + (connected ? "connected" : "disconnected");
+    document.getElementById("conn-label").textContent = label;
+  }
+
+  // ── Resize observer ───────────────────────────────────────
+  new ResizeObserver(doFit).observe(document.getElementById("terminal-wrap"));
+
+  // Kill shell cleanly on page leave
+  window.addEventListener("beforeunload", () => socket.emit("console_stop"));
+
+  // ── Boot ──────────────────────────────────────────────────
+  // xterm scripts are in {% block scripts %} so Terminal is defined by now
+  buildTerminal();
+  startShell();
+</script>
+{% endblock %}
