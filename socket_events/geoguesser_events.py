@@ -486,12 +486,14 @@ def _rn(room_id: str) -> str:
 def _emit_lobby():
     public = [
         {
-            "id":      r["id"],
-            "title":   r["title"],
-            "players": len(r["players"]),
-            "rounds":  r["rounds_total"],
-            "time":    r["round_time_limit"],
-            "status":  r["status"],
+            "id":              r["id"],
+            "title":           r["title"],
+            "players":         len(r["players"]),
+            "rounds":          r["rounds_total"],
+            "time":            r["round_time_limit"],
+            "status":          r["status"],
+            "region_is_world": r["region_is_world"],
+            "region":          r["region"],          # polygon points for preview
         }
         for r in geo_rooms.values()
         if r["privacy"] == "public" and r["status"] == "waiting"
@@ -521,6 +523,7 @@ def _emit_room(room_id: str):
             "round_current":   room["round_current"],
             "time_limit":      room["round_time_limit"],
             "region_is_world": room["region_is_world"],
+            "region":          room["region"],
         },
         room=_rn(room_id),
     )
