@@ -1,5 +1,8 @@
 # --- General settings ---
-REPO_URL = "https://github.com/YOUR_USERNAME/YOUR_REDIRECTOR_REPO" # Redirector repository URL
+import os
+
+
+REPO_URL = "https://github.com/YOUR_USERNAME/YOUR_REDIRECTOR_REPO"
 PORT = 5000
 # --- Chat settings ---
 CHAT_MAX_CHARS       = 500   # max characters per message
@@ -9,10 +12,10 @@ CHAT_HISTORY_ON_JOIN = 50    # recent messages sent on connect
 # --- Admin settings ---
 INITIAL_DEV_USERNAME = "dev"
 INITIAL_DEV_PASSWORD = "password"
-SECRET_KEY = "replace_this_with_a_secure_random_value"
+SECRET_KEY = os.urandom(24)
 # --- Drop Zone settings ---
-DROPZONE_MAX_STORAGE_BYTES  = 500 * 1024 * 1024   # 500 MB total server storage
-DROPZONE_MAX_FILE_BYTES     = 50  * 1024 * 1024   # 50 MB per single file
+DROPZONE_MAX_STORAGE_BYTES  = 5 * 1024 * 1024 * 1024   #total server storage
+DROPZONE_MAX_FILE_BYTES     = 1 * 1024  * 1024 * 1024   #per single file
 DROPZONE_RATE_WINDOW_HOURS  = 2                    # rolling window for per-IP limit
-DROPZONE_RATE_LIMIT_BYTES   = 100 * 1024 * 1024   # 100 MB per IP per window
+DROPZONE_RATE_LIMIT_BYTES   = 2*1024 * 1024 * 1024   # per IP per window
  
