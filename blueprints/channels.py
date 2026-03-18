@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, jsonify
 from werkzeug.security import check_password_hash
 import functions as f
 from glob_vars import app_log, error_log, access_log
-from configvars import CHAT_MAX_CHARS, CHAT_RATE_LIMIT, CHAT_RATE_WINDOW, CHAT_HISTORY_ON_JOIN
+from config import CHAT_MAX_CHARS, CHAT_RATE_LIMIT, CHAT_RATE_WINDOW, CHAT_HISTORY_ON_JOIN
 
 channels_bp = Blueprint("channels", __name__)
 

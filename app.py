@@ -9,13 +9,12 @@ from socketio_instance import socketio
 import scheduler as sch
 import sys
 import signal
-from configvars import SECRET_KEY
 import datetime
 import re as _re
-from configvars import REPO_URL as _REPO_URL
+import config as _config
 
 app = Flask(__name__)
-app.secret_key = SECRET_KEY
+app.secret_key = _config.SECRET_KEY
 
 # Blueprints
 from blueprints.chat import chat_bp
@@ -33,8 +32,7 @@ from blueprints.tetris import tetris_bp
 from blueprints.uno import uno_bp
 from blueprints.server_config import server_config_bp
 from blueprints.slither import slither_bp
-
-
+from blueprints.scribble import scribble_bp
 
 
 
@@ -48,6 +46,7 @@ import socket_events.chess_events
 import socket_events.tetris_events
 import socket_events.uno_events
 import socket_events.slither_events
+import socket_events.scribble_events
 
 
 
@@ -68,12 +67,13 @@ app.register_blueprint(tetris_bp)
 app.register_blueprint(uno_bp)
 app.register_blueprint(server_config_bp)
 app.register_blueprint(slither_bp)
+app.register_blueprint(scribble_bp)
 
 
 ###########################################
 # App Configs
 ###########################################
-app.config["MAX_CONTENT_LENGTH"] = DROPZONE_MAX_FILE_BYTES
+app.config["MAX_CONTENT_LENGTH"] = _config.DROPZONE_MAX_FILE_BYTES
 
 
 
@@ -125,7 +125,7 @@ def _repo_url_to_pages(repo_url: str) -> str | None:
 @app.context_processor
 def inject_share_url():
     """Makes `share_url` available in every template."""
-    return {"share_url": _repo_url_to_pages(_REPO_URL or "")}
+    return {"share_url": _repo_url_to_pages(_config.REPO_URL or "")}
 
 
 ###########################################
@@ -165,4 +165,4 @@ signal.signal(signal.SIGTERM, graceful_shutdown)
 if __name__ == "__main__":
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         sch.start_scheduler()
-    socketio.run(app, host="0.0.0.0",debug=True,port=PORT,allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0",debug=True,port=_config.PORT,allow_unsafe_werkzeug=True)

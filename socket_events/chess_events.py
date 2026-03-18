@@ -279,6 +279,14 @@ def _cleanup_chess(sid: str) -> None:
 
 # ── Socket handlers ────────────────────────────────────────────────────────────
 
+@socketio.on("chess_leave_route")
+def handle_chess_leave_route(_=None):
+    """
+    Fired by the client when navigating away from /chess.
+    Frees the username immediately without waiting for socket disconnect.
+    """
+    _cleanup_chess(request.sid)
+
 @socketio.on("chess_set_username")
 def handle_chess_username(data):
     sid      = request.sid

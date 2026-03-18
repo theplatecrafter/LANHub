@@ -6,4 +6,4 @@ app.db
 files/
 logs/
 redirector_repo/
-configvars.py
+configvars.json

@@ -555,6 +555,8 @@
   // ── Username modal ───────────────────────────────────────
   document.getElementById("un-input").addEventListener("keydown", e => { if(e.key==="Enter") submitUsername(); });
   document.getElementById("un-submit").addEventListener("click", submitUsername);
+  window.addEventListener('pagehide',      () => socket.emit('chess_leave_route'));
+  window.addEventListener('beforeunload',  () => socket.emit('chess_leave_route'));
 
   function submitUsername() {
     const val = document.getElementById("un-input").value.trim();

@@ -1,0 +1,804 @@
+{% extends "base.html" %}
+{% block title %}Scribble — LANHub{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Scribble overrides all theme vars with a paper palette ── */
+  #scr-page {
+    --paper:        #f7f4ed;
+    --paper-dark:   #ede9df;
+    --paper-border: #d4cfc4;
+    --ink:          #1c1917;
+    --ink-dim:      #78716c;
+    --ink-faint:    #a8a29e;
+    --pencil:       #44403c;
+    --accent-red:   #e63946;
+    --accent-blue:  #2563eb;
+    --accent-green: #16a34a;
+    --accent-amber: #d97706;
+    --accent-purple:#7c3aed;
+    --r:            6px;
+    --r-lg:         12px;
+    --shadow:       0 2px 12px rgba(28,25,23,.10);
+    --shadow-lg:    0 8px 32px rgba(28,25,23,.14);
+  }
+
+  .page-wrap { padding: 0 !important; }
+  .container  { max-width: none !important; padding: 0 !important; }
+  html, body  { overflow: hidden; }
+
+  /* ── Root shell ──────────────────────────────────────── */
+  #scr-page {
+    display: flex; flex-direction: column;
+    height: calc(100vh - 56px - 48px);
+    font-family: 'Syne', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Game bar ─────────────────────────────────────────── */
+  #scr-bar {
+    height: 44px; flex-shrink: 0;
+    background: var(--paper-dark);
+    border-bottom: 2px solid var(--paper-border);
+    display: flex; align-items: center; padding: 0 16px; gap: 14px;
+    box-shadow: 0 1px 0 rgba(255,255,255,.6) inset;
+  }
+  #bar-round {
+    font-family: 'Share Tech Mono', monospace; font-size: .6rem;
+    color: var(--ink-dim); letter-spacing: .1em; white-space: nowrap;
+  }
+  #bar-word {
+    flex: 1; text-align: center;
+    font-family: 'Share Tech Mono', monospace; font-size: 1.1rem; font-weight: 700;
+    letter-spacing: .28em; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #bar-timer {
+    font-family: 'Share Tech Mono', monospace; font-size: 1.35rem; font-weight: 700;
+    color: var(--accent-blue); min-width: 2.4ch; text-align: right;
+    transition: color .3s;
+  }
+  #bar-timer.warn { color: var(--accent-amber); }
+  #bar-timer.crit { color: var(--accent-red); animation: tick-shake .15s ease infinite alternate; }
+  @keyframes tick-shake { from { transform: translateX(-1px); } to { transform: translateX(1px); } }
+
+  /* ── Main 3-col ──────────────────────────────────────── */
+  #scr-main { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+
+  /* ── Players panel ───────────────────────────────────── */
+  #scr-players {
+    width: 152px; flex-shrink: 0;
+    background: var(--paper-dark);
+    border-right: 2px solid var(--paper-border);
+    overflow-y: auto; padding: 8px 7px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .plr-card {
+    background: var(--paper); border: 1.5px solid var(--paper-border);
+    border-radius: var(--r); padding: 6px 9px;
+    display: flex; flex-direction: column; gap: 2px;
+    transition: border-color .15s, background .15s;
+    box-shadow: var(--shadow);
+  }
+  .plr-card.is-drawer {
+    border-color: var(--accent-blue); background: #eff6ff;
+    box-shadow: 0 0 0 2px #bfdbfe44;
+  }
+  .plr-card.guessed  { border-color: var(--accent-green); background: #f0fdf4; }
+  .plr-card.is-me    { border-color: var(--accent-purple); }
+  .plr-name  { font-size: .72rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .plr-score { font-size: .6rem; color: var(--ink-dim); font-family: 'Share Tech Mono',monospace; }
+  .plr-icon  { font-size: .68rem; }
+  #scr-players::-webkit-scrollbar { width: 3px; }
+  #scr-players::-webkit-scrollbar-thumb { background: var(--paper-border); border-radius: 2px; }
+
+  /* ── Canvas center ───────────────────────────────────── */
+  #scr-center {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: var(--paper); overflow: hidden; position: relative;
+  }
+
+  #canvas-wrap {
+    position: relative; border-radius: var(--r); overflow: hidden;
+    /* Paper-like border: slightly uneven top/left for sketch feel */
+    border-top:   2px solid #c9c3b8;
+    border-left:  2px solid #c9c3b8;
+    border-right: 3px solid #b8b0a4;
+    border-bottom:3px solid #b8b0a4;
+    box-shadow: var(--shadow-lg), 4px 4px 0 #d4cfc4;
+  }
+  #gc { display: block; background: #fff; cursor: crosshair; }
+  /* Faint ruled lines on the canvas via overlay — purely decorative */
+  #canvas-wrap::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background-image: repeating-linear-gradient(
+      transparent 0px, transparent 23px,
+      rgba(147,197,253,.18) 23px, rgba(147,197,253,.18) 24px
+    );
+    mix-blend-mode: multiply;
+  }
+
+  #cursor-dot {
+    position: absolute; border-radius: 50%;
+    border: 2px solid rgba(0,0,0,.3);
+    transform: translate(-50%,-50%);
+    pointer-events: none; z-index: 5;
+  }
+  #correct-flash {
+    position: absolute; inset: 0; pointer-events: none;
+    border-radius: var(--r); z-index: 6;
+    background: transparent; transition: background .15s;
+  }
+  #correct-flash.show { background: rgba(22,163,74,.14); }
+
+  /* ── Toolbar ─────────────────────────────────────────── */
+  #scr-toolbar {
+    width: 100%; display: flex; align-items: center; flex-wrap: wrap;
+    gap: 5px; padding: 6px 12px;
+    background: var(--paper-dark);
+    border-top: 2px solid var(--paper-border);
+    flex-shrink: 0;
+  }
+  .t-sep { width: 1px; height: 20px; background: var(--paper-border); margin: 0 3px; }
+  .t-color {
+    width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent;
+    cursor: pointer; transition: transform .12s, box-shadow .12s; flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  }
+  .t-color:hover    { transform: scale(1.2); }
+  .t-color.selected { border-color: var(--ink); transform: scale(1.28); box-shadow: 0 0 0 3px var(--paper-dark), 0 0 0 4px var(--ink); }
+  #t-size { width: 80px; accent-color: var(--pencil); cursor: pointer; }
+  .t-preview { width: 24px; height: 24px; display:flex; align-items:center; justify-content:center; }
+  .t-preview-dot { border-radius: 50%; background: var(--ink); transition: all .12s; }
+
+  .t-btn {
+    padding: 4px 10px; border-radius: var(--r);
+    font-family: 'Share Tech Mono',monospace; font-size: .62rem; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
+    border: 1.5px solid var(--paper-border); background: var(--paper);
+    color: var(--ink-dim); transition: all .12s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 0 rgba(255,255,255,.6) inset;
+  }
+  .t-btn:hover        { border-color: var(--accent-blue); color: var(--accent-blue); background: #eff6ff; }
+  .t-btn.active       { background: #eff6ff; border-color: var(--accent-blue); color: var(--accent-blue); box-shadow: inset 0 1px 3px rgba(0,0,0,.1); }
+  .t-btn.danger:hover { border-color: var(--accent-red); color: var(--accent-red); background: #fff1f2; }
+
+  /* ── Chat panel ──────────────────────────────────────── */
+  #scr-chat-col {
+    width: 210px; flex-shrink: 0;
+    background: var(--paper-dark);
+    border-left: 2px solid var(--paper-border);
+    display: flex; flex-direction: column;
+  }
+  #chat-messages {
+    flex: 1; overflow-y: auto; padding: 8px 8px 4px;
+    display: flex; flex-direction: column; gap: 3px; scroll-behavior: smooth;
+  }
+  #chat-messages::-webkit-scrollbar { width: 3px; }
+  #chat-messages::-webkit-scrollbar-thumb { background: var(--paper-border); border-radius: 2px; }
+  .chat-msg {
+    font-size: .7rem; line-height: 1.45; border-radius: 4px;
+    padding: 3px 7px; word-break: break-word; color: var(--ink);
+  }
+  .chat-msg.sys     { color: var(--ink-dim); font-style: italic; }
+  .chat-msg.correct {
+    color: var(--accent-green); font-style: italic; font-weight: 600;
+    background: #f0fdf4; border-radius: 4px;
+  }
+  .chat-msg .cn { color: var(--accent-blue); margin-right: 4px; font-weight: 700; }
+  #chat-input-row { display: flex; border-top: 2px solid var(--paper-border); }
+  #chat-input {
+    flex: 1; padding: 9px 10px; background: var(--paper);
+    border: none; outline: none; color: var(--ink);
+    font-family: 'Syne',sans-serif; font-size: .75rem;
+  }
+  #chat-input::placeholder { color: var(--ink-faint); }
+  #chat-send {
+    padding: 0 12px; background: var(--paper);
+    border: none; border-left: 1.5px solid var(--paper-border);
+    color: var(--ink-dim); font-size: .9rem; cursor: pointer; transition: color .12s;
+  }
+  #chat-send:hover { color: var(--accent-blue); }
+
+  /* ── LOBBY ───────────────────────────────────────────── */
+  #lobby {
+    position: absolute; inset: 0; z-index: 50;
+    background: var(--paper);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Decorative doodle background — CSS-only, no canvas, no slither bleed */
+  #lobby::before {
+    content: '';
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      radial-gradient(circle at 18% 22%, rgba(37,99,235,.07) 0%, transparent 38%),
+      radial-gradient(circle at 82% 14%, rgba(124,58,237,.07) 0%, transparent 32%),
+      radial-gradient(circle at 68% 80%, rgba(22,163,74,.07)  0%, transparent 36%),
+      radial-gradient(circle at 28% 78%, rgba(230,57,70,.06)  0%, transparent 30%),
+      radial-gradient(circle at 90% 55%, rgba(217,119,6,.06)  0%, transparent 28%);
+    animation: lobby-drift 18s ease-in-out infinite alternate;
+  }
+  @keyframes lobby-drift {
+    0%   { transform: scale(1)    rotate(0deg); }
+    50%  { transform: scale(1.04) rotate(1.5deg); }
+    100% { transform: scale(1)    rotate(-1deg); }
+  }
+
+  /* Faint grid on lobby bg */
+  #lobby::after {
+    content: '';
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(147,197,253,.2) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(147,197,253,.2) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  .lcard {
+    position: relative; z-index: 1;
+    background: #fff;
+    border: 2px solid var(--paper-border);
+    /* Slightly rotated for a "tossed on desk" feel */
+    border-radius: var(--r-lg);
+    padding: 38px 42px 30px;
+    width: 340px; text-align: center;
+    box-shadow: var(--shadow-lg), 5px 5px 0 var(--paper-border);
+    animation: card-land .45s cubic-bezier(.34,1.4,.64,1) both;
+  }
+  @keyframes card-land {
+    from { transform: scale(.8) translateY(20px) rotate(-3deg); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+
+  /* Pencil-drawn top decoration */
+  .lcard-deco {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-bottom: 16px;
+  }
+  .lcard-deco span {
+    font-size: 1.35rem;
+    animation: pencil-bounce .8s ease-in-out infinite alternate;
+  }
+  .lcard-deco span:nth-child(2) { animation-delay: .15s; }
+  .lcard-deco span:nth-child(3) { animation-delay: .30s; }
+  @keyframes pencil-bounce {
+    from { transform: translateY(0) rotate(-6deg); }
+    to   { transform: translateY(-4px) rotate(4deg); }
+  }
+
+  .ltitle {
+    font-size: 2.8rem; font-weight: 900; letter-spacing: .12em;
+    color: var(--ink); line-height: 1; margin-bottom: 4px;
+    /* Multi-color via individual letter spans rendered in JS */
+  }
+  .lsub {
+    font-size: .56rem; color: var(--ink-dim); letter-spacing: .2em;
+    text-transform: uppercase; margin-bottom: 26px;
+    font-family: 'Share Tech Mono',monospace;
+  }
+
+  .linput {
+    width: 100%; box-sizing: border-box; padding: 10px 13px;
+    background: var(--paper); border: 2px solid var(--paper-border);
+    border-radius: var(--r); color: var(--ink);
+    font-family: 'Share Tech Mono',monospace; font-size: .9rem;
+    text-align: center; outline: none;
+    transition: border-color .18s, box-shadow .18s; margin-bottom: 11px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.06);
+  }
+  .linput:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(37,99,235,.14); }
+  .linput::placeholder { color: var(--ink-faint); }
+
+  .ljoin {
+    display: block; width: 100%; padding: 11px; border-radius: var(--r);
+    border: 2px solid var(--ink); background: var(--ink); color: #fff;
+    font-family: 'Share Tech Mono',monospace; font-size: .82rem; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase; cursor: pointer;
+    box-shadow: 3px 3px 0 var(--pencil); transition: all .12s;
+    margin-bottom: 10px;
+  }
+  .ljoin:hover  { background: var(--pencil); transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--pencil); }
+  .ljoin:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--pencil); }
+
+  .lback-btn {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 9px 20px; background: transparent;
+    border: 2px solid rgba(230,57,70,.4); border-radius: var(--r);
+    text-decoration: none; color: var(--accent-red); font-family: 'Share Tech Mono',monospace;
+    font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    cursor: pointer; transition: all .15s; width: 100%; box-sizing: border-box;
+    box-shadow: 2px 2px 0 rgba(230,57,70,.15);
+  }
+  .lback-btn:hover {
+    background: rgba(230,57,70,.06); border-color: var(--accent-red);
+    box-shadow: 3px 3px 0 rgba(230,57,70,.2);
+    transform: translate(-1px,-1px);
+  }
+  .lback-btn:active { transform: translate(1px,1px); box-shadow: none; }
+  .lback-btn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── Word choose overlay ──────────────────────────────── */
+  #word-choose {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    z-index: 40; background: rgba(247,244,237,.88);
+    backdrop-filter: blur(4px);
+  }
+  .wcard {
+    background: #fff; border: 2px solid var(--paper-border);
+    border-radius: var(--r-lg); padding: 28px 32px; text-align: center;
+    max-width: 380px; box-shadow: var(--shadow-lg), 5px 5px 0 var(--paper-border);
+    animation: card-land .25s cubic-bezier(.34,1.4,.64,1) both;
+  }
+  .wtitle { font-size: .55rem; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 16px; font-family: 'Share Tech Mono',monospace; }
+  .word-choices { display: flex; flex-direction: column; gap: 9px; }
+  .wchoice {
+    padding: 11px 20px; border-radius: var(--r);
+    border: 2px solid var(--paper-border); background: var(--paper);
+    color: var(--ink); font-family: 'Share Tech Mono',monospace;
+    font-size: .88rem; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; cursor: pointer; transition: all .12s;
+    box-shadow: 2px 2px 0 var(--paper-border);
+  }
+  .wchoice:hover {
+    background: #eff6ff; border-color: var(--accent-blue); color: var(--accent-blue);
+    transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--accent-blue);
+  }
+
+  /* ── Round end overlay ────────────────────────────────── */
+  #round-end {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    z-index: 40; background: rgba(247,244,237,.88);
+    backdrop-filter: blur(4px);
+  }
+  .recard {
+    background: #fff; border: 2px solid var(--paper-border);
+    border-radius: var(--r-lg); padding: 30px 34px; text-align: center;
+    min-width: 260px; box-shadow: var(--shadow-lg), 5px 5px 0 var(--paper-border);
+    animation: card-land .3s cubic-bezier(.34,1.4,.64,1) both;
+  }
+  .re-label { font-size: .52rem; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 7px; font-family: 'Share Tech Mono',monospace; }
+  .re-word  { font-size: 2rem; font-weight: 900; letter-spacing: .14em; color: var(--accent-blue); margin-bottom: 12px; }
+  .re-scores { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+  .re-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 9px; border-radius: var(--r); font-size: .72rem; color: var(--ink); }
+  .re-row.me { background: #eff6ff; color: var(--accent-blue); font-weight: 700; }
+  .re-pts { color: var(--accent-green); font-family: 'Share Tech Mono',monospace; }
+
+  /* ── Status overlay ──────────────────────────────────── */
+  #status-overlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    z-index: 35; background: rgba(247,244,237,.82);
+    backdrop-filter: blur(3px);
+  }
+  .socard {
+    background: #fff; border: 2px solid var(--paper-border);
+    border-radius: var(--r-lg); padding: 30px 40px; text-align: center;
+    box-shadow: var(--shadow-lg), 5px 5px 0 var(--paper-border);
+    animation: card-land .3s cubic-bezier(.34,1.4,.64,1) both;
+  }
+  .so-title { font-size: 1.8rem; font-weight: 900; letter-spacing: .1em; color: var(--ink); margin-bottom: 10px; }
+  .so-sub   { font-size: .62rem; color: var(--ink-dim); letter-spacing: .14em; text-transform: uppercase; font-family: 'Share Tech Mono',monospace; }
+  .so-blink { animation: blink 1.2s step-start infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  @media (max-width: 700px) {
+    #scr-players  { width: 90px; }
+    #scr-chat-col { width: 145px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="scr-page">
+
+  <!-- Game bar -->
+  <div id="scr-bar">
+    <span id="bar-round"></span>
+    <div id="bar-word"></div>
+    <div id="bar-timer">—</div>
+  </div>
+
+  <div id="scr-main">
+
+    <!-- Players -->
+    <div id="scr-players"></div>
+
+    <!-- Canvas -->
+    <div id="scr-center">
+      <div id="canvas-wrap">
+        <canvas id="gc"></canvas>
+        <div id="cursor-dot"></div>
+        <div id="correct-flash"></div>
+      </div>
+
+      <div id="scr-toolbar" style="display:none;">
+        <div id="t-colors" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+        <div class="t-sep"></div>
+        <input type="range" id="t-size" min="2" max="60" value="6">
+        <div class="t-preview"><div class="t-preview-dot" id="t-dot"></div></div>
+        <div class="t-sep"></div>
+        <button class="t-btn active" id="t-pencil" onclick="setTool('pencil')">✏ Draw</button>
+        <button class="t-btn"        id="t-fill"   onclick="setTool('fill')">🪣 Fill</button>
+        <button class="t-btn"        id="t-eraser" onclick="setTool('eraser')">◻ Erase</button>
+        <div class="t-sep"></div>
+        <button class="t-btn"        onclick="sendUndo()">↩ Undo</button>
+        <button class="t-btn danger" onclick="sendClear()">🗑 Clear</button>
+      </div>
+
+      <div id="word-choose">
+        <div class="wcard">
+          <div class="wtitle">✏ Pick your word</div>
+          <div class="word-choices" id="word-choices"></div>
+        </div>
+      </div>
+      <div id="round-end">
+        <div class="recard">
+          <div class="re-label">The word was</div>
+          <div class="re-word" id="re-word"></div>
+          <div class="re-scores" id="re-scores"></div>
+        </div>
+      </div>
+      <div id="status-overlay">
+        <div class="socard">
+          <div class="so-title" id="so-title">Waiting…</div>
+          <div class="so-sub so-blink" id="so-sub">waiting for players</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div id="scr-chat-col">
+      <div id="chat-messages"></div>
+      <div id="chat-input-row">
+        <input id="chat-input" type="text" maxlength="120"
+               placeholder="Guess or chat…"
+               onkeydown="if(event.key==='Enter')sendGuess()" />
+        <button id="chat-send" onclick="sendGuess()">➤</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LOBBY — pure CSS bg, no canvas, no bleed from slither -->
+  <div id="lobby">
+    <div class="lcard">
+      <div class="lcard-deco">
+        <span>✏️</span><span>🎨</span><span>✏️</span>
+      </div>
+      <div class="ltitle" id="ltitle-el">SCRIBBLE</div>
+      <div class="lsub">◈ Draw &amp; Guess on the LAN ◈</div>
+
+      <input class="linput" id="l-name" type="text" maxlength="20"
+             placeholder="Enter username…"
+             onkeydown="if(event.key==='Enter')joinGame()" />
+      <button class="ljoin" onclick="joinGame()">▶ &nbsp; JOIN</button>
+
+      <a href="/" class="lback-btn">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to LANHub
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Colorise title letters
+(function() {
+  const colors = ['#e63946','#2563eb','#16a34a','#d97706','#7c3aed','#db2777','#0891b2'];
+  const el = document.getElementById('ltitle-el');
+  el.innerHTML = [...el.textContent].map((ch, i) =>
+    ch === ' ' ? ' ' : `<span style="color:${colors[i%colors.length]}">${ch}</span>`
+  ).join('');
+})();
+
+// ── Canvas setup ──────────────────────────────────────────────
+const wrap = document.getElementById('canvas-wrap');
+const gc   = document.getElementById('gc');
+const ctx  = gc.getContext('2d');
+const cdot = document.getElementById('cursor-dot');
+let CW = 0, CH = 0;
+
+function resizeCanvas() {
+  const avW = Math.min(window.innerWidth - 152 - 210 - 4, 780);
+  const avH = Math.min(window.innerHeight - 56 - 48 - 44 - 52, 540);
+  const ar = 4/3;
+  let w = avW, h = avW/ar;
+  if (h > avH) { h = avH; w = h*ar; }
+  CW = Math.floor(w); CH = Math.floor(h);
+  const tmp = gc.width > 0 ? ctx.getImageData(0,0,gc.width,gc.height) : null;
+  gc.width = CW; gc.height = CH;
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,CW,CH);
+  if (tmp && tmp.width > 0) ctx.putImageData(tmp,0,0);
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); replayCanvas(); });
+
+// ── Colors ────────────────────────────────────────────────────
+const COLORS = [
+  '#000000','#ffffff','#6b7280','#d1d5db',
+  '#ef4444','#f97316','#eab308','#22c55e',
+  '#06b6d4','#3b82f6','#8b5cf6','#ec4899',
+  '#7c2d12','#f59e0b','#84cc16','#0e7490',
+];
+let tool = 'pencil', color = '#000000', brushSize = 6;
+
+function buildColors() {
+  const grid = document.getElementById('t-colors');
+  grid.innerHTML = '';
+  COLORS.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 't-color' + (c===color?' selected':'');
+    d.style.cssText = `background:${c};width:20px;height:20px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform .12s,box-shadow .12s;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.2);`;
+    if (c==='#ffffff') d.style.border='2px solid #d1d5db';
+    d.onclick = () => {
+      color = c;
+      if (tool==='eraser') setTool('pencil');
+      grid.querySelectorAll('.t-color').forEach(x => { x.classList.remove('selected'); x.style.boxShadow='0 1px 3px rgba(0,0,0,.2)'; x.style.borderColor=x.dataset.orig||'transparent'; });
+      d.classList.add('selected');
+      d.style.borderColor='#1c1917';
+      d.style.boxShadow='0 0 0 2px #f7f4ed, 0 0 0 3.5px #1c1917';
+      updateDot();
+    };
+    grid.appendChild(d);
+  });
+}
+buildColors();
+
+document.getElementById('t-size').addEventListener('input', e => { brushSize=+e.target.value; updateDot(); });
+function updateDot() {
+  const dot = document.getElementById('t-dot');
+  const s = Math.max(3, Math.min(brushSize, 34));
+  dot.style.width=s+'px'; dot.style.height=s+'px';
+  dot.style.background = tool==='eraser' ? '#aaa' : color;
+  if (color==='#ffffff') dot.style.border='1px solid #aaa'; else dot.style.border='none';
+}
+updateDot();
+function setTool(t) {
+  tool = t;
+  ['pencil','fill','eraser'].forEach(id => { const el=document.getElementById('t-'+id); if(el) el.classList.toggle('active',id===t); });
+  gc.style.cursor = t==='fill'?'cell':'crosshair';
+  updateDot();
+}
+
+// ── Canvas events ─────────────────────────────────────────────
+const socket = _socket;
+let mySid=null, state=null, inGame=false, isDrawer=false, timerInt=null;
+let drawing=false, lastX=0, lastY=0, currentStroke=null;
+
+socket.on('connect', () => { mySid = socket.id; });
+
+function pos(e) {
+  const r = gc.getBoundingClientRect();
+  const s = e.touches ? e.touches[0] : e;
+  return [(s.clientX-r.left)/r.width*CW, (s.clientY-r.top)/r.height*CH];
+}
+
+gc.addEventListener('mousedown', e => {
+  if (!isDrawer) return;
+  const [x,y] = pos(e);
+  if (tool==='fill') { floodFill(Math.round(x),Math.round(y),color); socket.emit('scribble_fill',{x,y,color}); return; }
+  drawing=true; lastX=x; lastY=y;
+  currentStroke = {color: tool==='eraser'?'#ffffff':color, size:brushSize, points:[[x,y]]};
+});
+gc.addEventListener('mousemove', e => {
+  const [x,y] = pos(e);
+  cdot.style.left = (x/CW*wrap.offsetWidth)+'px';
+  cdot.style.top  = (y/CH*wrap.offsetHeight)+'px';
+  const ds = Math.max(4,brushSize*wrap.offsetWidth/CW);
+  cdot.style.width=ds+'px'; cdot.style.height=ds+'px';
+  cdot.style.background = tool==='eraser'?'rgba(150,150,150,.4)':color+'66';
+  if (!isDrawer||!drawing||!currentStroke) return;
+  localDraw(lastX,lastY,x,y,currentStroke.color,currentStroke.size);
+  currentStroke.points.push([x,y]);
+  lastX=x; lastY=y;
+});
+function endStroke() {
+  if (!isDrawer||!drawing||!currentStroke) return;
+  drawing=false;
+  if (currentStroke.points.length>=1) socket.emit('scribble_draw',currentStroke);
+  currentStroke=null;
+}
+gc.addEventListener('mouseup',    endStroke);
+gc.addEventListener('mouseleave', () => { cdot.style.opacity='0'; endStroke(); });
+gc.addEventListener('mouseenter', () => { if(isDrawer) cdot.style.opacity='1'; });
+
+function localDraw(x1,y1,x2,y2,c,s) {
+  ctx.save(); ctx.strokeStyle=c; ctx.lineWidth=s; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+}
+
+let _canvasLog = [];
+function replayCanvas() {
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,CW,CH);
+  for (const ev of _canvasLog) applyEvent(ev);
+}
+function applyEvent(ev) {
+  if (ev.type==='stroke') {
+    if (!ev.points?.length) return;
+    ctx.save(); ctx.strokeStyle=ev.color; ctx.lineWidth=ev.size; ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.beginPath(); ctx.moveTo(ev.points[0][0],ev.points[0][1]);
+    for (let i=1;i<ev.points.length;i++) ctx.lineTo(ev.points[i][0],ev.points[i][1]);
+    ctx.stroke(); ctx.restore();
+  } else if (ev.type==='fill') {
+    floodFill(Math.round(ev.x),Math.round(ev.y),ev.color);
+  }
+}
+
+function floodFill(sx,sy,fc) {
+  const img=ctx.getImageData(0,0,CW,CH), d=img.data;
+  const [fr,fg,fb]=parseColor(fc);
+  const i0=(sy*CW+sx)*4, tr=d[i0],tg=d[i0+1],tb=d[i0+2];
+  if (tr===fr&&tg===fg&&tb===fb) return;
+  const stack=[[sx,sy]], vis=new Uint8Array(CW*CH);
+  function m(i) { return Math.abs(d[i]-tr)<32&&Math.abs(d[i+1]-tg)<32&&Math.abs(d[i+2]-tb)<32; }
+  while (stack.length) {
+    const [cx,cy]=stack.pop();
+    if (cx<0||cx>=CW||cy<0||cy>=CH) continue;
+    const ni=(cy*CW+cx)*4;
+    if (vis[cy*CW+cx]||!m(ni)) continue;
+    vis[cy*CW+cx]=1;
+    d[ni]=fr; d[ni+1]=fg; d[ni+2]=fb; d[ni+3]=255;
+    stack.push([cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]);
+  }
+  ctx.putImageData(img,0,0);
+}
+function parseColor(h) { return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]; }
+
+function sendUndo()  { socket.emit('scribble_undo'); }
+function sendClear() { socket.emit('scribble_clear_canvas'); }
+
+// ── Socket handlers ───────────────────────────────────────────
+socket.on('scr_state',         d  => { state=d; applyState(d); });
+socket.on('scr_choose_word',   d  => { showWordChoose(d.words); });
+socket.on('scr_canvas_stroke', ev => { _canvasLog.push(ev); applyEvent(ev); });
+socket.on('scr_canvas_fill',   ev => { _canvasLog.push(ev); applyEvent(ev); });
+socket.on('scr_canvas_clear',  () => { _canvasLog=[]; ctx.fillStyle='#fff'; ctx.fillRect(0,0,CW,CH); });
+socket.on('scr_canvas_replay', d  => { _canvasLog=d.events||[]; replayCanvas(); });
+socket.on('scr_chat_msg',      msg=> { appendChat(msg); });
+socket.on('scr_hint',          d  => { document.getElementById('bar-word').textContent=fmtWord(d.masked); if(state) state.word_display=d.masked; });
+socket.on('scr_correct',       () => {
+  const fl=document.getElementById('correct-flash');
+  fl.classList.add('show'); setTimeout(()=>fl.classList.remove('show'),700);
+  document.getElementById('chat-input').placeholder='✅ Correct! Keep chatting…';
+});
+
+// ── State machine ─────────────────────────────────────────────
+function applyState(d) {
+  updatePlayers(d.players); updateBar(d);
+  if (!(d.state === 'choosing' && d.drawer_sid === mySid)) {
+    hide('word-choose');
+    }
+    hide('round-end');
+    hide('status-overlay');
+  document.getElementById('scr-toolbar').style.display='none';
+  document.getElementById('chat-input').placeholder='Guess or chat…';
+  isDrawer = d.drawer_sid===mySid;
+
+  if (d.state==='waiting') {
+    show('status-overlay','flex');
+    document.getElementById('so-title').textContent='⏳ Waiting…';
+    document.getElementById('so-sub').textContent='Need more players to start';
+  } else if (d.state==='choosing') {
+    show('status-overlay','flex');
+    document.getElementById('so-title').textContent = isDrawer ? '🎨 You are choosing…' : `🎨 ${esc(d.drawer_name||'?')} is choosing…`;
+    document.getElementById('so-sub').textContent   = isDrawer ? 'Pick a word!' : 'Get ready to guess!';
+  } else if (d.state==='drawing') {
+    hide('status-overlay');
+    if (isDrawer) { document.getElementById('scr-toolbar').style.display='flex'; document.getElementById('chat-input').placeholder="You're drawing!"; }
+    updateWordDisplay(d);
+  } else if (d.state==='round_end') { showRoundEnd(d); }
+    else if (d.state==='game_end')  { showGameEnd(d); }
+
+  startTimer(d.timer_end, d.state);
+}
+
+function updatePlayers(players) {
+  const el=document.getElementById('scr-players'); el.innerHTML='';
+  players.forEach(p => {
+    const c=document.createElement('div');
+    c.className=['plr-card',p.sid===mySid?'is-me':'',p.is_drawer?'is-drawer':'',p.guessed&&!p.is_drawer?'guessed':''].filter(Boolean).join(' ');
+    c.innerHTML=`<div class="plr-icon">${p.is_drawer?'✏️':p.guessed?'✅':'👤'}</div>`+
+      `<div class="plr-name">${esc(p.name)}${p.sid===mySid?' (you)':''}</div>`+
+      `<div class="plr-score">${p.score} pts</div>`;
+    el.appendChild(c);
+  });
+}
+function updateBar(d) {
+  document.getElementById('bar-round').textContent=
+    (d.state==='drawing'||d.state==='choosing')?`Round ${(d.round||0)+1}/${d.total_rounds} · Turn ${(d.turn||0)+1}`:'';
+}
+function updateWordDisplay(d) {
+  const el=document.getElementById('bar-word');
+  if ((d.state==='drawing'||d.state==='round_end')&&d.word_display) el.textContent=fmtWord(d.word_display);
+  else el.textContent='';
+}
+function fmtWord(w) { return (w||'').toUpperCase().split('').join(' '); }
+
+function startTimer(end,st) {
+  if (timerInt) clearInterval(timerInt);
+  const el=document.getElementById('bar-timer');
+  if (!end||st==='waiting'||st==='game_end') { el.textContent='—'; el.className=''; return; }
+  function tick() {
+    const rem=Math.max(0,Math.ceil(end-Date.now()/1000));
+    el.textContent=rem;
+    el.className=rem<=10?'crit':rem<=20?'warn':'';
+    if (rem<=0) clearInterval(timerInt);
+  }
+  tick(); timerInt=setInterval(tick,500);
+}
+
+function showWordChoose(words) {
+  hide('status-overlay');
+  const el=document.getElementById('word-choices'); el.innerHTML='';
+  words.forEach(w => {
+    const b=document.createElement('button'); b.className='wchoice';
+    b.textContent=w.toUpperCase();
+    b.onclick=()=>{ socket.emit('scribble_choose',{word:w}); hide('word-choose'); };
+    el.appendChild(b);
+  });
+  document.getElementById('word-choose').style.display='flex';
+}
+
+function showRoundEnd(d) {
+  document.getElementById('re-word').textContent=(d.word_display||'').toUpperCase();
+  const sc=document.getElementById('re-scores'); sc.innerHTML='';
+  [...d.players].sort((a,b)=>b.score-a.score).slice(0,6).forEach(p=>{
+    const r=document.createElement('div');
+    r.className='re-row'+(p.sid===mySid?' me':'');
+    r.innerHTML=`<span>${esc(p.name)}</span><span class="re-pts">${p.score}</span>`;
+    sc.appendChild(r);
+  });
+  show('round-end','flex'); updateWordDisplay(d);
+}
+function showGameEnd(d) {
+  hide('round-end'); show('status-overlay','flex');
+  const sorted=[...d.players].sort((a,b)=>b.score-a.score);
+  document.getElementById('so-title').textContent=sorted[0]?`🏆 ${esc(sorted[0].name)} wins!`:'🏆 Game Over!';
+  document.getElementById('so-sub').textContent='New game starting soon…';
+}
+
+function appendChat(msg) {
+  const box=document.getElementById('chat-messages');
+  const el=document.createElement('div');
+  el.className='chat-msg'+(msg.sys?' sys':'')+(msg.correct?' correct':'');
+  el.innerHTML=msg.sys?esc(msg.text):`<span class="cn">${esc(msg.name)}:</span>${esc(msg.text)}`;
+  box.appendChild(el);
+  box.scrollTop=box.scrollHeight;
+  while(box.children.length>80) box.removeChild(box.firstChild);
+}
+
+function sendGuess() {
+  const inp=document.getElementById('chat-input'), txt=inp.value.trim();
+  if (!txt) return; socket.emit('scribble_guess',{text:txt}); inp.value='';
+}
+function joinGame() {
+  const n=document.getElementById('l-name').value.trim();
+  if (!n) { document.getElementById('l-name').focus(); return; }
+  localStorage.setItem('scr-name',n);
+  socket.emit('scribble_join',{username:n});
+  document.getElementById('lobby').style.display='none';
+  inGame=true;
+  show('status-overlay','flex');
+  document.getElementById('so-title').textContent='⏳ Joining…';
+  document.getElementById('so-sub').textContent='';
+}
+
+function show(id,d='block') { document.getElementById(id).style.display=d; }
+function hide(id)            { document.getElementById(id).style.display='none'; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+const sn=localStorage.getItem('scr-name')||'';
+if (sn) document.getElementById('l-name').value=sn;
+</script>
+{% endblock %}

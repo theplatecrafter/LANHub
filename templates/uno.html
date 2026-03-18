@@ -704,7 +704,33 @@
   let gameState       = null;
   let amSpectator     = false;
 
+  window.addEventListener('pagehide', () => socket.emit('uno_leave_route'));
+  window.addEventListener('beforeunload', () => socket.emit('uno_leave_route'));
+
   // ── Card label helpers ────────────────────────────────────
+  function renderAvailablePlayers(avail) {
+    // Only relevant when we're the creator of a private room
+    if (!isCreator || !isPrivate) return;
+    const availEl = document.getElementById('available-players-list');
+    const noMsg   = document.getElementById('no-avail-msg');
+    if (!availEl) return;
+    availEl.innerHTML = '';
+    const others = (avail || []).filter(p => p.sid !== mySid);
+    if (!others.length) {
+      if (noMsg) noMsg.style.display = 'block';
+      return;
+    }
+    if (noMsg) noMsg.style.display = 'none';
+    others.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'avail-player-row';
+      div.innerHTML =
+        `<span class="ap-name">${escHtml(p.username)}</span>` +
+        `<button class="ap-invite-btn" onclick="invitePlayer('${p.sid}')">Invite</button>`;
+      availEl.appendChild(div);
+    });
+  }
+
   const CARD_LABELS = {
     'skip':'⊘', 'reverse':'⟳', 'draw2':'+2', 'wild':'★', 'wild4':'+4'
   };
@@ -844,6 +870,11 @@
     showView('room');
   });
 
+  socket.on('uno_available_update', data => {
+     renderAvailablePlayers(data.available || []);
+  });
+
+
   // ── Join room ─────────────────────────────────────────────
   function joinRoom(roomId) {
     socket.emit('uno_join_room', { room_id: roomId });
@@ -855,6 +886,28 @@
   });
 
   // ── Room state ────────────────────────────────────────────
+  socket.on('uno_available_update', data => {
+  // Only act if we're currently in the room view as a private room creator
+  if (!isCreator || !isPrivate) return;
+  const avList  = document.getElementById('available-players-list');
+  const noAvail = document.getElementById('no-avail-msg');
+  if (!avList) return;
+  avList.innerHTML = '';
+  const avail = (data.available || []).filter(p => p.sid !== mySid);
+  if (!avail.length) {
+    noAvail.style.display = 'block';
+  } else {
+    noAvail.style.display = 'none';
+    avail.forEach(p => {
+      const el = document.createElement('div');
+      el.className = 'avail-entry';
+      el.innerHTML = `<span>${escHtml(p.username)}</span>
+        <button class="invite-btn" onclick="invitePlayer('${p.sid}')">Invite</button>`;
+      avList.appendChild(el);
+    });
+  }
+});
+
   socket.on('uno_room_state', data => {
     mySid     = data.my_sid;
     isCreator = data.is_creator;
@@ -914,19 +967,7 @@
       const avList = document.getElementById('available-players-list');
       const noAvail = document.getElementById('no-avail-msg');
       avList.innerHTML = '';
-      const avail = (data.available || []).filter(p => p.sid !== mySid);
-      if (!avail.length) {
-        noAvail.style.display = 'block';
-      } else {
-        noAvail.style.display = 'none';
-        avail.forEach(p => {
-          const el = document.createElement('div');
-          el.className = 'avail-entry';
-          el.innerHTML = `<span>${escHtml(p.username)}</span>
-            <button class="invite-btn" onclick="invitePlayer('${p.sid}')">Invite</button>`;
-          avList.appendChild(el);
-        });
-      }
+      renderAvailablePlayers(data.available || []);
     }
 
     // Wait banner (non-creator)

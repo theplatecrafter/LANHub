@@ -1,9 +1,8 @@
 # glob_vars.py
-from configvars import *
+from config import *          # ← was: from configvars import *
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-
 
 
 ###########################################################
@@ -19,13 +18,13 @@ REDIRECTOR_PATH = os.path.join(BASE_DIR, "redirector_repo")
 DB_PATH = os.path.join(BASE_DIR, "app.db")
 
 
-
 ###########################################################
 # Logging Vars
 ###########################################################
 LOG_DIR = "logs"
 LOG_MAXBYTES = 5 * 1024 * 1024  # 5 MB
-LOG_BACKUPCOUNT = 3  # Keep 3 backup log files
+LOG_BACKUPCOUNT = 3
+
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 
@@ -33,8 +32,8 @@ def setup_logger(name, log_file, level=logging.INFO):
     formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 
     file_handler = RotatingFileHandler(
-        os.path.join(LOG_DIR, log_file), 
-        maxBytes=LOG_MAXBYTES, 
+        os.path.join(LOG_DIR, log_file),
+        maxBytes=LOG_MAXBYTES,
         backupCount=LOG_BACKUPCOUNT
     )
     file_handler.setFormatter(formatter)
@@ -44,13 +43,14 @@ def setup_logger(name, log_file, level=logging.INFO):
 
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    
+
     if not logger.handlers:
         logger.addHandler(file_handler)
         logger.addHandler(console_handler)
 
     return logger
+
 access_log = setup_logger('access', 'access.log')
-app_log = setup_logger('app', 'app.log')
-git_log = setup_logger('github', 'github_sync.log')
-error_log = setup_logger('error', 'error.log', level=logging.ERROR)
+app_log    = setup_logger('app',    'app.log')
+git_log    = setup_logger('github', 'github_sync.log')
+error_log  = setup_logger('error',  'error.log', level=logging.ERROR)

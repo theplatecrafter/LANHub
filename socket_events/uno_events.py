@@ -25,23 +25,36 @@ def _available_players():
 
 def _emit_lobby():
     public = [{
-        'id':      r['id'],
-        'title':   r['title'],
-        'uno_type':r['uno_type'],
+        'id':        r['id'],
+        'title':     r['title'],
+        'uno_type':  r['uno_type'],
         'type_name': UNO_TYPES[r['uno_type']]['name'],
-        'players': _total_players(r),
-        'max':     r['max_players'],
-        'status':  r['status'],
+        'players':   _total_players(r),
+        'max':       r['max_players'],
+        'status':    r['status'],
     } for r in rooms.values() if r['privacy'] == 'public' and r['status'] == 'waiting']
 
     avail = _available_players()
+
     for sid, sess in uno_sessions.items():
         if not sess.get('room_id'):
             socketio.emit('uno_lobby', {
-                'rooms': public,
+                'rooms':     public,
                 'available': avail,
-                'my_sid': sid,
+                'my_sid':    sid,
             }, to=sid)
+
+    # Push fresh available list to every private room creator
+    for room in rooms.values():
+        if room['status'] == 'waiting' and room['privacy'] == 'private':
+            creator_sid = room['creator_sid']
+            if creator_sid in uno_sessions:
+                socketio.emit('uno_available_update',
+                              {'available': avail}, to=creator_sid)
+ 
+ 
+
+
 
 def _emit_room(room_id: str):
     room = rooms.get(room_id)
@@ -521,6 +534,14 @@ def handle_choose_color(data):
         if nxt and nxt.get('is_bot'):
             _schedule_bot(room_id)
 
+@socketio.on('uno_leave_route')
+def handle_leave_route(_=None):
+    """
+    Fired by the client when the user navigates away from /uno.
+    Frees the username immediately without waiting for socket disconnect.
+    """
+    sid = request.sid
+    _cleanup_uno(sid)
 
 @socketio.on('disconnect')
 def _uno_disconnect_shim():

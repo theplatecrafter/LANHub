@@ -6,7 +6,7 @@ from werkzeug.security import check_password_hash
 import os
 import functions as f
 from glob_vars import app_log, access_log, error_log, BASE_DIR
-from configvars import (DROPZONE_MAX_STORAGE_BYTES, DROPZONE_MAX_FILE_BYTES,
+from config import (DROPZONE_MAX_STORAGE_BYTES, DROPZONE_MAX_FILE_BYTES,
                         DROPZONE_RATE_LIMIT_BYTES, DROPZONE_RATE_WINDOW_HOURS)
 
 dropzone_bp = Blueprint("dropzone", __name__)
