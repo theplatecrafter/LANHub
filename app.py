@@ -92,6 +92,10 @@ def index():
     return render_template("root.html")
 
 
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
 
 ##########################################
 # Graceful Shutdown Handler

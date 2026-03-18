@@ -263,6 +263,16 @@ You are now remotely controlling your server.
 
 
 ## **Commands for Updating and Server Control**
+### **Initial Settings**
+cd into the LANHub repository.
+then:
+```bash
+nano configvars.py
+```
+
+This will show you configuration variables for the LANHub. You may change this to your likings.
+
+
 ### **Updating**
 In your server console, run the following to stop the systemctl:
 ```bash
