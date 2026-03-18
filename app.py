@@ -22,6 +22,7 @@ from blueprints.logs import logs_bp
 from blueprints.devices import devices_bp
 from blueprints.admin import admin_bp, check_ban
 from blueprints.dropzone import dropzone_bp
+from blueprints.channels import channels_bp
 
 
 
@@ -30,6 +31,7 @@ from blueprints.dropzone import dropzone_bp
 import socket_events.chat_events
 import socket_events.global_events
 import socket_events.console_events
+import socket_events.channels_events
 
 
 socketio.init_app(app)
@@ -40,6 +42,7 @@ app.register_blueprint(devices_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(dropzone_bp)
 app.before_request(check_ban)
+app.register_blueprint(channels_bp)
 
 
 ###########################################

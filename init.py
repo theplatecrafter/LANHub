@@ -95,6 +95,44 @@ def init_db():
     """)
     c.execute("CREATE INDEX IF NOT EXISTS idx_upload_tags_tag       ON upload_tags(tag)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_upload_tags_upload_id ON upload_tags(upload_id)")
+    
+    # ── channels ──────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS channels (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            title         TEXT    NOT NULL,
+            description   TEXT    DEFAULT '',
+            password_hash TEXT    NOT NULL,
+            created_by_ip TEXT    NOT NULL,
+            created_at    REAL    NOT NULL
+        )
+    """)
+ 
+    # ── channel_tags ──────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS channel_tags (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+            tag        TEXT    NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_channel_tags_channel ON channel_tags(channel_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_channel_tags_tag     ON channel_tags(tag)")
+ 
+    # ── channel_messages ──────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS channel_messages (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id   INTEGER NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+            username     TEXT    NOT NULL,
+            ip           TEXT    NOT NULL,
+            message      TEXT    NOT NULL,
+            timestamp    REAL    NOT NULL,
+            reply_to_id  INTEGER DEFAULT NULL REFERENCES channel_messages(id),
+            edited       INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_channel_msgs_channel ON channel_messages(channel_id)")
  
     for col, defn in [
         ("reply_to_id", "INTEGER REFERENCES chat_messages(id)"),
