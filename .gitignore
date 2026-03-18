@@ -7,3 +7,4 @@ files/
 logs/
 redirector_repo/
 configvars.json
+geo_cache/
