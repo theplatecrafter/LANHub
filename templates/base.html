@@ -22,49 +22,65 @@
   <style>
     /* ── Share button ───────────────────────────────────────── */
     #share-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: transparent;
+      display: flex; align-items: center; gap: 6px;
+      background: transparent; border: 1px solid var(--border-hi);
+      border-radius: var(--radius); color: var(--text-dim);
+      font-family: var(--font-mono); font-size: 0.72rem;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 5px 11px; cursor: pointer;
+      transition: all var(--transition); white-space: nowrap;
+    }
+    #share-btn:hover { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-dim); }
+    #share-btn svg { width: 13px; height: 13px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    #share-btn.copied { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+    @media (max-width: 520px) { #share-btn span { display: none; } }
+
+    /* ── AFK overlay ────────────────────────────────────────── */
+    #afk-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(0,0,0,.82);
+      backdrop-filter: blur(12px);
+      align-items: center; justify-content: center;
+    }
+    #afk-overlay.open { display: flex; }
+    #afk-box {
+      background: var(--bg-panel);
       border: 1px solid var(--border-hi);
-      border-radius: var(--radius);
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 5px 11px;
-      cursor: pointer;
-      transition: all var(--transition);
-      white-space: nowrap;
+      border-radius: var(--radius-lg);
+      padding: 36px 42px;
+      text-align: center;
+      max-width: 380px; width: 90%;
+      box-shadow: 0 24px 64px rgba(0,0,0,.6);
+      animation: afk-pop .35s cubic-bezier(.34,1.56,.64,1) both;
     }
-    #share-btn:hover {
-      border-color: var(--cyan);
-      color: var(--cyan);
-      background: var(--cyan-dim);
+    @keyframes afk-pop {
+      from { transform: scale(.7); opacity: 0; }
+      to   { transform: scale(1);  opacity: 1; }
     }
-    #share-btn svg {
-      width: 13px;
-      height: 13px;
-      flex-shrink: 0;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
+    #afk-box .afk-icon { font-size: 2.8rem; margin-bottom: 12px; line-height: 1; }
+    #afk-box h2 {
+      font-size: 1.2rem; font-weight: 800; color: var(--text-bright);
+      margin-bottom: 8px; letter-spacing: -.01em;
     }
-
-    /* Copied feedback state */
-    #share-btn.copied {
-      border-color: var(--green);
-      color: var(--green);
-      background: var(--green-dim);
+    #afk-box p {
+      font-size: .82rem; color: var(--text-dim); line-height: 1.55; margin-bottom: 20px;
     }
-
-    /* Hide label on very small screens, keep icon */
-    @media (max-width: 520px) {
-      #share-btn span { display: none; }
+    #afk-countdown {
+      font-family: var(--font-mono); font-size: 2rem; font-weight: 700;
+      color: var(--amber); margin-bottom: 20px;
+      text-shadow: 0 0 12px rgba(245,166,35,.4);
+      transition: color .3s;
     }
+    #afk-countdown.crit { color: var(--red); text-shadow: 0 0 12px rgba(255,77,106,.5); }
+    #afk-still-here {
+      width: 100%; padding: 11px; border-radius: var(--radius);
+      border: none; background: var(--cyan); color: var(--bg);
+      font-family: var(--font-mono); font-size: .82rem; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+      box-shadow: 0 0 20px rgba(0,212,255,.35); transition: all .15s;
+    }
+    #afk-still-here:hover { box-shadow: 0 0 32px rgba(0,212,255,.55); transform: translateY(-1px); }
   </style>
 </head>
 <body>
@@ -80,12 +96,8 @@
       <li><a href="/admin/login" class="{{ 'active' if '/admin' in request.path }}">Admin</a></li>
     </ul>
 
-    <!-- Share button (only shown when a redirector URL is configured) -->
     {% if share_url %}
-    <button id="share-btn"
-            onclick="copyShareLink()"
-            title="Copy shareable link: {{ share_url }}">
-      <!-- Link icon -->
+    <button id="share-btn" onclick="copyShareLink()" title="Copy shareable link: {{ share_url }}">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
@@ -102,23 +114,34 @@
         <em class="chevron">▼</em>
       </button>
       <div class="theme-dropdown" id="themeDropdown">
-        <button class="theme-option" data-value="dark"      onclick="setTheme('dark')">      <span class="dot"></span> Mission Control </button>
-        <button class="theme-option" data-value="mech"      onclick="setTheme('mech')">      <span class="dot"></span> Mech            </button>
-        <button class="theme-option" data-value="kawaii"    onclick="setTheme('kawaii')">    <span class="dot"></span> Kawaii          </button>
-        <button class="theme-option" data-value="paper"     onclick="setTheme('paper')">     <span class="dot"></span> Paper           </button>
-        <button class="theme-option" data-value="matrix"    onclick="setTheme('matrix')">    <span class="dot"></span> Matrix          </button>
-        <button class="theme-option" data-value="vaporwave" onclick="setTheme('vaporwave')"> <span class="dot"></span> Vaporwave       </button>
-        <button class="theme-option" data-value="blueprint" onclick="setTheme('blueprint')"> <span class="dot"></span> Blueprint       </button>
-        <button class="theme-option" data-value="neon-tokyo"onclick="setTheme('neon-tokyo')"><span class="dot"></span> Neon Tokyo      </button>
-        <button class="theme-option" data-value="outrun"    onclick="setTheme('outrun')">    <span class="dot"></span> Outrun          </button>
-        <button class="theme-option" data-value="windows95" onclick="setTheme('windows95')"> <span class="dot"></span> Windows 95      </button>
-        <button class="theme-option" data-value="underwater"onclick="setTheme('underwater')"><span class="dot"></span> Underwater      </button>
-        <button class="theme-option" data-value="noir"      onclick="setTheme('noir')">      <span class="dot"></span> Noir            </button>
-        <button class="theme-option" data-value="gameboy"   onclick="setTheme('gameboy')">   <span class="dot"></span> Game Boy        </button>
-        <button class="theme-option" data-value="dos"       onclick="setTheme('dos')">       <span class="dot"></span> DOS             </button>
+        <button class="theme-option" data-value="dark"       onclick="setTheme('dark')">       <span class="dot"></span> Mission Control </button>
+        <button class="theme-option" data-value="mech"       onclick="setTheme('mech')">       <span class="dot"></span> Mech            </button>
+        <button class="theme-option" data-value="kawaii"     onclick="setTheme('kawaii')">     <span class="dot"></span> Kawaii          </button>
+        <button class="theme-option" data-value="paper"      onclick="setTheme('paper')">      <span class="dot"></span> Paper           </button>
+        <button class="theme-option" data-value="matrix"     onclick="setTheme('matrix')">     <span class="dot"></span> Matrix          </button>
+        <button class="theme-option" data-value="vaporwave"  onclick="setTheme('vaporwave')">  <span class="dot"></span> Vaporwave       </button>
+        <button class="theme-option" data-value="blueprint"  onclick="setTheme('blueprint')">  <span class="dot"></span> Blueprint       </button>
+        <button class="theme-option" data-value="neon-tokyo" onclick="setTheme('neon-tokyo')"> <span class="dot"></span> Neon Tokyo      </button>
+        <button class="theme-option" data-value="outrun"     onclick="setTheme('outrun')">     <span class="dot"></span> Outrun          </button>
+        <button class="theme-option" data-value="windows95"  onclick="setTheme('windows95')">  <span class="dot"></span> Windows 95      </button>
+        <button class="theme-option" data-value="underwater" onclick="setTheme('underwater')"> <span class="dot"></span> Underwater      </button>
+        <button class="theme-option" data-value="noir"       onclick="setTheme('noir')">       <span class="dot"></span> Noir            </button>
+        <button class="theme-option" data-value="gameboy"    onclick="setTheme('gameboy')">    <span class="dot"></span> Game Boy        </button>
+        <button class="theme-option" data-value="dos"        onclick="setTheme('dos')">        <span class="dot"></span> DOS             </button>
       </div>
     </div>
   </nav>
+
+  <!-- ── AFK Overlay ───────────────────────────────────────── -->
+  <div id="afk-overlay">
+    <div id="afk-box">
+      <div class="afk-icon">💤</div>
+      <h2>Are you still there?</h2>
+      <p>You've been idle for a while. You'll be sent back to the home screen in:</p>
+      <div id="afk-countdown">60</div>
+      <button id="afk-still-here" onclick="afkReset()">I'm here!</button>
+    </div>
+  </div>
 
   <!-- ── Live Status Bar ───────────────────────────────────── -->
   <div class="status-bar">
@@ -148,20 +171,20 @@
   <script>
     /* ── Theme switcher ──────────────────────────────────────── */
     const THEMES = {
-      dark:       "Mission Control",
-      mech:       "Mech",
-      kawaii:     "Kawaii",
-      paper:      "Paper",
-      matrix:     "Matrix",
-      vaporwave:  "Vaporwave",
-      blueprint:  "Blueprint",
+      dark:         "Mission Control",
+      mech:         "Mech",
+      kawaii:       "Kawaii",
+      paper:        "Paper",
+      matrix:       "Matrix",
+      vaporwave:    "Vaporwave",
+      blueprint:    "Blueprint",
       "neon-tokyo": "Neon Tokyo",
-      outrun:     "Outrun",
-      windows95:  "Windows 95",
-      underwater: "Underwater",
-      noir:       "Noir",
-      gameboy:    "Game Boy",
-      dos:        "DOS",
+      outrun:       "Outrun",
+      windows95:    "Windows 95",
+      underwater:   "Underwater",
+      noir:         "Noir",
+      gameboy:      "Game Boy",
+      dos:          "DOS",
     };
 
     function setTheme(theme) {
@@ -200,16 +223,16 @@
 
     let _copyTimer = null;
     function copyShareLink() {
-      const btn = document.getElementById("share-btn");
-      const lbl = btn.querySelector("span");
+      const btn = document.getElementById('share-btn');
+      const lbl = btn.querySelector('span');
 
       function onCopied() {
-        btn.classList.add("copied");
-        if (lbl) lbl.textContent = "Copied!";
+        btn.classList.add('copied');
+        if (lbl) lbl.textContent = 'Copied!';
         clearTimeout(_copyTimer);
         _copyTimer = setTimeout(() => {
-          btn.classList.remove("copied");
-          if (lbl) lbl.textContent = "Copy link to share";
+          btn.classList.remove('copied');
+          if (lbl) lbl.textContent = 'Copy link to share';
         }, 2000);
       }
 
@@ -218,7 +241,6 @@
           prompt("Copy this link:", SHARE_URL);
         });
       } else {
-        /* HTTP fallback — clipboard API unavailable outside secure contexts */
         try {
           const ta = document.createElement("textarea");
           ta.value = SHARE_URL;
@@ -238,7 +260,6 @@
     /* ── Live server stats ───────────────────────────────────── */
     const _socket = io();
 
-    // Tell server which page this tab has open (used for /stats route counts)
     _socket.on("connect", () => {
       _socket.emit("page_open", { path: window.location.pathname });
     });
@@ -266,6 +287,88 @@
         el.style.color = data.ram > 85 ? "var(--red)" : data.ram > 60 ? "var(--amber)" : "var(--green)";
       }
     });
+
+    /* ── AFK detection ───────────────────────────────────────── */
+    (function () {
+      // Only activate AFK on game routes
+      const GAME_PATHS = ['/slither', '/scribble', '/chess', '/tetris', '/uno'];
+      const path = window.location.pathname.replace(/\/$/, '');
+      if (!GAME_PATHS.some(p => path === p || path.startsWith(p + '/'))) return;
+
+      const IDLE_MS   = {{ afk_idle_secs   | default(300) }} * 1000;
+      const PROMPT_MS = {{ afk_prompt_secs | default(60)  }} * 1000;
+
+      // Map path → leave event to clean up game session before redirecting
+      const LEAVE_EVENTS = {
+        '/slither': 'slither_leave',
+        '/scribble': null,           // scribble uses disconnect
+        '/chess':   'chess_leave_route',
+        '/tetris':  'tetris_logout',
+        '/uno':     'uno_leave_route',
+      };
+
+      let _lastActivity = Date.now();
+      let _promptShown  = false;
+      let _promptStart  = 0;
+      let _tick         = null;
+      let _countdownInt = null;
+
+      function _resetActivity() {
+        _lastActivity = Date.now();
+        if (_promptShown) afkReset();
+      }
+
+      // Track any user activity
+      ['mousemove','mousedown','keydown','touchstart','wheel','click'].forEach(ev => {
+        document.addEventListener(ev, _resetActivity, { passive: true });
+      });
+
+      function _showPrompt() {
+        _promptShown  = true;
+        _promptStart  = Date.now();
+        document.getElementById('afk-overlay').classList.add('open');
+        _runCountdown();
+      }
+
+      function _runCountdown() {
+        if (_countdownInt) clearInterval(_countdownInt);
+        const el = document.getElementById('afk-countdown');
+        _countdownInt = setInterval(() => {
+          const remaining = Math.max(0, Math.ceil((PROMPT_MS - (Date.now() - _promptStart)) / 1000));
+          el.textContent = remaining;
+          el.className   = remaining <= 10 ? 'crit' : '';
+          if (remaining <= 0) {
+            clearInterval(_countdownInt);
+            _doKick();
+          }
+        }, 500);
+      }
+
+      function _doKick() {
+        // Emit leave event so server cleans up immediately
+        const leaveEv = LEAVE_EVENTS[path] || null;
+        if (leaveEv) _socket.emit(leaveEv);
+        // Redirect with afk flag
+        window.location.href = '/?afk=1';
+      }
+
+      // Main idle check loop
+      _tick = setInterval(() => {
+        if (_promptShown) return;
+        const idle = Date.now() - _lastActivity;
+        if (idle >= IDLE_MS) _showPrompt();
+      }, 5000);
+
+      // Global function so the button can call it
+      window.afkReset = function () {
+        _promptShown  = false;
+        _lastActivity = Date.now();
+        if (_countdownInt) clearInterval(_countdownInt);
+        document.getElementById('afk-overlay').classList.remove('open');
+        document.getElementById('afk-countdown').textContent = Math.ceil(PROMPT_MS / 1000);
+        document.getElementById('afk-countdown').className   = '';
+      };
+    })();
   </script>
 
   {% block scripts %}{% endblock %}

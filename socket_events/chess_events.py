@@ -10,6 +10,7 @@ from flask_socketio import emit
 from socketio_instance import socketio
 from glob_vars import app_log, error_log
 from chess_ai import get_bot_move
+import functions as f
 
 # ── In-memory state ────────────────────────────────────────────────────────────
 chess_sessions: dict[str, dict] = {}   # sid → {username, game_id, in_queue}
@@ -291,6 +292,9 @@ def handle_chess_leave_route(_=None):
 def handle_chess_username(data):
     sid      = request.sid
     username = (data.get("username") or "").strip()
+    if f.check_profanity(username):
+       emit("chess_username_ack", {"ok": False,
+            "error": "Username contains disallowed words."}); return
     if not username:
         emit("chess_username_ack", {"ok": False, "error": "Username cannot be empty."}); return
     if len(username) > 24:

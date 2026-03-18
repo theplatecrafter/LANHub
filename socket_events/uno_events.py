@@ -5,6 +5,7 @@ from flask_socketio import emit
 from socketio_instance import socketio
 from glob_vars import app_log, error_log
 from uno_game import UnoGame, UNO_TYPES, bot_choose_card, bot_choose_color, COLORS
+import functions as f
 
 # ── State ──────────────────────────────────────────────────────────────────────
 uno_sessions: dict[str, dict] = {}   # sid → {username, room_id}
@@ -252,6 +253,8 @@ def handle_create_room(data):
     if sid not in uno_sessions:
         emit('uno_error', {'message': 'Set username first.'}); return
     title    = (data.get('title') or '').strip() or 'My Room'
+    if f.check_profanity(title):
+       emit('uno_error', {'message': 'Room title contains disallowed words.'}); return
     uno_type = data.get('uno_type', 'classic')
     privacy  = data.get('privacy', 'public')
     if uno_type not in UNO_TYPES:

@@ -2,6 +2,24 @@
 {% block title %}LANHub — Home{% endblock %}
 
 {% block content %}
+{% if request.args.get('afk') %}
+<div id="afk-banner" style="
+  margin-bottom: 18px; padding: 12px 18px;
+  background: var(--amber-dim); border: 1px solid var(--amber);
+  border-radius: var(--radius); font-family: var(--font-mono);
+  font-size: .78rem; color: var(--amber);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+">
+  <span>😴 You were returned to the home screen due to inactivity.</span>
+  <button onclick="document.getElementById('afk-banner').remove()" style="
+    background: transparent; border: 1px solid var(--amber);
+    border-radius: var(--radius); color: var(--amber);
+    font-family: var(--font-mono); font-size: .65rem;
+    padding: 3px 10px; cursor: pointer;
+  ">Dismiss</button>
+</div>
+{% endif %}
+
 
 <!-- Hero -->
 <div class="fade-up" style="padding: 2.5rem 0 2rem;">

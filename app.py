@@ -123,9 +123,20 @@ def _repo_url_to_pages(repo_url: str) -> str | None:
     return None
  
 @app.context_processor
-def inject_share_url():
-    """Makes `share_url` available in every template."""
-    return {"share_url": _repo_url_to_pages(_config.REPO_URL or "")}
+def inject_globals():
+    import config as _config
+    import re as _re
+    def _repo_url_to_pages(url):
+        m = _re.match(r'https?://github\.com/([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$', url.strip())
+        if m: return f"https://{m.group(1)}.github.io/{m.group(2)}/"
+        m = _re.match(r'git@github\.com:([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$', url.strip())
+        if m: return f"https://{m.group(1)}.github.io/{m.group(2)}/"
+        return None
+    return {
+        "share_url":       _repo_url_to_pages(getattr(_config, 'REPO_URL', '') or ''),
+        "afk_idle_secs":   int(getattr(_config, 'AFK_IDLE_SECS',   300)),
+         "afk_prompt_secs": int(getattr(_config, 'AFK_PROMPT_SECS',  60)),
+    }
 
 
 ###########################################

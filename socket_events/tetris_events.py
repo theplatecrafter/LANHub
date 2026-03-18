@@ -14,6 +14,7 @@ from flask import request
 from flask_socketio import emit, join_room, leave_room
 from socketio_instance import socketio
 from glob_vars import app_log, error_log
+import functions as f
 
 # ── State ─────────────────────────────────────────────────────────────────────
 # { sid: { username, status: 'idle'|'queue'|'ingame', room_id } }
@@ -43,6 +44,10 @@ def _idle_players(exclude_sid: str) -> list[str]:
 def handle_tetris_login(data):
     sid      = request.sid
     username = (data.get("username") or "").strip()[:24]
+    if f.check_profanity(username):
+       emit("tetris_login_ack", {"ok": False,
+            "error": "Username contains disallowed words."})
+       return
 
     if not username:
         emit("tetris_login_ack", {"ok": False, "error": "Username required."})

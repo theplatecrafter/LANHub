@@ -15,6 +15,7 @@ from flask_socketio import join_room as sio_join, leave_room as sio_leave
 from socketio_instance import socketio
 from glob_vars import app_log, error_log
 import config
+import functions as f
 
 
 # ── Config accessor ───────────────────────────────────────────
@@ -388,6 +389,10 @@ def _close_guess(guess: str, word: str) -> bool:
 def on_join(data):
     sid      = request.sid
     username = str(data.get('username', 'Player'))[:20].strip() or 'Player'
+    if f.check_profanity(username):
+       socketio.emit('scr_username_err',
+                     {'error': 'Username contains disallowed words.'}, to=sid)
+       return
     c        = _cfg()
 
     with _lock:

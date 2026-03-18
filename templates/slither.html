@@ -316,6 +316,26 @@ window.addEventListener('resize', resize);
 
 const socket = _socket;
 
+socket.on('slither_username_err', d => {
+     // Show error in the lobby input
+     const inp = document.getElementById('l-name');
+     inp.style.borderColor = '#ff4d6a';
+     inp.style.boxShadow   = '0 0 0 3px rgba(255,77,106,.18)';
+     // Reuse l-online element for the error
+     const el = document.getElementById('l-online');
+     el.style.color   = '#ff4d6a';
+     el.textContent   = '⚠ ' + d.error;
+     // Reset after 3s
+     setTimeout(() => {
+       inp.style.borderColor = '';
+       inp.style.boxShadow   = '';
+       el.style.color = '';
+       el.textContent = '';
+     }, 3000);
+     // Make sure we're back in lobby state
+     if (typeof showLobby === 'function' && gstate !== 'lobby') showLobby();
+   });
+
 socket.on('connect',       () => { mySid = socket.id; });
 socket.on('slither_init', d => {
   mySid      = d.my_sid || socket.id;

@@ -13,6 +13,7 @@ from socketio_instance import socketio
 from flask import request
 from glob_vars import app_log, error_log
 import config
+import functions as f
 
 
 # ── Config accessors (re-read each tick / call so live edits take effect) ─────
@@ -274,6 +275,10 @@ def _start_loop():
 def on_join(data):
     sid      = request.sid
     username = str(data.get('username', 'Snake'))[:20].strip() or 'Snake'
+    if f.check_profanity(username):
+       socketio.emit('slither_username_err',
+                     {'error': 'Username contains disallowed words.'}, to=sid)
+       return
     color    = str(data.get('color', '#00d4ff'))
     c        = _cfg()
 

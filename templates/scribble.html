@@ -673,6 +673,26 @@ socket.on('scr_correct',       () => {
   document.getElementById('chat-input').placeholder='✅ Correct! Keep chatting…';
 });
 
+socket.on('scr_username_err', d => {
+     // If already past lobby, push back to lobby
+     document.getElementById('lobby').style.display = 'flex';
+     inGame = false;
+     // Show error near the input
+     const inp = document.getElementById('l-name');
+     inp.style.borderColor = 'var(--red)';
+     inp.style.boxShadow   = '0 0 0 3px rgba(255,77,106,.18)';
+     const sub = document.querySelector('.lsub');
+     if (sub) {
+       sub.style.color = 'var(--red)';
+       sub.textContent = '⚠ ' + d.error;
+     }
+     setTimeout(() => {
+       inp.style.borderColor = '';
+       inp.style.boxShadow   = '';
+       if (sub) { sub.style.color = ''; sub.textContent = '◈ Draw & Guess on the LAN ◈'; }
+     }, 3000);
+   });
+
 // ── State machine ─────────────────────────────────────────────
 function applyState(d) {
   updatePlayers(d.players); updateBar(d);
