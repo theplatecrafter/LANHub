@@ -401,7 +401,7 @@
 {% block scripts %}
 <script>
   // ── State ────────────────────────────────────────────────
-  let fbUsername   = localStorage.getItem("fb-username") || null;
+  let fbUsername = null;
   let activeType   = "";
   let activeTag    = "";
   let debTimer     = null;
@@ -424,14 +424,14 @@
   function submitUsername() {
     const val = document.getElementById("un-input").value.trim();
     const err = document.getElementById("un-err");
-    if (!val)        { err.textContent = "Username cannot be empty."; return; }
+    if (!val)            { err.textContent = "Username cannot be empty."; return; }
     if (val.length > 32) { err.textContent = "Too long (max 32 chars)."; return; }
     err.textContent = "";
     fbUsername = val;
-    localStorage.setItem("fb-username", val);
+    // Remove this line: localStorage.setItem("fb-username", val);
     document.getElementById("un-modal").classList.remove("open");
     if (pendingAction) { const cb = pendingAction; pendingAction = null; cb(); }
-  }
+}
 
   // ── Sidebar section toggle ───────────────────────────────
   function toggleFbSection(bodyId, titleEl) {
@@ -744,13 +744,13 @@
 
   // ── DEV detection — ask the server once ──────────────────
   window._isDev = false;
-  fetch("/admin/is_dev_session").then(r=>r.json()).then(d=>{ window._isDev = !!d.is_dev; }).catch(()=>{});
+    fetch("/admin/is_dev_session").then(r=>r.json()).then(d=>{ window._isDev = !!d.is_dev; }).catch(()=>{});
 
-  // ── Boot ─────────────────────────────────────────────────
-  loadFeed();
-  if (!fbUsername) {
+    // Always prompt username on page load
     document.getElementById("un-modal").classList.add("open");
     setTimeout(() => document.getElementById("un-input").focus(), 100);
-  }
+
+    loadFeed();
+
 </script>
 {% endblock %}

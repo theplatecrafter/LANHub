@@ -188,6 +188,69 @@ def init_db():
         )
     """)
     c.execute("CREATE INDEX IF NOT EXISTS idx_fb_replies_fb ON feedback_replies(feedback_id)")
+    
+    # ── polls ─────────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS polls (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT    NOT NULL,
+            description TEXT    DEFAULT '',
+            poll_type   TEXT    NOT NULL DEFAULT 'single'
+                            CHECK(poll_type IN ('single','multi')),
+            is_dev      INTEGER NOT NULL DEFAULT 0,
+            created_by  TEXT    NOT NULL DEFAULT '',
+            ip          TEXT    NOT NULL,
+            timestamp   REAL    NOT NULL
+        )
+    """)
+
+    # ── poll_options ──────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS poll_options (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            poll_id  INTEGER NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+            label    TEXT    NOT NULL,
+            position INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_poll_opts_poll ON poll_options(poll_id)")
+
+    # ── poll_tags ─────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS poll_tags (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            poll_id  INTEGER NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+            tag      TEXT    NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_poll_tags_poll ON poll_tags(poll_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_poll_tags_tag  ON poll_tags(tag)")
+
+    # ── poll_votes ────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS poll_votes (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            poll_id   INTEGER NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+            option_id INTEGER NOT NULL REFERENCES poll_options(id) ON DELETE CASCADE,
+            ip        TEXT    NOT NULL,
+            timestamp REAL    NOT NULL,
+            UNIQUE(poll_id, option_id, ip)
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON poll_votes(poll_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_poll_votes_ip   ON poll_votes(poll_id, ip)")
+    
+    # ── updates ───────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS updates (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            version     TEXT    NOT NULL,
+            title       TEXT    NOT NULL,
+            description TEXT    NOT NULL DEFAULT '',
+            created_by  TEXT    NOT NULL,
+            timestamp   REAL    NOT NULL
+        )
+    """)
  
     for col, defn in [
         ("reply_to_id", "INTEGER REFERENCES chat_messages(id)"),

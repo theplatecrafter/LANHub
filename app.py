@@ -24,6 +24,9 @@ from blueprints.admin import admin_bp, check_ban
 from blueprints.dropzone import dropzone_bp
 from blueprints.channels import channels_bp
 from blueprints.feedback import feedback_bp
+from blueprints.polls import polls_bp
+from blueprints.updates import updates_bp
+
 
 
 
@@ -45,6 +48,8 @@ app.register_blueprint(dropzone_bp)
 app.before_request(check_ban)
 app.register_blueprint(channels_bp)
 app.register_blueprint(feedback_bp)
+app.register_blueprint(polls_bp)
+app.register_blueprint(updates_bp)
 
 
 ###########################################
