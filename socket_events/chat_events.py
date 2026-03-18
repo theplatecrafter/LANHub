@@ -122,22 +122,18 @@ def handle_message(data):
         return
     
     message = (data.get("message") or "").strip()
-    # ── /report command ───────────────────────────────────────
-    if message.startswith("/report"):
-        _handle_report_command(sid, ip, message)
-        return
-    
-    if f.check_profanity(message):
+
+    SKIP_PROFANITY = {"display", "youtube", "flip", "roll"}
+    ALLOWED_TYPES  = {"text", "me", "display", "youtube", "flip", "roll"}
+    msg_type = data.get("msg_type", "text")
+    if msg_type not in ALLOWED_TYPES:
+        msg_type = "text"
+
+    if msg_type not in SKIP_PROFANITY and f.check_profanity(message):
         emit("error", {"message": "Message contains disallowed words."})
         return
 
-    if reply_to_id is not None:
-        try:
-            reply_to_id = int(reply_to_id)
-        except (TypeError, ValueError):
-            reply_to_id = None
-
-    msg = f.save_chat_message(username, ip, message, reply_to_id=reply_to_id)
+    msg = f.save_chat_message(username, ip, message, reply_to_id=reply_to_id, msg_type=msg_type)
     message_ownership[msg["id"]] = sid
     socketio.emit("new_message", msg, to="chat")
     access_log.info(f"[chat] {username} ({ip}): {message}")

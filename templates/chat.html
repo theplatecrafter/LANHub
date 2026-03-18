@@ -356,11 +356,13 @@
 
 {% block scripts %}
 {# Socket.IO loaded by base.html — do NOT load again #}
+<script src="{{ url_for('static', filename='js/commands.js') }}"></script>
 <script>
   const MAX_CHARS  = {{ MAX_CHARS }};
   const socket     = _socket;
 
   let myUsername   = null;
+  let cmdBar = null;
   let lastSender   = null;
   let myMsgIds     = new Set();
 
@@ -507,6 +509,29 @@
       myUsername = data.username;
       document.getElementById("modal-bg").style.display = "none";
       msgInput.disabled = false;
+      cmdBar = initCommandBar(msgInput, document.getElementById("input-area"), {
+      send: (text, msgType) => {
+        socket.emit("send_message", {
+          message:     text,
+          msg_type:    msgType,
+          reply_to_id: replyState ? replyState.id : null,
+        });
+        cancelReply();
+      },
+      showError,
+      showInfo:      (msg) => showError(msg),
+      clearMessages: () => { messagesEl.innerHTML = ""; lastSender = null; },
+      getOnlineText: () => document.getElementById("online-count")?.textContent || "?",
+      getSocket:     () => socket,
+      openReport:    (args) => {
+        const parts = args.trim().split(/\s+/);
+        const uname = parts[0] || "";
+        if (!uname) { showError("Usage: /report <username> [reason]"); return; }
+        openRepModal(null, uname, "");
+        const reason = parts.slice(1).join(" ");
+        if (reason) document.getElementById("rep-reason").value = reason;
+      },
+    });
       document.getElementById("send-btn").disabled = false;
       msgInput.focus();
       setOnlineCount(data.online_count);
@@ -522,19 +547,27 @@
   function handleSend() {
     const text = msgInput.value.trim();
     if (!text || text.length > MAX_CHARS) return;
+
     if (editState) {
       socket.emit("edit_message", { id: editState.id, new_text: text });
       cancelEdit();
-    } else {
-      socket.emit("send_message", {
-        message:     text,
-        reply_to_id: replyState ? replyState.id : null
-      });
-      cancelReply();
+      msgInput.value = ""; msgInput.style.height = "auto"; updateCharCounter(0);
+      return;
     }
-    msgInput.value = "";
-    msgInput.style.height = "auto";
-    updateCharCounter(0);
+
+    // Command intercept
+    if (cmdBar && cmdBar.tryDispatch(text)) {
+      msgInput.value = ""; msgInput.style.height = "auto"; updateCharCounter(0);
+      return;
+    }
+
+    socket.emit("send_message", {
+      message:     text,
+      msg_type:    "text",
+      reply_to_id: replyState ? replyState.id : null,
+    });
+    cancelReply();
+    msgInput.value = ""; msgInput.style.height = "auto"; updateCharCounter(0);
   }
 
   // ── Reply ─────────────────────────────────────────────────
@@ -669,25 +702,7 @@
     const wrap = document.createElement("div");
     wrap.className = "bubble-wrap";
 
-    const actions = document.createElement("div");
-    actions.className = "msg-actions";
-    actions.appendChild(makeActionBtn("↩", "Reply", () => startReply(msg.id, msg.username, msg.message)));
-    if (!isSelf) {
-      const rep = makeActionBtn("🚩", "Report", () => openRepModal(msg.id, msg.username, msg.message));
-      rep.classList.add("report");
-      actions.appendChild(rep);
-    }
-    if (isSelf || myMsgIds.has(msg.id)) {
-      actions.appendChild(makeActionBtn("✏", "Edit", () => {
-        startEdit(msg.id, row.querySelector(".bubble-body")?.textContent || msg.message);
-      }));
-      const del = makeActionBtn("🗑", "Delete", () => {
-        if (confirm("Delete this message?")) socket.emit("delete_message", { id: msg.id });
-      });
-      del.classList.add("delete");
-      actions.appendChild(del);
-    }
-
+    // ── Build bubble FIRST so allowEdit is known ──────────
     const bubble = document.createElement("div");
     bubble.className = "bubble";
 
@@ -701,15 +716,34 @@
       bubble.appendChild(quote);
     }
 
-    const body = document.createElement("span");
-    body.className = "bubble-body";
-    body.textContent = msg.message;
-    bubble.appendChild(body);
+    const allowEdit = renderMsgContent(bubble, msg);  // ← declare here
 
     if (msg.edited) {
       const lbl = document.createElement("span");
       lbl.className = "edited-label"; lbl.textContent = "(edited)";
       bubble.appendChild(lbl);
+    }
+
+    // ── Now build actions (allowEdit is available) ────────
+    const actions = document.createElement("div");
+    actions.className = "msg-actions";
+    actions.appendChild(makeActionBtn("↩", "Reply", () => startReply(msg.id, msg.username, msg.message)));
+    if (!isSelf) {
+      const rep = makeActionBtn("🚩", "Report", () => openRepModal(msg.id, msg.username, msg.message));
+      rep.classList.add("report");
+      actions.appendChild(rep);
+    }
+    if (isSelf || myMsgIds.has(msg.id)) {
+      if (allowEdit) {
+        actions.appendChild(makeActionBtn("✏", "Edit", () => {
+          startEdit(msg.id, row.querySelector(".bubble-body")?.textContent || msg.message);
+        }));
+      }
+      const del = makeActionBtn("🗑", "Delete", () => {
+        if (confirm("Delete this message?")) socket.emit("delete_message", { id: msg.id });
+      });
+      del.classList.add("delete");
+      actions.appendChild(del);
     }
 
     const time = document.createElement("span");

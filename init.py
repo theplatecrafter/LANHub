@@ -133,18 +133,75 @@ def init_db():
         )
     """)
     c.execute("CREATE INDEX IF NOT EXISTS idx_channel_msgs_channel ON channel_messages(channel_id)")
+    
+    # ── feedback ──────────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS feedback (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            type          TEXT    NOT NULL CHECK(type IN ('bug','feature','other')),
+            title         TEXT    NOT NULL,
+            description   TEXT    DEFAULT '',
+            username      TEXT    NOT NULL,
+            ip            TEXT    NOT NULL,
+            status        TEXT    NOT NULL DEFAULT 'open'
+                              CHECK(status IN ('open','resolved')),
+            resolved_by   TEXT    DEFAULT NULL,
+            resolved_at   REAL    DEFAULT NULL,
+            resolved_note TEXT    DEFAULT '',
+            timestamp     REAL    NOT NULL
+        )
+    """)
+
+    # ── feedback_tags ─────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS feedback_tags (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            feedback_id INTEGER NOT NULL REFERENCES feedback(id) ON DELETE CASCADE,
+            tag         TEXT    NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_fb_tags_fb  ON feedback_tags(feedback_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_fb_tags_tag ON feedback_tags(tag)")
+
+    # ── feedback_stars ────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS feedback_stars (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            feedback_id INTEGER NOT NULL REFERENCES feedback(id) ON DELETE CASCADE,
+            ip          TEXT    NOT NULL,
+            timestamp   REAL    NOT NULL,
+            UNIQUE(feedback_id, ip)
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_fb_stars_fb ON feedback_stars(feedback_id)")
+
+    # ── feedback_replies ──────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS feedback_replies (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            feedback_id INTEGER NOT NULL REFERENCES feedback(id) ON DELETE CASCADE,
+            username    TEXT    NOT NULL,
+            ip          TEXT    NOT NULL,
+            content     TEXT    NOT NULL,
+            is_dev      INTEGER NOT NULL DEFAULT 0,
+            timestamp   REAL    NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_fb_replies_fb ON feedback_replies(feedback_id)")
  
     for col, defn in [
         ("reply_to_id", "INTEGER REFERENCES chat_messages(id)"),
         ("edited",      "INTEGER NOT NULL DEFAULT 0"),
+        ("msg_type",    "TEXT NOT NULL DEFAULT 'text'"),
     ]:
         try:
             c.execute(f"ALTER TABLE chat_messages ADD COLUMN {col} {defn}")
         except Exception:
             pass
-        
+
+    # channel_messages gets msg_type too
     try:
-        c.execute("ALTER TABLE reports ADD COLUMN source TEXT NOT NULL DEFAULT 'chat'")
+        c.execute("ALTER TABLE channel_messages ADD COLUMN msg_type TEXT NOT NULL DEFAULT 'text'")
     except Exception:
         pass
  

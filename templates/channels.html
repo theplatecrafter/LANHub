@@ -563,12 +563,15 @@
 
 {% block scripts %}
 {# Socket.IO loaded by base.html #}
+<script src="{{ url_for('static', filename='js/commands.js') }}"></script>
 <script>
   const MAX_CHARS = {{ MAX_CHARS }};
   const HISTORY   = {{ HISTORY }};
   const socket    = _socket;
+  const chCmdBars = {};  // { channelId: cmdBar }
 
   let chRepState = null;
+  
 
     function openChRepModal(channelId, id, username, message) {
     chRepState = { channelId, id, username, message };
@@ -939,6 +942,36 @@
     `;
     container.appendChild(pane);
 
+    const paneInput = pane.querySelector(`#pane-input-${ch.id}`);
+    const inputWrap = pane.querySelector(".pane-input-area");
+    chCmdBars[ch.id] = initCommandBar(paneInput, inputWrap, {
+      send: (text, msgType) => {
+        socket.emit("ch_send_message", {
+          channel_id:  ch.id,
+          message:     text,
+          msg_type:    msgType,
+          reply_to_id: chState[ch.id]?.replyState?.id || null,
+        });
+        cancelReply(ch.id);
+      },
+      showError: (msg) => showToast(msg, false),
+      showInfo:  (msg) => showToast(msg, true),
+      clearMessages: () => {
+        const el = document.getElementById(`pane-msgs-${ch.id}`);
+        if (el) { el.innerHTML = ""; if (chState[ch.id]) chState[ch.id].lastSender = null; }
+      },
+      getOnlineText: () => document.getElementById(`pane-online-${ch.id}`)?.textContent || "?",
+      getSocket:     () => socket,
+      openReport:    (args) => {
+        const parts = args.trim().split(/\s+/);
+        const uname = parts[0] || "";
+        if (!uname) { showToast("Usage: /report <username> [reason]", false); return; }
+        openChRepModal(ch.id, null, uname, "");
+        const reason = parts.slice(1).join(" ");
+        if (reason) document.getElementById("ch-rep-reason").value = reason;
+      },
+    });
+
     // Scroll listener for load-older
     document.getElementById(`pane-msgs-${ch.id}`).addEventListener("scroll", () => {
       const el = document.getElementById(`pane-msgs-${ch.id}`);
@@ -1012,18 +1045,25 @@
     if (st.editState) {
       socket.emit("ch_edit_message", { id: st.editState.id, channel_id: channelId, new_text: text });
       cancelEdit(channelId);
-    } else {
-      socket.emit("ch_send_message", {
-        channel_id:  channelId,
-        message:     text,
-        reply_to_id: st.replyState ? st.replyState.id : null,
-      });
-      cancelReply(channelId);
+      input.value = ""; input.style.height = "auto"; paneInput(input, channelId);
+      return;
     }
 
-    input.value = "";
-    input.style.height = "auto";
-    paneInput(input, channelId);
+    // Command intercept
+    const bar = chCmdBars[channelId];
+    if (bar && bar.tryDispatch(text)) {
+      input.value = ""; input.style.height = "auto"; paneInput(input, channelId);
+      return;
+    }
+
+    socket.emit("ch_send_message", {
+      channel_id:  channelId,
+      message:     text,
+      msg_type:    "text",
+      reply_to_id: st.replyState ? st.replyState.id : null,
+    });
+    cancelReply(channelId);
+    input.value = ""; input.style.height = "auto"; paneInput(input, channelId);
   }
 
   // ── Reply ─────────────────────────────────────────────────
@@ -1093,10 +1133,12 @@
     actions.appendChild(rep);
     }
     if (isSelf || (st && st.myMsgIds.has(msg.id))) {
-      actions.appendChild(makeActionBtn("✏", "Edit", () => {
-        const cur = row.querySelector(".bubble-body")?.textContent || msg.message;
-        startEdit(channelId, msg.id, cur);
-      }));
+        if(allowEdit){
+            actions.appendChild(makeActionBtn("✏", "Edit", () => {
+                const cur = row.querySelector(".bubble-body")?.textContent || msg.message;
+                startEdit(channelId, msg.id, cur);
+            }));
+        }
       const del = makeActionBtn("🗑", "Delete", () => {
         if (confirm("Delete this message?"))
           socket.emit("ch_delete_message", { id: msg.id, channel_id: channelId });
@@ -1107,6 +1149,7 @@
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
+    const allowEdit = renderMsgContent(bubble, msg);
 
     if (msg.reply_to_id && msg.reply_username) {
       const q = document.createElement("div"); q.className = "reply-quote";
@@ -1116,9 +1159,7 @@
       bubble.appendChild(q);
     }
 
-    const body = document.createElement("span");
-    body.className = "bubble-body"; body.textContent = msg.message;
-    bubble.appendChild(body);
+    
 
     if (msg.edited) {
       const lbl = document.createElement("span"); lbl.className = "edited-label"; lbl.textContent = "(edited)";

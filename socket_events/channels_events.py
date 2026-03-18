@@ -178,17 +178,17 @@ def handle_ch_send(data):
     if f.is_rate_limited(ip):
         emit("ch_error", {"message": f"Slow down — max {CHAT_RATE_LIMIT} messages per {CHAT_RATE_WINDOW}s."})
         return
-    if f.check_profanity(message):
+    SKIP_PROFANITY = {"display", "youtube", "flip", "roll"}
+    ALLOWED_TYPES  = {"text", "me", "display", "youtube", "flip", "roll"}
+    msg_type = data.get("msg_type", "text")
+    if msg_type not in ALLOWED_TYPES:
+        msg_type = "text"
+
+    if msg_type not in SKIP_PROFANITY and f.check_profanity(message):
         emit("ch_error", {"message": "Message contains disallowed words."})
         return
 
-    if reply_to_id is not None:
-        try:
-            reply_to_id = int(reply_to_id)
-        except (TypeError, ValueError):
-            reply_to_id = None
-
-    msg = f.save_channel_message(channel_id, username, ip, message, reply_to_id)
+    msg = f.save_channel_message(channel_id, username, ip, message, reply_to_id, msg_type=msg_type)
     ch_msg_ownership[msg["id"]] = sid
 
     socketio.emit("ch_new_message", msg, to=_room(channel_id))

@@ -341,3 +341,9 @@ def power_delete(admin_id):
 @require_role("DEV")
 def console():
     return render_template("admin_console.html")
+
+@admin_bp.route("/is_dev_session")
+def is_dev_session():
+    """Public endpoint — returns whether the current session is DEV. Used by feedback page."""
+    from flask import jsonify
+    return jsonify({"is_dev": _role() == "DEV"})

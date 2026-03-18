@@ -45,3 +45,7 @@ def get_unique_ips() -> int:
     """Count unique remote addresses — not directly accessible here,
     so we approximate from the presence dict size (1 tab = 1 connection)."""
     return len(page_presence)
+
+@socketio.on("cmd_ping")
+def on_cmd_ping(_data=None):
+    pass  # ack is sent automatically by flask-socketio when handler returns

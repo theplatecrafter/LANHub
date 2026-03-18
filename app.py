@@ -23,6 +23,7 @@ from blueprints.devices import devices_bp
 from blueprints.admin import admin_bp, check_ban
 from blueprints.dropzone import dropzone_bp
 from blueprints.channels import channels_bp
+from blueprints.feedback import feedback_bp
 
 
 
@@ -43,6 +44,7 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(dropzone_bp)
 app.before_request(check_ban)
 app.register_blueprint(channels_bp)
+app.register_blueprint(feedback_bp)
 
 
 ###########################################
