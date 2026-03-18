@@ -11,6 +11,8 @@ import sys
 import signal
 from configvars import SECRET_KEY
 import datetime
+import re as _re
+from configvars import REPO_URL as _REPO_URL
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -87,6 +89,41 @@ def timestamp_fmt(ts):
 def too_large(e):
     from flask import jsonify
     return jsonify({"ok": False, "error": "File too large."}), 413
+
+ 
+def _repo_url_to_pages(repo_url: str) -> str | None:
+    """
+    Convert a GitHub repo URL to its GitHub Pages URL.
+ 
+    https://github.com/USER/REPO        →  https://USER.github.io/REPO/
+    https://github.com/USER/REPO.git    →  https://USER.github.io/REPO/
+    git@github.com:USER/REPO.git        →  https://USER.github.io/REPO/
+ 
+    Returns None if the URL can't be parsed.
+    """
+    # HTTPS form
+    m = _re.match(
+        r'https?://github\.com/([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$',
+        repo_url.strip()
+    )
+    if m:
+        return f"https://{m.group(1)}.github.io/{m.group(2)}/"
+ 
+    # SSH form
+    m = _re.match(
+        r'git@github\.com:([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$',
+        repo_url.strip()
+    )
+    if m:
+        return f"https://{m.group(1)}.github.io/{m.group(2)}/"
+ 
+    return None
+ 
+@app.context_processor
+def inject_share_url():
+    """Makes `share_url` available in every template."""
+    return {"share_url": _repo_url_to_pages(_REPO_URL or "")}
+
 
 ###########################################
 # Routes

@@ -18,6 +18,54 @@
   </script>
 
   {% block head %}{% endblock %}
+
+  <style>
+    /* ── Share button ───────────────────────────────────────── */
+    #share-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 11px;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    #share-btn:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: var(--cyan-dim);
+    }
+    #share-btn svg {
+      width: 13px;
+      height: 13px;
+      flex-shrink: 0;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Copied feedback state */
+    #share-btn.copied {
+      border-color: var(--green);
+      color: var(--green);
+      background: var(--green-dim);
+    }
+
+    /* Hide label on very small screens, keep icon */
+    @media (max-width: 520px) {
+      #share-btn span { display: none; }
+    }
+  </style>
 </head>
 <body>
 
@@ -31,6 +79,20 @@
       <li><a href="/stats" class="{{ 'active' if request.path == '/stats' }}">Stats</a></li>
       <li><a href="/admin/login" class="{{ 'active' if '/admin' in request.path }}">Admin</a></li>
     </ul>
+
+    <!-- Share button (only shown when a redirector URL is configured) -->
+    {% if share_url %}
+    <button id="share-btn"
+            onclick="copyShareLink()"
+            title="Copy shareable link: {{ share_url }}">
+      <!-- Link icon -->
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+      <span>Copy link to share</span>
+    </button>
+    {% endif %}
 
     <!-- Theme picker -->
     <div class="theme-picker" id="themePicker">
@@ -131,6 +193,47 @@
         el.classList.toggle("active", el.dataset.value === current);
       });
     })();
+
+    /* ── Share / copy link ───────────────────────────────────── */
+    {% if share_url %}
+    const SHARE_URL = {{ share_url | tojson }};
+
+    let _copyTimer = null;
+    function copyShareLink() {
+      const btn = document.getElementById("share-btn");
+      const lbl = btn.querySelector("span");
+
+      function onCopied() {
+        btn.classList.add("copied");
+        if (lbl) lbl.textContent = "Copied!";
+        clearTimeout(_copyTimer);
+        _copyTimer = setTimeout(() => {
+          btn.classList.remove("copied");
+          if (lbl) lbl.textContent = "Copy link to share";
+        }, 2000);
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(SHARE_URL).then(onCopied).catch(() => {
+          prompt("Copy this link:", SHARE_URL);
+        });
+      } else {
+        /* HTTP fallback — clipboard API unavailable outside secure contexts */
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = SHARE_URL;
+          ta.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          onCopied();
+        } catch (_) {
+          prompt("Copy this link:", SHARE_URL);
+        }
+      }
+    }
+    {% endif %}
 
     /* ── Live server stats ───────────────────────────────────── */
     const _socket = io();
