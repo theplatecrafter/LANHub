@@ -37,6 +37,76 @@ def save_json(data: dict) -> None:
     with open(tmp, "w") as fh:
         json.dump(data, fh, indent=2)
     os.replace(tmp, JSON_PATH)
+    
+def merge_with_example() -> dict:
+    """
+    After a git pull, synchronise configvars.json with configvars.example.json.
+
+    Rules:
+      - Admin section is NEVER touched (existing values kept as-is, no keys
+        added or removed from it).
+      - For every other section:
+          * New keys in the example  → added with the example's default value.
+          * Keys removed from example → removed from the live config.
+          * Keys present in both     → live value is kept unchanged.
+          * New sections in example  → added wholesale with example defaults.
+          * Sections removed from example → removed from live config.
+
+    Returns a dict describing what changed:
+      { "added": [...], "removed": [...], "unchanged": [...] }
+    """
+    import os
+    example_path = os.path.join(_BASE_DIR, "configvars.example.json")
+    with open(example_path, "r") as fh:
+        example = json.load(fh)
+
+    current = load_json()
+    admin_section = current.get(ADMIN_SECTION, {})
+
+    added   = []
+    removed = []
+
+    merged = {}
+
+    # 1. Walk every section in the example (this defines the authoritative shape)
+    for section, example_keys in example.items():
+        if section == ADMIN_SECTION:
+            # Keep the live admin section completely intact
+            merged[ADMIN_SECTION] = admin_section
+            continue
+
+        current_section = current.get(section, {})
+        merged_section  = {}
+
+        for key, default_val in example_keys.items():
+            if key in current_section:
+                merged_section[key] = current_section[key]   # keep live value
+            else:
+                merged_section[key] = default_val            # new key → use default
+                added.append(f"{section}.{key}")
+
+        # Detect removed keys (exist in live but not in example)
+        for key in current_section:
+            if key not in example_keys:
+                removed.append(f"{section}.{key}")
+                # (simply not copying it over is the removal)
+
+        merged[section] = merged_section
+
+    # 2. Detect removed sections (exist in live but not in example, excluding admin)
+    for section in current:
+        if section not in example and section != ADMIN_SECTION:
+            removed.append(f"{section}.*")
+            # (not copied into merged = removed)
+
+    # 3. Ensure admin is always present (even if example doesn't have it)
+    if ADMIN_SECTION not in merged:
+        merged[ADMIN_SECTION] = admin_section
+
+    save_json(merged)
+    reload()
+
+    return {"added": added, "removed": removed}
 
 
 # ── Flatten into module globals ───────────────────────────────────────────────

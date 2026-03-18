@@ -180,12 +180,14 @@ Under **Source**, select ```Deploy from branch```
 Under **Branch**, select ```main``` and ```/root```, then hit save.
 
 
-cd into the LANHub directory, then run the following command:
-Make sure to replace ```<redirector-link>``` with the github link of the repository you just created.
+cd into the LANHub repository.
+then:
 ```bash
-cp configvars.example.py configvars.py
-sed -i 's#^REPO_URL = .*#REPO_URL = "<redirector-link>"#' configvars.py
+cp configvars.example.json configvars.json
+nano configvars.json
 ```
+then change the ```REPO_URL``` under ```general``` to the link to the github repository you just made. This can be changed on the LANHub webpage too.
+**Important**: While you have this open, go all the way down to the "admin" section, to set a robust password for the developer (the username can be changed too). Once the app runs, there will be an option to log in as a dev on the webpage, which will then give you tools that will make updating/configvars changing easier.
 
 Run the app:
 ```bash
@@ -267,7 +269,7 @@ You are now remotely controlling your server.
 cd into the LANHub repository.
 then:
 ```bash
-nano configvars.py
+nano configvars.json
 ```
 
 This will show you configuration variables for the LANHub. You may change this to your likings.

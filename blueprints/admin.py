@@ -184,7 +184,7 @@ def server_control():
 @admin_bp.route("/server/update", methods=["POST"])
 @require_role("DEV")
 def server_update():
-    """Runs git pull in the LANHub directory. Returns stdout/stderr."""
+    """Runs git pull, then merges configvars.example.json into configvars.json."""
     try:
         result = subprocess.run(
             ["git", "pull"],
@@ -194,9 +194,29 @@ def server_update():
             timeout=60
         )
         app_log.info(f"[admin] {_name()!r} ran git pull")
+
+        config_note = ""
+        if result.returncode == 0:
+            try:
+                import config as _config
+                changes = _config.merge_with_example()
+                parts = []
+                if changes["added"]:
+                    parts.append(f"Added: {', '.join(changes['added'])}")
+                if changes["removed"]:
+                    parts.append(f"Removed: {', '.join(changes['removed'])}")
+                if parts:
+                    config_note = "\n\n[configvars.json] " + " | ".join(parts)
+                else:
+                    config_note = "\n\n[configvars.json] No changes needed."
+                app_log.info(f"[admin] config merge after pull: {changes}")
+            except Exception as ce:
+                config_note = f"\n\n[configvars.json] Merge error: {ce}"
+                error_log.error(f"[admin] config merge failed: {ce}")
+
         return jsonify({
             "ok":     result.returncode == 0,
-            "stdout": result.stdout,
+            "stdout": result.stdout + config_note,
             "stderr": result.stderr,
         })
     except Exception as e:
