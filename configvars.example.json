@@ -72,6 +72,12 @@
     "SCRIBBLE_HINT_INTERVAL": 22,
     "SCRIBBLE_WORD_CHOICES": 3
   },
+  "geoguesser": {
+    "GEO_ROUND_ADVANCE_SECS": 9,
+    "GEO_MAX_LOCATION_RETRIES": 20,
+    "GEO_CACHE_MAX_FILES": 60,
+    "GOOGLE_MAPS_EMBED_KEY": ""
+  },
   "admin": {
     "INITIAL_DEV_USERNAME": "dev",
     "INITIAL_DEV_PASSWORD": "password",

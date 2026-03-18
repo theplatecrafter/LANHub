@@ -291,7 +291,7 @@
     /* ── AFK detection ───────────────────────────────────────── */
     (function () {
       // Only activate AFK on game routes
-      const GAME_PATHS = ['/slither', '/scribble', '/chess', '/tetris', '/uno'];
+      const GAME_PATHS = ['/slither', '/scribble', '/chess', '/tetris', '/uno','/geoguesser'];
       const path = window.location.pathname.replace(/\/$/, '');
       if (!GAME_PATHS.some(p => path === p || path.startsWith(p + '/'))) return;
 
@@ -305,6 +305,7 @@
         '/chess':   'chess_leave_route',
         '/tetris':  'tetris_logout',
         '/uno':     'uno_leave_route',
+        '/geoguesser': 'geo_leave_route',
       };
 
       let _lastActivity = Date.now();

@@ -1,0 +1,1212 @@
+{% extends "base.html" %}
+{% block title %}GeoGuesser — LANHub{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* ── Reset / shell ────────────────────────────────────── */
+.page-wrap,.container{padding:0!important;max-width:100%!important}
+#geo-root{font-family:var(--font-mono);color:var(--text-bright);min-height:100vh;background:var(--bg)}
+
+/* ── View system ─────────────────────────────────────── */
+.geo-view{display:none;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;padding:24px;box-sizing:border-box}
+.geo-view.active{display:flex}
+
+/* ── Card ────────────────────────────────────────────── */
+.geo-card{background:var(--bg-panel);border:1px solid var(--border-hi);border-radius:var(--radius-lg);
+  padding:32px;width:100%;max-width:480px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.geo-card.wide{max-width:780px}
+.geo-card h1{margin:0 0 6px;font-size:1.7rem;letter-spacing:.06em;color:var(--text-bright)}
+.geo-card h2{margin:0 0 18px;font-size:1.1rem;letter-spacing:.08em;color:var(--text-dim);
+  text-transform:uppercase;font-weight:400}
+.geo-eyebrow{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan);
+  opacity:.7;margin-bottom:6px}
+
+/* ── Inputs ──────────────────────────────────────────── */
+.geo-input{width:100%;box-sizing:border-box;padding:10px 14px;background:var(--bg);
+  border:1px solid var(--border-hi);border-radius:var(--radius);color:var(--text-bright);
+  font-family:var(--font-mono);font-size:.88rem;outline:none;transition:border-color .15s}
+.geo-input:focus{border-color:var(--cyan)}
+.geo-label{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);
+  margin-bottom:5px;display:block}
+.geo-field{margin-bottom:16px}
+.geo-err{font-size:.72rem;color:var(--red,#f55);margin-top:6px;min-height:18px}
+
+/* ── Buttons ─────────────────────────────────────────── */
+.geo-btn{padding:10px 24px;border:none;border-radius:var(--radius);font-family:var(--font-mono);
+  font-size:.82rem;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:all .15s;
+  text-transform:uppercase}
+.geo-btn.primary{background:var(--cyan);color:var(--bg)}
+.geo-btn.primary:hover{filter:brightness(1.15)}
+.geo-btn.ghost{background:transparent;color:var(--text-dim);border:1px solid var(--border-hi)}
+.geo-btn.ghost:hover{border-color:var(--cyan);color:var(--cyan)}
+.geo-btn.danger{background:transparent;color:var(--red,#f55);border:1px solid var(--red,#f55)}
+.geo-btn.danger:hover{background:rgba(255,80,80,.12)}
+.geo-btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.geo-btn-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+
+/* ── Mode select ─────────────────────────────────────── */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:560px;margin-top:12px}
+.mode-card{background:var(--bg-panel);border:2px solid var(--border-hi);border-radius:var(--radius-lg);
+  padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s}
+.mode-card:hover{border-color:var(--cyan);transform:translateY(-3px);box-shadow:0 8px 32px rgba(0,212,255,.15)}
+.mode-card .mc-icon{font-size:2.6rem;margin-bottom:12px}
+.mode-card .mc-title{font-size:1rem;font-weight:700;letter-spacing:.06em;margin-bottom:6px}
+.mode-card .mc-desc{font-size:.72rem;color:var(--text-dim);line-height:1.5}
+
+/* ── No API key warning ──────────────────────────────── */
+.no-key-warn{background:rgba(255,160,0,.1);border:1px solid rgba(255,160,0,.4);
+  border-radius:var(--radius);padding:12px 16px;font-size:.72rem;line-height:1.6;
+  color:rgba(255,200,80,.9);margin-bottom:16px}
+.no-key-warn a{color:var(--cyan);text-decoration:underline}
+
+/* ── Region draw view ────────────────────────────────── */
+#view-region{padding:0}
+#region-map-container{position:relative;width:100%;height:100vh}
+#region-map{width:100%;height:100%}
+.region-toolbar{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:500;
+  display:flex;gap:8px;align-items:center;background:rgba(0,0,0,.82);border:1px solid var(--border-hi);
+  border-radius:var(--radius-lg);padding:10px 16px;backdrop-filter:blur(8px)}
+.region-toolbar .rtt{font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--text-dim);white-space:nowrap}
+#region-status{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:500;
+  background:rgba(0,0,0,.82);border:1px solid var(--border-hi);border-radius:var(--radius);
+  padding:8px 20px;font-size:.7rem;letter-spacing:.1em;text-align:center;pointer-events:none}
+
+/* ── Loading view ────────────────────────────────────── */
+.loading-spinner{width:42px;height:42px;border:3px solid rgba(0,212,255,.2);
+  border-top-color:var(--cyan);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{color:var(--text-dim);font-size:.82rem;letter-spacing:.1em;text-align:center}
+
+/* ── Street View iframe ──────────────────────────────── */
+#sv-wrap{position:fixed;inset:0;z-index:10;display:none;background:#0a0a14}
+#sv-wrap.active{display:block}
+#sv-iframe{width:100%;height:100%;border:none;display:block}
+
+/* Overlay to block the Google Maps "View on Google Maps" link & branding
+   that could reveal the location. Covers just the bottom-right corner. */
+#sv-cover{position:absolute;bottom:0;right:0;width:220px;height:48px;
+  background:var(--bg,#0a0a14);z-index:12;pointer-events:none}
+
+/* ── Game HUD (MP) ───────────────────────────────────── */
+#game-hud{position:fixed;inset:0;z-index:20;pointer-events:none;display:none}
+#game-hud.active{display:block}
+#hud-top{position:absolute;top:0;left:0;right:0;height:60px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.75),transparent);
+  display:flex;align-items:center;justify-content:space-between;padding:0 18px;pointer-events:auto}
+#hud-round-label{font-size:.65rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.5)}
+#hud-round-val{font-size:1rem;font-weight:700;color:var(--text-bright)}
+#hud-timer{font-size:1.5rem;font-weight:900;letter-spacing:.06em;color:var(--cyan);
+  text-shadow:0 0 14px var(--cyan);font-variant-numeric:tabular-nums}
+#hud-timer.urgent{color:#ff6b6b;text-shadow:0 0 14px #ff6b6b;animation:pulse-urgent .6s ease-in-out infinite}
+@keyframes pulse-urgent{0%,100%{opacity:1}50%{opacity:.6}}
+#hud-locked-label{font-size:.7rem;color:rgba(255,255,255,.45);text-align:right}
+#hud-exit-btn{position:absolute;top:14px;right:14px;pointer-events:auto;padding:6px 14px;
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);border-radius:var(--radius);
+  color:rgba(255,255,255,.4);font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;
+  text-transform:uppercase;cursor:pointer;transition:all .15s;backdrop-filter:blur(4px)}
+#hud-exit-btn:hover{border-color:#ff6b6b;color:#ff6b6b}
+
+/* ── SP HUD ──────────────────────────────────────────── */
+#sp-hud{position:fixed;inset:0;z-index:20;pointer-events:none;display:none}
+#sp-hud-top{position:absolute;top:0;left:0;right:0;height:56px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.65),transparent);
+  display:flex;align-items:center;padding:0 18px;gap:12px;pointer-events:auto}
+#sp-exit-btn{padding:6px 14px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);
+  border-radius:var(--radius);color:rgba(255,255,255,.4);font-family:var(--font-mono);
+  font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+#sp-exit-btn:hover{border-color:#ff6b6b;color:#ff6b6b}
+#sp-hud-label{font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.35)}
+
+/* ── Guess map ───────────────────────────────────────── */
+#guess-map-wrap{position:fixed;bottom:20px;right:20px;z-index:30;
+  width:220px;height:155px;border-radius:12px;overflow:hidden;
+  border:2px solid rgba(0,212,255,.35);box-shadow:0 4px 24px rgba(0,0,0,.6);
+  transition:all .25s cubic-bezier(.34,1.1,.64,1);display:none;background:#111}
+#guess-map-wrap.map-visible{display:block}
+#guess-map-wrap:hover,#guess-map-wrap.expanded{width:380px;height:280px}
+#guess-map{width:100%;height:100%}
+#guess-map-btns{position:absolute;bottom:0;left:0;right:0;display:flex;gap:6px;padding:7px;
+  background:linear-gradient(to top,rgba(0,0,0,.85),transparent);z-index:50}
+.gmap-btn{flex:1;padding:7px 8px;border:none;border-radius:6px;font-family:var(--font-mono);
+  font-size:.68rem;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:all .15s;
+  text-transform:uppercase}
+.gmap-btn.lock{background:var(--cyan);color:var(--bg)}
+.gmap-btn.lock:disabled{opacity:.4;cursor:not-allowed}
+.gmap-btn.lock.locked-in{background:#4caf50;color:#fff}
+.gmap-btn.sp-confirm{background:var(--cyan);color:var(--bg)}
+
+/* ── Lobby ───────────────────────────────────────────── */
+.l-tabs{display:flex;gap:0;border-bottom:1px solid var(--border-hi);margin-bottom:20px}
+.l-tab{padding:8px 20px;background:transparent;border:none;border-bottom:2px solid transparent;
+  color:var(--text-dim);font-family:var(--font-mono);font-size:.75rem;letter-spacing:.1em;
+  text-transform:uppercase;cursor:pointer;transition:all .15s;margin-bottom:-1px}
+.l-tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.l-pane{display:none}.l-pane.active{display:block}
+.cf-row{display:flex;gap:12px}
+.cf-row .geo-field{flex:1}
+.privacy-toggle{display:flex;gap:6px}
+.priv-btn{flex:1;padding:8px;background:transparent;border:1px solid var(--border-hi);
+  border-radius:var(--radius);color:var(--text-dim);font-family:var(--font-mono);
+  font-size:.72rem;cursor:pointer;transition:all .15s}
+.priv-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,.08)}
+.region-chosen-display{display:flex;align-items:center;gap:8px;padding:8px 12px;
+  background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.25);border-radius:var(--radius);
+  font-size:.72rem;margin-top:6px}
+.region-chosen-display .rcd-icon{font-size:1rem}
+.region-chosen-display .rcd-text{flex:1;color:var(--text-dim)}
+.region-chosen-display .rcd-change{color:var(--cyan);cursor:pointer;font-size:.65rem;
+  letter-spacing:.1em;text-transform:uppercase}
+.region-chosen-display .rcd-change:hover{text-decoration:underline}
+.rounds-row,.time-row{display:flex;gap:6px;flex-wrap:wrap}
+.rounds-btn,.time-btn{padding:5px 12px;background:transparent;border:1px solid var(--border-hi);
+  border-radius:var(--radius);color:var(--text-dim);font-family:var(--font-mono);
+  font-size:.72rem;cursor:pointer;transition:all .15s}
+.time-btn{font-size:.65rem;padding:5px 10px}
+.rounds-btn.active,.time-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,.08)}
+#rooms-list{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;margin-top:10px}
+.room-row{display:flex;align-items:center;gap:10px;padding:12px 14px;
+  background:var(--bg);border:1px solid var(--border-hi);border-radius:var(--radius);
+  cursor:pointer;transition:all .15s}
+.room-row:hover{border-color:var(--cyan);background:rgba(0,212,255,.04)}
+.rr-title{flex:1;font-size:.82rem;font-weight:700}
+.rr-meta{font-size:.62rem;color:var(--text-dim)}
+.rr-badge{padding:3px 9px;border-radius:20px;font-size:.58rem;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;background:rgba(0,212,255,.12);color:var(--cyan)}
+.no-rooms-msg{color:var(--text-dim);font-size:.75rem;text-align:center;padding:24px}
+
+/* ── Waiting room ────────────────────────────────────── */
+.player-list{display:flex;flex-direction:column;gap:6px;margin:8px 0;max-height:200px;overflow-y:auto}
+.player-row{display:flex;align-items:center;gap:10px;padding:9px 12px;
+  background:var(--bg);border:1px solid var(--border-hi);border-radius:var(--radius)}
+.player-row.me{border-color:rgba(0,212,255,.3)}
+.pr-avatar{width:28px;height:28px;border-radius:50%;background:var(--cyan);
+  display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--bg);font-weight:700}
+.pr-name{flex:1;font-size:.82rem}
+.pr-crown{color:#ffd700;font-size:.9rem}
+.room-info-bar{display:flex;gap:12px;flex-wrap:wrap;padding:10px 14px;
+  background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.15);border-radius:var(--radius);
+  margin-bottom:16px;font-size:.68rem}
+.rib-item{display:flex;gap:5px;align-items:center;color:var(--text-dim)}
+.rib-item span{color:var(--cyan)}
+#invite-panel{margin-top:16px;border-top:1px solid var(--border-hi);padding-top:14px;display:none}
+#invite-panel.visible{display:block}
+.invite-section-label{font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--text-dim);margin-bottom:8px}
+#invite-candidate-list{display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto}
+.invite-candidate-row{display:flex;align-items:center;gap:8px;padding:6px 10px;
+  background:var(--bg);border:1px solid var(--border-hi);border-radius:var(--radius)}
+.icr-name{flex:1;font-size:.78rem}
+.icr-invite-btn{padding:4px 12px;border:1px solid var(--cyan);border-radius:var(--radius);
+  background:transparent;color:var(--cyan);font-family:var(--font-mono);font-size:.62rem;
+  font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.icr-invite-btn:hover{background:rgba(0,212,255,.12)}
+.icr-invite-btn:disabled{opacity:.4;cursor:not-allowed}
+.invite-empty-msg{font-size:.72rem;color:var(--text-dim);text-align:center;padding:12px}
+
+/* ── Invite banner ───────────────────────────────────── */
+#invite-banner{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:500;
+  background:var(--bg-panel);border:1px solid var(--cyan);border-radius:var(--radius-lg);
+  padding:14px 20px;box-shadow:0 4px 32px rgba(0,212,255,.25);display:none;
+  min-width:300px;max-width:420px;backdrop-filter:blur(8px)}
+#invite-banner.visible{display:block}
+.ib-from{font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);margin-bottom:4px}
+.ib-room{font-size:.88rem;font-weight:700;margin-bottom:12px}
+.ib-btns{display:flex;gap:8px}
+.ib-accept{flex:1;padding:7px;border:none;border-radius:var(--radius);background:var(--cyan);
+  color:var(--bg);font-family:var(--font-mono);font-size:.72rem;font-weight:700;cursor:pointer;
+  letter-spacing:.06em;text-transform:uppercase}
+.ib-decline{flex:1;padding:7px;border:1px solid var(--border-hi);border-radius:var(--radius);
+  background:transparent;color:var(--text-dim);font-family:var(--font-mono);font-size:.72rem;
+  cursor:pointer;letter-spacing:.06em;text-transform:uppercase}
+
+/* ── Round end / SP result ───────────────────────────── */
+#view-round-end,#view-sp-result{padding:0}
+#round-end-shell,#sp-result-shell{position:fixed;inset:0;z-index:25;display:flex;
+  flex-direction:column;background:rgba(3,5,16,.94);backdrop-filter:blur(6px)}
+#round-end-map,#sp-result-map{flex:1;min-height:0}
+#round-end-panel,#sp-result-panel{background:var(--bg-panel);border-top:1px solid var(--border-hi);
+  padding:16px 20px;overflow-y:auto;max-height:46vh}
+.re-title{font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--text-dim);margin-bottom:12px}
+.re-countdown{font-size:.7rem;color:var(--text-dim);margin-bottom:8px}
+.results-table{width:100%;border-collapse:collapse;font-size:.76rem}
+.results-table th{text-align:left;padding:5px 8px;font-size:.58rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border-hi)}
+.results-table td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.04)}
+.results-table tr:first-child td{color:var(--cyan)}
+.rt-rank{width:28px;color:var(--text-dim)}
+.rt-dist{color:var(--text-dim)}
+.rt-score{font-weight:700;color:var(--cyan)}
+.rt-total{color:var(--text-dim)}
+.rt-no-guess{color:rgba(255,255,255,.25);font-style:italic}
+.re-next-bar{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+
+/* ── Game over ───────────────────────────────────────── */
+.go-podium{display:flex;gap:12px;justify-content:center;align-items:flex-end;margin:20px 0}
+.go-step{display:flex;flex-direction:column;align-items:center;gap:6px}
+.go-step .gs-name{font-size:.72rem;font-weight:700;letter-spacing:.06em}
+.go-step .gs-score{font-size:.65rem;color:var(--text-dim)}
+.go-step .gs-bar{width:60px;border-radius:4px 4px 0 0}
+.go-step.first .gs-bar{background:var(--cyan);height:90px}
+.go-step.second .gs-bar{background:rgba(0,212,255,.5);height:60px}
+.go-step.third .gs-bar{background:rgba(0,212,255,.3);height:40px}
+.go-all-scores{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:16px}
+.go-all-scores td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
+.go-all-scores tr:first-child td{color:var(--cyan);font-weight:700}
+.go-rank-cell{color:var(--text-dim);font-size:.65rem;width:28px}
+.go-score-cell{color:var(--cyan);font-weight:700;text-align:right}
+
+/* ── Toast ───────────────────────────────────────────── */
+#geo-toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:200;
+  padding:9px 20px;background:var(--bg-panel);border:1px solid var(--border-hi);
+  border-radius:var(--radius-lg);font-family:var(--font-mono);font-size:.76rem;
+  opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#geo-toast.show{opacity:1}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="geo-root">
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: USERNAME
+═══════════════════════════════════════════════════════ -->
+<div id="view-username" class="geo-view active">
+  <div class="geo-card">
+    <div class="geo-eyebrow">◈ LAN GeoGuesser</div>
+    <h1>GeoGuesser</h1>
+    <h2>Explore the world from your LAN</h2>
+    {% if not google_maps_key %}
+    <div class="no-key-warn">
+      ⚠ <strong>Google Maps API key not configured.</strong><br>
+      The panorama viewer won't work without it. Get a free key at
+      <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>
+      (enable "Maps Embed API"), then add it to <code>configvars.json</code>
+      under <code>geoguesser → GOOGLE_MAPS_EMBED_KEY</code>.
+    </div>
+    {% endif %}
+    <div class="geo-field">
+      <label class="geo-label">Your Username</label>
+      <input id="username-inp" class="geo-input" type="text" maxlength="24"
+             placeholder="Enter a name…" autocomplete="off"
+             onkeydown="if(event.key==='Enter')submitUsername()"/>
+    </div>
+    <div class="geo-err" id="username-err"></div>
+    <div class="geo-btn-row">
+      <button class="geo-btn primary" onclick="submitUsername()">Continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: MODE SELECT
+═══════════════════════════════════════════════════════ -->
+<div id="view-mode" class="geo-view">
+  <div style="text-align:center;margin-bottom:24px">
+    <div class="geo-eyebrow">Playing as <span id="mode-username-label" style="color:var(--cyan)"></span></div>
+    <h1 style="margin:0;font-size:2rem;letter-spacing:.06em">Choose Mode</h1>
+  </div>
+  <div class="mode-grid">
+    <div class="mode-card" onclick="startSinglePlayer()">
+      <div class="mc-icon">🧍</div>
+      <div class="mc-title">Single Player</div>
+      <div class="mc-desc">Explore at your own pace — no timer, no score pressure.</div>
+    </div>
+    <div class="mode-card" onclick="startMultiplayer()">
+      <div class="mc-icon">👥</div>
+      <div class="mc-title">Multiplayer</div>
+      <div class="mc-desc">Race against everyone on the LAN. Points, rounds, a leaderboard.</div>
+    </div>
+  </div>
+  <div style="margin-top:20px">
+    <button class="geo-btn ghost" onclick="showView('view-username')">← Change Name</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: REGION DRAW
+═══════════════════════════════════════════════════════ -->
+<div id="view-region" class="geo-view">
+  <div id="region-map-container">
+    <div id="region-map"></div>
+    <div class="region-toolbar">
+      <span class="rtt">Draw a region</span>
+      <button class="geo-btn primary" style="padding:6px 14px;font-size:.68rem" onclick="selectWorldRegion()">🌍 Whole World</button>
+      <button class="geo-btn ghost"   style="padding:6px 14px;font-size:.68rem" onclick="clearRegion()">✕ Clear</button>
+      <button class="geo-btn primary" style="padding:6px 14px;font-size:.68rem" id="confirm-region-btn" disabled onclick="confirmRegion()">✓ Confirm</button>
+      <button class="geo-btn ghost"   style="padding:6px 14px;font-size:.68rem" onclick="cancelRegion()">Cancel</button>
+    </div>
+    <div id="region-status">
+      <span id="region-hint" style="color:var(--text-dim)">Click and drag to draw a region on the map</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: SP LOADING
+═══════════════════════════════════════════════════════ -->
+<div id="view-sp-loading" class="geo-view">
+  <div class="loading-spinner"></div>
+  <div class="loading-msg" id="sp-loading-msg">Finding a location…</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: SP GAME (just a placeholder — pano is in #sv-wrap)
+═══════════════════════════════════════════════════════ -->
+<div id="view-sp-game" class="geo-view" style="padding:0;min-height:0"></div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: SP RESULT
+═══════════════════════════════════════════════════════ -->
+<div id="view-sp-result" class="geo-view" style="padding:0;min-height:0">
+  <div id="sp-result-shell">
+    <div id="sp-result-map"></div>
+    <div id="sp-result-panel">
+      <div class="re-title">📍 Your Guess</div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px">
+        <div>
+          <div class="re-title" style="margin-bottom:2px">Distance</div>
+          <div id="sp-dist-val" style="font-size:1.6rem;font-weight:900;color:var(--cyan)">—</div>
+        </div>
+        <div>
+          <div class="re-title" style="margin-bottom:2px">Score</div>
+          <div id="sp-score-val" style="font-size:1.6rem;font-weight:900;color:#ffd700">—</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="geo-btn primary" onclick="spNextLocation()">Next Location →</button>
+        <button class="geo-btn ghost"   onclick="spChangeRegion()">Change Region</button>
+        <button class="geo-btn ghost"   onclick="spBackToMenu()">Main Menu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: MP LOBBY
+═══════════════════════════════════════════════════════ -->
+<div id="view-lobby" class="geo-view">
+  <div class="geo-card wide">
+    <div class="geo-eyebrow">Multiplayer</div>
+    <h1 style="margin-bottom:4px">GeoGuesser</h1>
+    <h2>Playing as <span id="lobby-username-label" style="color:var(--cyan)"></span></h2>
+
+    <div class="l-tabs">
+      <button class="l-tab active" onclick="switchLobbyTab('create',this)">＋ Create Room</button>
+      <button class="l-tab"        onclick="switchLobbyTab('find',this)">🔍 Find Room</button>
+    </div>
+
+    <div class="l-pane active" id="lpane-create">
+      <div class="geo-field">
+        <label class="geo-label">Room Title</label>
+        <input id="room-title-inp" class="geo-input" type="text" maxlength="40"
+               placeholder="My GeoGuesser Room" autocomplete="off"/>
+      </div>
+      <div class="geo-field">
+        <label class="geo-label">Privacy</label>
+        <div class="privacy-toggle">
+          <button class="priv-btn active" data-v="public"  onclick="selectPrivacy(this)">🌐 Public</button>
+          <button class="priv-btn"        data-v="private" onclick="selectPrivacy(this)">🔒 Private</button>
+        </div>
+      </div>
+      <div class="geo-field">
+        <label class="geo-label">Rounds</label>
+        <div class="rounds-row">
+          <button class="rounds-btn"        data-v="1"  onclick="selectRounds(this)">1</button>
+          <button class="rounds-btn"        data-v="2"  onclick="selectRounds(this)">2</button>
+          <button class="rounds-btn"        data-v="3"  onclick="selectRounds(this)">3</button>
+          <button class="rounds-btn active" data-v="5"  onclick="selectRounds(this)">5</button>
+          <button class="rounds-btn"        data-v="7"  onclick="selectRounds(this)">7</button>
+          <button class="rounds-btn"        data-v="10" onclick="selectRounds(this)">10</button>
+        </div>
+      </div>
+      <div class="geo-field">
+        <label class="geo-label">Time Limit per Round</label>
+        <div class="time-row">
+          <button class="time-btn"        data-v="30"  onclick="selectTime(this)">30s</button>
+          <button class="time-btn"        data-v="60"  onclick="selectTime(this)">1 min</button>
+          <button class="time-btn active" data-v="90"  onclick="selectTime(this)">1:30</button>
+          <button class="time-btn"        data-v="120" onclick="selectTime(this)">2 min</button>
+          <button class="time-btn"        data-v="180" onclick="selectTime(this)">3 min</button>
+          <button class="time-btn"        data-v="300" onclick="selectTime(this)">5 min</button>
+        </div>
+      </div>
+      <div class="geo-field">
+        <label class="geo-label">Location Region</label>
+        <div id="create-region-display">
+          <button class="geo-btn ghost" style="width:100%;padding:10px" onclick="openRegionForRoom()">
+            🗺 Draw Region on Map…
+          </button>
+        </div>
+      </div>
+      <div class="geo-err" id="create-err"></div>
+      <div class="geo-btn-row">
+        <button class="geo-btn primary" onclick="createRoom()">Create Room</button>
+        <button class="geo-btn ghost" onclick="backToModeFromLobby()">← Back</button>
+      </div>
+    </div>
+
+    <div class="l-pane" id="lpane-find">
+      <input class="geo-input" id="room-search-inp" type="text"
+             placeholder="Search rooms…" oninput="filterRooms()" autocomplete="off"
+             style="margin-bottom:12px"/>
+      <div id="rooms-list">
+        <div class="no-rooms-msg" id="no-rooms-msg">No public rooms yet.</div>
+      </div>
+      <div style="margin-top:16px">
+        <button class="geo-btn ghost" onclick="backToModeFromLobby()">← Back</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: WAITING ROOM
+═══════════════════════════════════════════════════════ -->
+<div id="view-room" class="geo-view">
+  <div class="geo-card">
+    <div class="geo-eyebrow">Waiting Room</div>
+    <h1 id="room-title-label" style="margin-bottom:12px">Room</h1>
+    <div class="room-info-bar">
+      <div class="rib-item">Rounds: <span id="rib-rounds">—</span></div>
+      <div class="rib-item">Time: <span id="rib-time">—</span></div>
+      <div class="rib-item">Region: <span id="rib-region">—</span></div>
+      <div class="rib-item">Privacy: <span id="rib-privacy">—</span></div>
+    </div>
+    <div class="re-title">Players</div>
+    <div class="player-list" id="waiting-player-list"></div>
+    <div id="invite-panel">
+      <div class="invite-section-label">📨 Invite Players on this Server</div>
+      <div id="invite-candidate-list">
+        <div class="invite-empty-msg" id="invite-empty-msg">No other players on the route yet.</div>
+      </div>
+    </div>
+    <div class="geo-err" id="room-err"></div>
+    <div class="geo-btn-row">
+      <button class="geo-btn primary" id="start-game-btn" onclick="startGame()" style="display:none">▶ Start Game</button>
+      <button class="geo-btn ghost" onclick="leaveRoom()">← Leave Room</button>
+    </div>
+    <div id="waiting-hint" style="font-size:.65rem;color:var(--text-dim);margin-top:10px;
+      letter-spacing:.1em;text-align:center"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: MP LOADING
+═══════════════════════════════════════════════════════ -->
+<div id="view-mp-loading" class="geo-view">
+  <div class="loading-spinner"></div>
+  <div class="loading-msg" id="mp-loading-msg">Finding a location…</div>
+  <div style="margin-top:20px"><button class="geo-btn danger" onclick="leaveRoom()">Leave Room</button></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: MP GAME (placeholder — pano in #sv-wrap)
+═══════════════════════════════════════════════════════ -->
+<div id="view-game" class="geo-view" style="padding:0;min-height:0"></div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: ROUND END
+═══════════════════════════════════════════════════════ -->
+<div id="view-round-end" class="geo-view" style="padding:0;min-height:0">
+  <div id="round-end-shell">
+    <div id="round-end-map"></div>
+    <div id="round-end-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="re-title" style="margin:0" id="re-round-label">Round 1 Results</div>
+        <div class="re-countdown" id="re-countdown"></div>
+      </div>
+      <table class="results-table">
+        <thead><tr>
+          <th class="rt-rank">#</th><th>Player</th><th>Distance</th><th>Round</th><th>Total</th>
+        </tr></thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     VIEW: GAME OVER
+═══════════════════════════════════════════════════════ -->
+<div id="view-gameover" class="geo-view">
+  <div class="geo-card">
+    <div class="geo-eyebrow" style="text-align:center">Game Over</div>
+    <h1 style="text-align:center;margin-bottom:4px">🌍 Final Scores</h1>
+    <div class="go-podium" id="go-podium"></div>
+    <table class="go-all-scores"><tbody id="go-scores-tbody"></tbody></table>
+    <div class="geo-btn-row" style="justify-content:center;margin-top:24px">
+      <button class="geo-btn primary" id="go-restart-btn" onclick="restartGame()" style="display:none">▶ Play Again</button>
+      <button class="geo-btn ghost" onclick="leaveRoom()">← Leave Room</button>
+    </div>
+    <div id="go-waiting-msg" style="font-size:.65rem;color:var(--text-dim);text-align:center;
+      margin-top:8px;letter-spacing:.1em"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     GLOBAL OVERLAYS
+═══════════════════════════════════════════════════════ -->
+
+<!-- Street View iframe (replaces Three.js sphere) -->
+<div id="sv-wrap">
+  <iframe id="sv-iframe" src="about:blank" allowfullscreen
+          allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <!-- Covers Google's "View larger map" / address label in bottom-right -->
+  <div id="sv-cover"></div>
+</div>
+
+<!-- HUD (MP) -->
+<div id="game-hud">
+  <div id="hud-top">
+    <div>
+      <div id="hud-round-label">Round</div>
+      <div id="hud-round-val">1 / 5</div>
+    </div>
+    <div id="hud-timer">—</div>
+    <div><div id="hud-locked-label" style="text-align:right"></div></div>
+  </div>
+  <button id="hud-exit-btn" onclick="leaveRoom()">✕ Leave</button>
+</div>
+
+<!-- HUD (SP) -->
+<div id="sp-hud">
+  <div id="sp-hud-top">
+    <button id="sp-exit-btn" onclick="spExitGame()">✕ Exit</button>
+    <div id="sp-hud-label">Single Player · No Time Limit</div>
+  </div>
+</div>
+
+<!-- Guess map -->
+<div id="guess-map-wrap">
+  <div id="guess-map"></div>
+  <div id="guess-map-btns">
+    <button class="gmap-btn lock" id="lock-btn" disabled onclick="lockGuess()">Lock In Guess</button>
+  </div>
+</div>
+
+<!-- Invite banner -->
+<div id="invite-banner">
+  <div class="ib-from" id="ib-from-label"></div>
+  <div class="ib-room" id="ib-room-label"></div>
+  <div class="ib-btns">
+    <button class="ib-accept" onclick="acceptInvite()">✓ Join Room</button>
+    <button class="ib-decline" onclick="dismissInvite()">Dismiss</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="geo-toast"></div>
+
+</div><!-- /#geo-root -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+// ── Config from server ─────────────────────────────────
+const GEO_MAPS_KEY = {{ google_maps_key | tojson }};
+
+// ── Socket ─────────────────────────────────────────────
+const socket = io();
+socket.on('connect', () => {
+  socket.emit('page_open', {path: window.location.pathname});
+  if (myUsername) socket.emit('geo_set_username', {username: myUsername});
+});
+window.addEventListener('pagehide',     () => socket.emit('geo_leave_route'));
+window.addEventListener('beforeunload', () => socket.emit('geo_leave_route'));
+
+// ── State ──────────────────────────────────────────────
+let myUsername         = null;
+let currentMode        = null;
+let currentRoomId      = null;
+let currentRoomPrivacy = null;
+let amCreator          = false;
+let mySid              = null;
+let pendingInviteRoomId = null;
+
+// Region
+let regionPolygon    = [];
+let regionIsWorld    = true;
+let regionForRoom    = false;
+let regionMapInst    = null;
+let regionLayer      = null;
+let regionDrawing    = false;
+let regionDrawPoints = [];
+
+// SP
+let spCorrectLat = null;
+let spCorrectLng = null;
+
+// Guess map
+let guessMapInst = null;
+let guessMarker  = null;
+let currentGuess = null;
+let guessLocked  = false;
+
+// Result maps
+let resultMapInst = null;
+let reMapInst     = null;
+
+// MP
+let roundTimerInterval   = null;
+let roundAdvanceInterval = null;
+let allRooms             = [];
+
+// ── Utilities ──────────────────────────────────────────
+function showView(id) {
+  document.querySelectorAll('.geo-view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+function showSV(show) {
+  document.getElementById('sv-wrap').classList.toggle('active', show);
+}
+function showHud(show)   { document.getElementById('game-hud').classList.toggle('active', show); }
+function showSpHud(show) { document.getElementById('sp-hud').style.display = show ? 'block' : 'none'; }
+function showGuessMap(show) { document.getElementById('guess-map-wrap').classList.toggle('map-visible', show); }
+
+function loadSV(panoId) {
+  if (!GEO_MAPS_KEY) {
+    geoToast('⚠ No Google Maps API key configured — panorama unavailable', 8000);
+    return;
+  }
+  // heading=0: face north so the player has a random orientation
+  const src = `https://www.google.com/maps/embed/v1/streetview`
+    + `?key=${GEO_MAPS_KEY}&pano=${panoId}&heading=0&pitch=0&fov=90`;
+  document.getElementById('sv-iframe').src = src;
+}
+
+function clearSV() {
+  document.getElementById('sv-iframe').src = 'about:blank';
+}
+
+function geoToast(msg, ms=2500) {
+  const el = document.getElementById('geo-toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function fmtDist(km) {
+  if (km == null) return '—';
+  if (km < 1)    return Math.round(km * 1000) + ' m';
+  if (km < 10)   return km.toFixed(2) + ' km';
+  if (km < 1000) return km.toFixed(1) + ' km';
+  return (km / 1000).toFixed(2) + ' k km';
+}
+function fmtTime(s) {
+  const m = Math.floor(s / 60), ss = s % 60;
+  return m + ':' + String(ss).padStart(2,'0');
+}
+
+// ── Username ───────────────────────────────────────────
+function submitUsername() {
+  const val = document.getElementById('username-inp').value.trim();
+  if (!val) { document.getElementById('username-err').textContent = 'Enter a username.'; return; }
+  document.getElementById('username-err').textContent = '';
+  socket.emit('geo_set_username', {username: val});
+}
+
+socket.on('geo_username_ack', data => {
+  if (!data.ok) {
+    if (document.getElementById('view-username').classList.contains('active'))
+      document.getElementById('username-err').textContent = data.error;
+    return;
+  }
+  myUsername = data.username;
+  document.getElementById('mode-username-label').textContent  = myUsername;
+  document.getElementById('lobby-username-label').textContent = myUsername;
+  if (document.getElementById('view-username').classList.contains('active'))
+    showView('view-mode');
+});
+
+// ── Mode select ────────────────────────────────────────
+function startSinglePlayer() { currentMode = 'sp'; regionForRoom = false; openRegionDraw(); }
+function startMultiplayer()  { currentMode = 'mp'; socket.emit('geo_get_lobby'); showView('view-lobby'); }
+function backToModeFromLobby() { showView('view-mode'); }
+
+// ── Region draw ────────────────────────────────────────
+function openRegionDraw() {
+  showView('view-region');
+  setTimeout(() => {
+    if (!regionMapInst) {
+      regionMapInst = L.map('region-map', {center:[20,0], zoom:2, minZoom:1, worldCopyJump:false});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(regionMapInst);
+      _setupRegionDrawEvents();
+    }
+    regionMapInst.invalidateSize();
+    clearRegion();
+  }, 50);
+}
+
+function openRegionForRoom() { regionForRoom = true; openRegionDraw(); }
+
+function _setupRegionDrawEvents() {
+  const map = regionMapInst;
+  map.on('mousedown', e => {
+    if (e.originalEvent.button !== 0) return;
+    regionDrawing = true; regionDrawPoints = [[e.latlng.lat, e.latlng.lng]];
+    if (regionLayer) { map.removeLayer(regionLayer); regionLayer = null; }
+    map.dragging.disable();
+    document.getElementById('confirm-region-btn').disabled = true;
+  });
+  map.on('mousemove', e => {
+    if (!regionDrawing) return;
+    regionDrawPoints.push([e.latlng.lat, e.latlng.lng]);
+    if (regionLayer) map.removeLayer(regionLayer);
+    regionLayer = L.polygon(regionDrawPoints, {color:'rgba(0,212,255,0.9)',weight:2,fillColor:'rgba(0,212,255,0.1)',fillOpacity:1}).addTo(map);
+  });
+  map.on('mouseup', () => {
+    if (!regionDrawing) return;
+    regionDrawing = false; map.dragging.enable();
+    if (regionDrawPoints.length >= 3) {
+      if (regionLayer) map.removeLayer(regionLayer);
+      regionLayer = L.polygon(regionDrawPoints, {color:'rgba(0,212,255,0.9)',weight:2,fillColor:'rgba(0,212,255,0.12)',fillOpacity:1}).addTo(map);
+      regionPolygon = [...regionDrawPoints]; regionIsWorld = false;
+      document.getElementById('confirm-region-btn').disabled = false;
+      document.getElementById('region-hint').textContent = `Region drawn (${regionPolygon.length} pts) — Confirm or redraw`;
+    } else { clearRegion(); }
+  });
+  // Touch
+  map.on('touchstart', e => {
+    const t = e.originalEvent.touches[0], r = map.getContainer().getBoundingClientRect();
+    const ll = map.containerPointToLatLng([t.clientX-r.left, t.clientY-r.top]);
+    regionDrawing = true; regionDrawPoints = [[ll.lat, ll.lng]];
+    if (regionLayer) { map.removeLayer(regionLayer); regionLayer = null; }
+    map.dragging.disable();
+  });
+  map.on('touchmove', e => {
+    if (!regionDrawing) return;
+    const t = e.originalEvent.touches[0], r = map.getContainer().getBoundingClientRect();
+    const ll = map.containerPointToLatLng([t.clientX-r.left, t.clientY-r.top]);
+    regionDrawPoints.push([ll.lat, ll.lng]);
+    if (regionLayer) map.removeLayer(regionLayer);
+    regionLayer = L.polygon(regionDrawPoints, {color:'rgba(0,212,255,0.9)',weight:2,fillColor:'rgba(0,212,255,0.1)',fillOpacity:1}).addTo(map);
+    e.originalEvent.preventDefault();
+  });
+  map.on('touchend', () => {
+    if (!regionDrawing) return;
+    regionDrawing = false; map.dragging.enable();
+    if (regionDrawPoints.length >= 3) {
+      if (regionLayer) map.removeLayer(regionLayer);
+      regionLayer = L.polygon(regionDrawPoints, {color:'rgba(0,212,255,0.9)',weight:2,fillColor:'rgba(0,212,255,0.12)',fillOpacity:1}).addTo(map);
+      regionPolygon = [...regionDrawPoints]; regionIsWorld = false;
+      document.getElementById('confirm-region-btn').disabled = false;
+      document.getElementById('region-hint').textContent = 'Region drawn — Confirm or redraw';
+    } else { clearRegion(); }
+  });
+}
+
+function selectWorldRegion() {
+  regionIsWorld = true; regionPolygon = [];
+  if (regionLayer && regionMapInst) { regionMapInst.removeLayer(regionLayer); regionLayer = null; }
+  document.getElementById('confirm-region-btn').disabled = false;
+  document.getElementById('region-hint').textContent = '🌍 Entire world selected';
+}
+function clearRegion() {
+  regionIsWorld = true; regionPolygon = []; regionDrawPoints = [];
+  if (regionLayer && regionMapInst) { regionMapInst.removeLayer(regionLayer); regionLayer = null; }
+  document.getElementById('confirm-region-btn').disabled = true;
+  document.getElementById('region-hint').textContent = 'Click and drag to draw a region on the map';
+}
+function confirmRegion() {
+  if (regionForRoom) {
+    document.getElementById('create-region-display').innerHTML = `
+      <div class="region-chosen-display">
+        <span class="rcd-icon">${regionIsWorld?'🌍':'✏️'}</span>
+        <span class="rcd-text">${regionIsWorld?'Entire world':`Custom region (${regionPolygon.length} pts)`}</span>
+        <span class="rcd-change" onclick="openRegionForRoom()">Change</span>
+      </div>`;
+    showView('view-lobby');
+  } else {
+    showView('view-sp-loading');
+    socket.emit('geo_sp_get_panorama', {region: regionPolygon, region_is_world: regionIsWorld});
+  }
+}
+function cancelRegion() { regionForRoom ? showView('view-lobby') : showView('view-mode'); }
+
+// ── Single Player ──────────────────────────────────────
+socket.on('geo_sp_loading', data => {
+  document.getElementById('sp-loading-msg').textContent = data.message || 'Finding a location…';
+  showView('view-sp-loading');
+});
+
+socket.on('geo_sp_panorama', data => {
+  spCorrectLat = data.correct_lat;
+  spCorrectLng = data.correct_lng;
+  _startSpGame(data.pano_id);
+});
+
+socket.on('geo_sp_error', data => {
+  showView('view-mode');
+  geoToast('⚠ ' + (data.message || 'Error finding panorama'), 6000);
+});
+
+function _startSpGame(panoId) {
+  guessLocked = false; currentGuess = null;
+  if (guessMarker && guessMapInst) { guessMapInst.removeLayer(guessMarker); guessMarker = null; }
+
+  showView('view-sp-game');
+  showSV(true); showSpHud(true); showHud(false); showGuessMap(true);
+
+  loadSV(panoId);
+  initGuessMap();
+
+  const lockBtn = document.getElementById('lock-btn');
+  lockBtn.textContent = 'Confirm Guess';
+  lockBtn.disabled    = true;
+  lockBtn.className   = 'gmap-btn sp-confirm';
+  lockBtn.onclick     = spConfirmGuess;
+}
+
+function spConfirmGuess() {
+  if (!currentGuess || guessLocked) return;
+  guessLocked = true;
+  socket.emit('geo_sp_submit_guess', {
+    lat: currentGuess.lat, lng: currentGuess.lng,
+    correct_lat: spCorrectLat, correct_lng: spCorrectLng
+  });
+}
+
+socket.on('geo_sp_result', data => {
+  showSV(false); showSpHud(false); showGuessMap(false); clearSV();
+  document.getElementById('sp-dist-val').textContent  = fmtDist(data.distance_km);
+  document.getElementById('sp-score-val').textContent = data.score.toLocaleString() + ' pts';
+  showView('view-sp-result');
+  setTimeout(() => {
+    if (!resultMapInst) {
+      resultMapInst = L.map('sp-result-map', {center:[20,0],zoom:2});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(resultMapInst);
+    }
+    resultMapInst.eachLayer(l => { if (!(l instanceof L.TileLayer)) resultMapInst.removeLayer(l); });
+    resultMapInst.invalidateSize();
+    const cLat=data.correct_lat, cLng=data.correct_lng;
+    L.circleMarker([cLat,cLng],{radius:10,color:'#4caf50',fillColor:'#4caf50',fillOpacity:.9,weight:3}).bindPopup('📍 Correct').addTo(resultMapInst);
+    if (currentGuess) {
+      L.circleMarker([currentGuess.lat,currentGuess.lng],{radius:8,color:'#00d4ff',fillColor:'#00d4ff',fillOpacity:.85,weight:2}).bindPopup('Your Guess').addTo(resultMapInst);
+      L.polyline([[cLat,cLng],[currentGuess.lat,currentGuess.lng]],{color:'rgba(255,255,255,.25)',dashArray:'5,5',weight:1.5}).addTo(resultMapInst);
+      resultMapInst.fitBounds(L.latLngBounds([[cLat,cLng],[currentGuess.lat,currentGuess.lng]]).pad(0.25),{maxZoom:10});
+    } else { resultMapInst.setView([cLat,cLng],6); }
+  }, 80);
+});
+
+function spNextLocation() {
+  showView('view-sp-loading'); guessLocked = false; currentGuess = null;
+  socket.emit('geo_sp_get_panorama', {region:regionPolygon, region_is_world:regionIsWorld});
+}
+function spChangeRegion() { regionForRoom = false; openRegionDraw(); }
+function spBackToMenu()   { showSV(false); showSpHud(false); showGuessMap(false); clearSV(); showView('view-mode'); }
+function spExitGame()     { showSV(false); showSpHud(false); showGuessMap(false); clearSV(); showView('view-mode'); }
+
+// ── Lobby ──────────────────────────────────────────────
+let selectedPrivacy='public', selectedRounds=5, selectedTime=90;
+
+function switchLobbyTab(tab, btn) {
+  document.querySelectorAll('.l-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.l-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('lpane-'+tab).classList.add('active');
+}
+function selectPrivacy(btn) {
+  document.querySelectorAll('.priv-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); selectedPrivacy = btn.dataset.v;
+}
+function selectRounds(btn) {
+  document.querySelectorAll('.rounds-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); selectedRounds = parseInt(btn.dataset.v);
+}
+function selectTime(btn) {
+  document.querySelectorAll('.time-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); selectedTime = parseInt(btn.dataset.v);
+}
+function createRoom() {
+  document.getElementById('create-err').textContent = '';
+  socket.emit('geo_create_room', {
+    title:           document.getElementById('room-title-inp').value.trim() || 'My Room',
+    privacy:         selectedPrivacy,
+    rounds:          selectedRounds,
+    time_limit:      selectedTime,
+    region:          regionPolygon,
+    region_is_world: regionIsWorld
+  });
+}
+socket.on('geo_error', data => {
+  geoToast('⚠ ' + data.message, 4000);
+  const e = document.getElementById('create-err'); if (e) e.textContent = data.message;
+  const r = document.getElementById('room-err');   if (r) r.textContent = data.message;
+});
+socket.on('geo_room_created', data => { currentRoomId=data.room_id; amCreator=true; showView('view-room'); });
+socket.on('geo_joined_room',  data => { currentRoomId=data.room_id; showView('view-room'); });
+socket.on('geo_lobby', data => {
+  mySid=data.my_sid; allRooms=data.rooms||[]; renderRoomList(allRooms);
+});
+function filterRooms() {
+  const q=document.getElementById('room-search-inp').value.toLowerCase();
+  renderRoomList(allRooms.filter(r=>r.title.toLowerCase().includes(q)||r.id.includes(q)));
+}
+function renderRoomList(rooms) {
+  const list=document.getElementById('rooms-list'), empty=document.getElementById('no-rooms-msg');
+  list.querySelectorAll('.room-row').forEach(r=>r.remove());
+  if (!rooms.length) { empty.style.display='block'; return; }
+  empty.style.display='none';
+  rooms.forEach(r => {
+    const row=document.createElement('div'); row.className='room-row';
+    row.innerHTML=`<div style="flex:1"><div class="rr-title">${r.title}</div>
+      <div class="rr-meta">${r.players} player${r.players!==1?'s':''} · ${r.rounds} rounds · ${fmtTime(r.time)} limit</div></div>
+      <span class="rr-badge">Join</span>`;
+    row.onclick=()=>socket.emit('geo_join_room',{room_id:r.id});
+    list.appendChild(row);
+  });
+}
+
+// ── Waiting Room ───────────────────────────────────────
+socket.on('geo_room_state', data => {
+  currentRoomId=data.id; currentRoomPrivacy=data.privacy;
+  document.getElementById('room-title-label').textContent=data.title;
+  document.getElementById('rib-rounds').textContent=data.rounds_total;
+  document.getElementById('rib-time').textContent=fmtTime(data.time_limit);
+  document.getElementById('rib-region').textContent=data.region_is_world?'🌍 World':'✏️ Custom';
+  document.getElementById('rib-privacy').textContent=data.privacy==='private'?'🔒 Private':'🌐 Public';
+
+  const list=document.getElementById('waiting-player-list');
+  list.innerHTML='';
+  data.players.forEach(p=>{
+    const isMe=p.sid===mySid, isCreator=p.sid===data.creator_sid;
+    const row=document.createElement('div');
+    row.className='player-row'+(isMe?' me':'');
+    row.innerHTML=`<div class="pr-avatar">${p.username[0].toUpperCase()}</div>
+      <div class="pr-name">${p.username}${isMe?' <span style="color:var(--cyan);font-size:.62rem">(you)</span>':''}</div>
+      ${isCreator?'<span class="pr-crown" title="Creator">👑</span>':''}`;
+    list.appendChild(row);
+  });
+
+  amCreator = data.creator_sid===mySid;
+  document.getElementById('start-game-btn').style.display=amCreator?'inline-block':'none';
+  document.getElementById('waiting-hint').textContent=
+    amCreator?'Start whenever you\'re ready.':'Waiting for the room creator to start the game…';
+
+  const ip=document.getElementById('invite-panel');
+  if (amCreator && data.privacy==='private' && data.status==='waiting')
+    ip.classList.add('visible');
+  else ip.classList.remove('visible');
+});
+socket.on('geo_you_are_creator', ()=>{
+  amCreator=true;
+  document.getElementById('start-game-btn').style.display='inline-block';
+  document.getElementById('waiting-hint').textContent='You are now the room creator.';
+  if (currentRoomPrivacy==='private') document.getElementById('invite-panel').classList.add('visible');
+});
+socket.on('geo_player_joined', data=>geoToast(`${data.username} joined`));
+
+// ── Invite candidates ──────────────────────────────────
+socket.on('geo_invite_candidates', data=>{
+  const list=document.getElementById('invite-candidate-list');
+  const emptyMsg=document.getElementById('invite-empty-msg');
+  list.querySelectorAll('.invite-candidate-row').forEach(r=>r.remove());
+  const users=data.users||[];
+  if (!users.length) { emptyMsg.style.display='block'; return; }
+  emptyMsg.style.display='none';
+  users.forEach(username=>{
+    const row=document.createElement('div'); row.className='invite-candidate-row';
+    row.innerHTML=`<div class="icr-name">${username}</div>
+      <button class="icr-invite-btn" onclick="sendInvite('${username}',this)">Invite</button>`;
+    list.appendChild(row);
+  });
+});
+function sendInvite(username, btn) {
+  btn.disabled=true; btn.textContent='Sent ✓';
+  socket.emit('geo_invite_user',{username});
+}
+socket.on('geo_invited', data=>{
+  pendingInviteRoomId=data.room_id;
+  document.getElementById('ib-from-label').textContent=`📨 Invite from ${data.from_username}`;
+  document.getElementById('ib-room-label').textContent=`Join "${data.room_title}"?`;
+  document.getElementById('invite-banner').classList.add('visible');
+  clearTimeout(window._inviteDismissTimer);
+  window._inviteDismissTimer=setTimeout(dismissInvite,30000);
+});
+function acceptInvite()  { if(pendingInviteRoomId) socket.emit('geo_join_room_by_invite',{room_id:pendingInviteRoomId}); dismissInvite(); }
+function dismissInvite() { pendingInviteRoomId=null; document.getElementById('invite-banner').classList.remove('visible'); clearTimeout(window._inviteDismissTimer); }
+
+function startGame() { socket.emit('geo_start_game'); }
+function leaveRoom() {
+  _cleanupGameState();
+  socket.emit('geo_leave_room');
+  socket.emit('geo_get_lobby');
+  showView('view-lobby');
+}
+
+// ── MP Loading ─────────────────────────────────────────
+socket.on('geo_loading', data=>{
+  document.getElementById('mp-loading-msg').textContent=data.message||'Finding a location…';
+  showSV(false); showHud(false); showGuessMap(false); _cleanupRoundTimer();
+  showView('view-mp-loading');
+});
+socket.on('geo_fetch_error', data=>{
+  geoToast('⚠ '+(data.message||'Could not fetch panorama'),6000);
+  socket.emit('geo_get_lobby');
+  showView('view-room');
+});
+
+// ── MP Game ────────────────────────────────────────────
+socket.on('geo_round_start', data=>{
+  guessLocked=false; currentGuess=null;
+  if (guessMarker&&guessMapInst) { guessMapInst.removeLayer(guessMarker); guessMarker=null; }
+
+  document.getElementById('hud-round-val').textContent=`${data.round} / ${data.total_rounds}`;
+  document.getElementById('hud-round-label').textContent='Round';
+  document.getElementById('hud-locked-label').textContent='';
+
+  showView('view-game');
+  showSV(true); showHud(true); showSpHud(false); showGuessMap(true);
+
+  const lockBtn=document.getElementById('lock-btn');
+  lockBtn.textContent='Lock In Guess'; lockBtn.disabled=true;
+  lockBtn.className='gmap-btn lock'; lockBtn.onclick=lockGuess;
+  lockBtn.classList.remove('locked-in');
+
+  loadSV(data.pano_id);
+  initGuessMap();
+  _startRoundTimer(data.round_secs);
+});
+
+socket.on('geo_guess_locked', data=>{
+  document.getElementById('hud-locked-label').textContent=`${data.locked_count}/${data.total} locked in`;
+  geoToast(`${data.username} locked in`);
+});
+
+function _startRoundTimer(totalSecs) {
+  _cleanupRoundTimer();
+  let remaining=totalSecs;
+  const timerEl=document.getElementById('hud-timer');
+  const _upd=()=>{ timerEl.textContent=fmtTime(remaining); timerEl.classList.toggle('urgent',remaining<=10); if(remaining<=0)_cleanupRoundTimer(); };
+  _upd();
+  roundTimerInterval=setInterval(()=>{remaining--;_upd();},1000);
+}
+function _cleanupRoundTimer() { if(roundTimerInterval){clearInterval(roundTimerInterval);roundTimerInterval=null;} }
+
+function lockGuess() {
+  if (!currentGuess||guessLocked) return;
+  guessLocked=true;
+  const lb=document.getElementById('lock-btn'); lb.textContent='✓ Locked In'; lb.classList.add('locked-in');
+  socket.emit('geo_submit_guess',{lat:currentGuess.lat,lng:currentGuess.lng,locked:true});
+}
+
+// ── Round End ──────────────────────────────────────────
+socket.on('geo_round_end', data=>{
+  _cleanupRoundTimer();
+  showSV(false); showHud(false); showGuessMap(false); clearSV();
+
+  document.getElementById('re-round-label').textContent=`Round ${data.round} Results`;
+  _renderResultsTable(data.results);
+  showView('view-round-end');
+
+  let secs=data.advance_secs||9;
+  const cdEl=document.getElementById('re-countdown');
+  const _upd=()=>{cdEl.textContent=`Next in ${secs}s…`;};
+  _upd();
+  roundAdvanceInterval=setInterval(()=>{secs--;_upd();if(secs<=0)clearInterval(roundAdvanceInterval);},1000);
+
+  setTimeout(()=>{
+    if (!reMapInst) {
+      reMapInst=L.map('round-end-map',{center:[20,0],zoom:2});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(reMapInst);
+    }
+    reMapInst.eachLayer(l=>{if(!(l instanceof L.TileLayer))reMapInst.removeLayer(l);});
+    reMapInst.invalidateSize();
+    const cLat=data.correct_lat, cLng=data.correct_lng;
+    const allPts=[[cLat,cLng]];
+    L.circleMarker([cLat,cLng],{radius:12,color:'#4caf50',fillColor:'#4caf50',fillOpacity:.9,weight:3}).bindPopup('📍 Correct').addTo(reMapInst);
+    data.results.forEach((r,i)=>{
+      if (!r.guessed||r.guess_lat==null) return;
+      const colors=['#00d4ff','#a78bfa','#ffd700','#ff6b6b','#6bffb8'];
+      const col=colors[i%colors.length];
+      L.circleMarker([r.guess_lat,r.guess_lng],{radius:7,color:col,fillColor:col,fillOpacity:.85,weight:2}).bindPopup(`${r.username}: ${fmtDist(r.distance_km)}`).addTo(reMapInst);
+      L.polyline([[cLat,cLng],[r.guess_lat,r.guess_lng]],{color:col,opacity:.35,weight:1.5,dashArray:'4,4'}).addTo(reMapInst);
+      allPts.push([r.guess_lat,r.guess_lng]);
+    });
+    if (allPts.length>1) reMapInst.fitBounds(L.latLngBounds(allPts).pad(0.2),{maxZoom:10});
+    else reMapInst.setView([cLat,cLng],6);
+  },80);
+});
+
+function _renderResultsTable(results) {
+  const tbody=document.getElementById('results-tbody'); tbody.innerHTML='';
+  results.forEach((r,i)=>{
+    const tr=document.createElement('tr'), isMe=r.sid===mySid;
+    tr.innerHTML=`<td class="rt-rank">${i+1}</td>
+      <td style="${isMe?'color:var(--cyan);font-weight:700':''}">${r.username}${isMe?' <span style="font-size:.6rem;opacity:.6">(you)</span>':''}</td>
+      <td class="${r.guessed?'rt-dist':'rt-no-guess'}">${r.guessed?fmtDist(r.distance_km):'No guess'}</td>
+      <td class="rt-score">+${r.round_score.toLocaleString()}</td>
+      <td class="rt-total">${r.total_score.toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Game Over ──────────────────────────────────────────
+socket.on('geo_game_over', data=>{
+  if (roundAdvanceInterval) { clearInterval(roundAdvanceInterval); roundAdvanceInterval=null; }
+  showSV(false); showHud(false); showGuessMap(false); clearSV();
+
+  const podium=document.getElementById('go-podium'); podium.innerHTML='';
+  [1,0,2].forEach(idx=>{
+    if (!data.scores[idx]) return;
+    const s=data.scores[idx], isMe=s.sid===mySid;
+    const labels=['🥇','🥈','🥉'], classes=['second','first','third'];
+    const step=document.createElement('div'); step.className='go-step '+(classes[idx]||'');
+    step.innerHTML=`<div style="font-size:1.4rem">${labels[idx]||''}</div>
+      <div class="gs-name" style="${isMe?'color:var(--cyan)':''}">${s.username}</div>
+      <div class="gs-score">${s.total_score.toLocaleString()} pts</div><div class="gs-bar"></div>`;
+    podium.appendChild(step);
+  });
+
+  const tbody=document.getElementById('go-scores-tbody'); tbody.innerHTML='';
+  data.scores.forEach((s,i)=>{
+    const tr=document.createElement('tr'), isMe=s.sid===mySid;
+    tr.innerHTML=`<td class="go-rank-cell">${i+1}</td>
+      <td style="${isMe?'color:var(--cyan);font-weight:700':''}">${s.username}${isMe?' <span style="font-size:.6rem;opacity:.6">(you)</span>':''}</td>
+      <td class="go-score-cell">${s.total_score.toLocaleString()} pts</td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('go-restart-btn').style.display=amCreator?'inline-block':'none';
+  document.getElementById('go-waiting-msg').textContent=amCreator?'':'Waiting for the room creator…';
+  showView('view-gameover');
+});
+
+socket.on('geo_room_restarted',()=>{ socket.emit('geo_get_lobby'); showView('view-room'); });
+function restartGame() { socket.emit('geo_restart_room'); }
+
+function _cleanupGameState() {
+  _cleanupRoundTimer();
+  if (roundAdvanceInterval) { clearInterval(roundAdvanceInterval); roundAdvanceInterval=null; }
+  showSV(false); showHud(false); showSpHud(false); showGuessMap(false); clearSV();
+  currentRoomId=null; currentRoomPrivacy=null; amCreator=false; guessLocked=false; currentGuess=null;
+  document.getElementById('invite-panel').classList.remove('visible');
+}
+
+// ── Guess Map ──────────────────────────────────────────
+function initGuessMap() {
+  if (guessMapInst) { guessMapInst.invalidateSize(); return; }
+  guessMapInst=L.map('guess-map',{center:[20,0],zoom:1,minZoom:1,maxZoom:18,zoomControl:false,attributionControl:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(guessMapInst);
+  L.control.zoom({position:'topright'}).addTo(guessMapInst);
+  guessMapInst.on('click',e=>{
+    if (guessLocked) return;
+    currentGuess={lat:e.latlng.lat,lng:e.latlng.lng};
+    if (guessMarker) guessMapInst.removeLayer(guessMarker);
+    guessMarker=L.circleMarker([e.latlng.lat,e.latlng.lng],{radius:7,color:'#00d4ff',fillColor:'#00d4ff',fillOpacity:.85,weight:2}).addTo(guessMapInst);
+    document.getElementById('lock-btn').disabled=false;
+  });
+  const wrap=document.getElementById('guess-map-wrap');
+  let t;
+  wrap.addEventListener('mouseenter',()=>{clearTimeout(t);wrap.classList.add('expanded');guessMapInst.invalidateSize();});
+  wrap.addEventListener('mouseleave',()=>{t=setTimeout(()=>{wrap.classList.remove('expanded');guessMapInst.invalidateSize();},400);});
+}
+</script>
+{% endblock %}

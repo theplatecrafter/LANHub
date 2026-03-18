@@ -33,6 +33,8 @@ from blueprints.uno import uno_bp
 from blueprints.server_config import server_config_bp
 from blueprints.slither import slither_bp
 from blueprints.scribble import scribble_bp
+from blueprints.geoguesser import geoguesser_bp
+
 
 
 
@@ -47,6 +49,7 @@ import socket_events.tetris_events
 import socket_events.uno_events
 import socket_events.slither_events
 import socket_events.scribble_events
+import socket_events.geoguesser_events
 
 
 
@@ -68,6 +71,7 @@ app.register_blueprint(uno_bp)
 app.register_blueprint(server_config_bp)
 app.register_blueprint(slither_bp)
 app.register_blueprint(scribble_bp)
+app.register_blueprint(geoguesser_bp)
 
 
 ###########################################

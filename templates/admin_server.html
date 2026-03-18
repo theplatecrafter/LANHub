@@ -101,9 +101,10 @@
     </div>
     <div class="ctrl-card-body">
       <div class="warn-box">
-        ⚠ This runs <code>git pull</code> and automatically merges any new or removed
+        ⚠ This runs <code>git pull</code>, automatically merges any new or removed
         variables from <code>configvars.example.json</code> into your
-        <code>configvars.json</code> (admin credentials are never touched).
+        <code>configvars.json</code> (admin credentials are never touched),
+        and installs any updated dependencies via <code>pip install -r dependencies.txt</code>.
         After pulling, restart the service to apply changes.
       </div>
       <div class="btn-row">
@@ -125,6 +126,8 @@
     <div class="ctrl-card-body">
       <div class="warn-box">
         ⚠ This will briefly take LANHub offline. All connected users will be disconnected.
+        Dependencies will be updated automatically via <code>pip install -r dependencies.txt</code>
+        before the service restarts.
       </div>
       <div class="btn-row">
         <button class="ctrl-btn danger" id="update-restart-btn" onclick="doUpdateRestart()">

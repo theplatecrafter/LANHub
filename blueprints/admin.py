@@ -7,6 +7,7 @@ from functools import wraps
 import subprocess, os, time
 import functions as f
 from glob_vars import app_log, error_log, access_log, BASE_DIR
+import sys
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -213,6 +214,27 @@ def server_update():
             except Exception as ce:
                 config_note = f"\n\n[configvars.json] Merge error: {ce}"
                 error_log.error(f"[admin] config merge failed: {ce}")
+        
+        # ── pip install after a successful pull ──────────────────────────────
+        pip_note = ""
+        if result.returncode == 0:
+            try:
+                pip_result = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "-r", "dependencies.txt"],
+                    cwd=BASE_DIR,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
+                app_log.info(f"[admin] pip install -r dependencies.txt exit={pip_result.returncode}")
+                if pip_result.returncode == 0:
+                    pip_note = "\n\n[pip] " + (pip_result.stdout.strip().splitlines()[-1]
+                                               if pip_result.stdout.strip() else "Dependencies up to date.")
+                else:
+                    pip_note = "\n\n[pip] ERROR:\n" + pip_result.stderr.strip()
+            except Exception as pe:
+                pip_note = f"\n\n[pip] Install failed: {pe}"
+                error_log.error(f"[admin] pip install failed: {pe}")
 
         return jsonify({
             "ok":     result.returncode == 0,
