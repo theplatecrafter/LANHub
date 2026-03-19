@@ -974,6 +974,223 @@ nav.topbar, .status-bar { display: none !important; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:rgba(26,144,208,.2); border-radius:2px; }
 ::-webkit-scrollbar-thumb:hover { background:rgba(26,144,208,.45); }
+
+ 
+/* ── Region mode toolbar ─────────────────────────────────── */
+.region-toolbar {
+  /* override: wider, left-aligned, wraps gracefully */
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  max-width: 740px;
+  width: calc(100% - 32px);
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 16px;
+  align-items: center;
+}
+ 
+.rt-mode-select {
+  appearance: none;
+  background: rgba(0,0,0,.55);
+  border: 1px solid rgba(26,144,208,.45);
+  border-radius: 20px;
+  color: rgba(200,232,255,.9);
+  font-family: var(--f-data);
+  font-size: .62rem;
+  letter-spacing: .08em;
+  padding: 6px 28px 6px 12px;
+  outline: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='rgba(26,144,208,.7)' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color .15s;
+  flex-shrink: 0;
+}
+.rt-mode-select:hover { border-color: rgba(26,144,208,.75); }
+.rt-mode-select option { background: #030c1a; }
+ 
+.rt-ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+ 
+.rt-btn-sm {
+  padding: 6px 12px !important;
+  font-size: .6rem !important;
+  border-radius: 20px !important;
+  white-space: nowrap;
+}
+ 
+/* Preset search ───────────────────────────────────────────── */
+.rt-preset-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+ 
+.rt-preset-inp {
+  width: 200px;
+  padding: 6px 12px;
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(26,144,208,.35);
+  border-radius: 20px;
+  color: rgba(200,232,255,.9);
+  font-family: var(--f-data);
+  font-size: .62rem;
+  outline: none;
+  transition: border-color .15s, width .2s;
+}
+.rt-preset-inp:focus { border-color: var(--c-ocean); width: 240px; }
+.rt-preset-inp::placeholder { color: rgba(150,200,240,.3); }
+ 
+.rt-preset-count {
+  font-family: var(--f-data);
+  font-size: .58rem;
+  letter-spacing: .1em;
+  color: rgba(29,184,122,.8);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+ 
+.rt-preset-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 320px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: rgba(3,12,28,.98);
+  border: 1px solid rgba(26,144,208,.3);
+  border-radius: 12px;
+  z-index: 600;
+  display: none;
+  box-shadow: 0 12px 40px rgba(0,0,0,.7);
+  scrollbar-width: thin;
+}
+.rt-preset-dropdown.open { display: block; }
+.rt-preset-dd-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(26,144,208,.08);
+  transition: background .12s;
+}
+.rt-preset-dd-item:last-child { border-bottom: none; }
+.rt-preset-dd-item:hover { background: rgba(26,144,208,.08); }
+.rt-preset-dd-item.selected { background: rgba(29,184,122,.08); border-left: 2px solid var(--c-land); }
+.rt-pd-info { flex: 1; min-width: 0; }
+.rt-pd-title { font-family: var(--f-ui); font-size: .82rem; color: rgba(200,232,255,.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rt-pd-meta  { font-family: var(--f-data); font-size: .58rem; color: rgba(150,200,240,.45); margin-top: 2px; }
+.rt-pd-check { font-size: .8rem; color: var(--c-land); flex-shrink: 0; }
+.rt-preset-empty { font-family: var(--f-data); font-size: .65rem; color: rgba(150,200,240,.35); padding: 16px 14px; text-align: center; }
+ 
+/* Preset upload modal ─────────────────────────────────────── */
+#preset-upload-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  background: rgba(1,8,16,.88);
+  backdrop-filter: blur(8px);
+  align-items: center;
+  justify-content: center;
+}
+#preset-upload-modal.open { display: flex; }
+#preset-upload-box {
+  background: var(--c-panel);
+  border: 1px solid rgba(26,144,208,.4);
+  border-radius: 14px;
+  padding: 28px 32px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.7);
+  animation: card-rise .3s cubic-bezier(.22,1,.36,1) both;
+}
+.pum-title {
+  font-family: var(--f-data);
+  font-size: .58rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: rgba(26,144,208,.6);
+  margin-bottom: 18px;
+}
+#preset-title-inp {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  background: rgba(0,0,0,.45);
+  border: 1px solid rgba(26,144,208,.25);
+  border-radius: 8px;
+  color: rgba(200,232,255,.9);
+  font-family: var(--f-data);
+  font-size: .8rem;
+  outline: none;
+  transition: border-color .15s;
+  margin-bottom: 8px;
+}
+#preset-title-inp:focus { border-color: var(--c-ocean); }
+#preset-title-inp::placeholder { color: rgba(150,200,240,.3); }
+#preset-upload-err {
+  font-family: var(--f-data);
+  font-size: .7rem;
+  color: var(--c-red);
+  min-height: 18px;
+  margin-bottom: 14px;
+}
+.pum-btns { display: flex; gap: 8px; }
+.pum-btns button { flex: 1; padding: 9px; border: none; border-radius: 8px; font-family: var(--f-data); font-size: .7rem; font-weight: 700; letter-spacing: .08em; cursor: pointer; transition: all .15s; }
+#pum-create-btn  { background: var(--c-ocean); color: #010a14; }
+#pum-create-btn:hover  { box-shadow: 0 0 18px rgba(26,144,208,.4); }
+#pum-create-btn:disabled { opacity: .4; cursor: not-allowed; }
+#pum-cancel-btn  { background: transparent; border: 1px solid rgba(26,144,208,.25); color: rgba(150,200,240,.6); }
+#pum-cancel-btn:hover { border-color: var(--c-red); color: var(--c-red); }
+ 
+/* Region label in game HUD ────────────────────────────────── */
+#hud-region-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(0,0,0,.55), transparent);
+}
+#hud-region-val {
+  font-family: var(--f-data);
+  font-size: .58rem;
+  letter-spacing: .12em;
+  color: rgba(150,200,240,.5);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60vw;
+}
+
+#hud-region-pill { display: none; }
+
+#hud-region-label {
+  font-family: var(--f-data);
+  font-size: .5rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: rgba(26,144,208,.5);
+}
+ 
+/* Scrollbar in dropdown */
+.rt-preset-dropdown::-webkit-scrollbar { width: 4px; }
+.rt-preset-dropdown::-webkit-scrollbar-track { background: transparent; }
+.rt-preset-dropdown::-webkit-scrollbar-thumb { background: rgba(26,144,208,.25); border-radius: 2px; }
+
+
 </style>
 {% endblock %}
 
@@ -1071,16 +1288,45 @@ nav.topbar, .status-bar { display: none !important; }
 <div id="view-region" class="geo-view">
   <div id="region-map-container">
     <div id="region-map"></div>
-    <div class="region-toolbar">
-      <span class="rtt">🌐 Draw your region</span>
-      <button class="geo-btn primary" style="padding:6px 16px;font-size:.63rem" onclick="selectWorldRegion()">🌍 Whole World</button>
-      <button class="geo-btn ghost"   style="padding:6px 14px;font-size:.63rem" onclick="clearRegion()">✕ Clear</button>
-      <button class="geo-btn primary" style="padding:6px 16px;font-size:.63rem" id="confirm-region-btn" disabled onclick="confirmRegion()">✓ Confirm</button>
-      <button class="geo-btn ghost"   style="padding:6px 14px;font-size:.63rem" onclick="cancelRegion()">Cancel</button>
+    <div class="region-toolbar" id="region-toolbar">
+      <!-- Mode selector -->
+      <select id="rt-mode-select" class="rt-mode-select" onchange="onRegionModeChange()">
+        <option value="world">🌍 Entire World</option>
+        <option value="custom">✏️ Custom Region</option>
+        <option value="preset">📌 Preset</option>
+      </select>
+    
+      <!-- Custom region controls -->
+      <div id="rt-custom-controls" class="rt-ctrl-group" style="display:none">
+        <span id="rt-custom-count" style="font-family:var(--f-data);font-size:.58rem;color:rgba(26,144,208,.6);white-space:nowrap"></span>
+        <button class="geo-btn ghost rt-btn-sm" onclick="clearCustomRegion()">✕ Clear</button>
+        <button class="geo-btn ghost rt-btn-sm" id="rt-upload-btn" disabled
+                onclick="openPresetUploadModal()" title="Save this region as a reusable preset">
+          ↑ Upload as Preset
+        </button>
+      </div>
+    
+      <!-- Preset controls -->
+      <div id="rt-preset-controls" class="rt-ctrl-group rt-preset-wrap" style="display:none">
+        <input id="rt-preset-inp" class="rt-preset-inp" type="text"
+              placeholder="Search presets…"
+              oninput="searchPresetsDebounced()"
+              onfocus="searchPresetsDebounced()"
+              autocomplete="off"/>
+        <span id="rt-preset-count" class="rt-preset-count"></span>
+        <div id="rt-preset-dropdown" class="rt-preset-dropdown"></div>
+      </div>
+    
+      <!-- Confirm (always shown) -->
+      <button class="geo-btn primary rt-btn-sm" id="rt-confirm-btn"
+              disabled onclick="confirmRegion()">✓ Confirm</button>
+      <button class="geo-btn ghost rt-btn-sm" onclick="cancelRegion()">Cancel</button>
     </div>
+    
     <div id="region-status">
-      <span id="region-hint">Click and drag to draw a region on the map</span>
+      <span id="region-hint">Select a mode above, then confirm to continue</span>
     </div>
+
   </div>
 </div>
 
@@ -1346,8 +1592,8 @@ nav.topbar, .status-bar { display: none !important; }
      GLOBAL OVERLAYS
 ══════════════════════════════════════════════════ -->
 <div id="sv-wrap">
-  <iframe id="sv-iframe" src="about:blank" allowfullscreen
-          allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <iframe id="sv-iframe" src="about:blank"
+        allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
   <div id="sv-cover-tr"></div>
   <div id="sv-cover-bl"></div>
 </div>
@@ -1371,13 +1617,17 @@ nav.topbar, .status-bar { display: none !important; }
     </div>
     <div class="hud-pill" id="hud-locked-label"></div>
   </div>
+  <div id="hud-region-bar">
+    <div id="hud-region-val">—</div>
+  </div>
   <button id="hud-exit-btn" onclick="leaveRoom()">✕ Leave</button>
 </div>
 
 <div id="sp-hud">
   <div id="sp-hud-top">
     <button id="sp-exit-btn" onclick="spExitGame()">✕ Exit</button>
-    <div id="sp-hud-label">Single Player · No Time Limit</div>
+    <div id="sp-hud-label">Single Player</div>
+    <div id="sp-hud-region" style="font-family:var(--f-data);font-size:.58rem;color:rgba(150,200,240,.5);margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;"></div>
   </div>
 </div>
 
@@ -1409,16 +1659,34 @@ nav.topbar, .status-bar { display: none !important; }
   </div>
 </div>
 
+<div id="preset-upload-modal">
+  <div id="preset-upload-box">
+    <div class="pum-title">◈ Upload Region as Preset</div>
+    <input id="preset-title-inp" type="text" maxlength="80"
+           placeholder="Preset name…"
+           onkeydown="if(event.key==='Enter')submitPresetCreate()"/>
+    <div id="preset-upload-err"></div>
+    <div class="pum-btns">
+      <button id="pum-create-btn" onclick="submitPresetCreate()">Create Preset</button>
+      <button id="pum-cancel-btn" onclick="closePresetUploadModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div id="geo-toast"></div>
 </div><!-- /#geo-root -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script>
+  /* =========================================================
+   GeoGuesser — Complete JS (v2 — multi-polygon regions)
+   ========================================================= */
+ 
 let regionPreviewMapInst = null;
-let currentRoomRegion    = [];        // polygon for the room the user is in
-
+let currentRoomRegion    = [];
 const GEO_MAPS_KEY = {{ google_maps_key | tojson }};
-
+ 
+/* ── Pin icon factory ─────────────────────────────────── */
 function _makePinIcon(color, scale = 1) {
   const w = Math.round(22 * scale), h = Math.round(31 * scale);
   return L.divIcon({
@@ -1432,7 +1700,8 @@ function _makePinIcon(color, scale = 1) {
     iconSize:[w,h], iconAnchor:[w/2,h], popupAnchor:[0,-h],
   });
 }
-
+ 
+/* ── Socket setup ─────────────────────────────────────── */
 const socket = io();
 socket.on('connect', () => {
   socket.emit('page_open', {path: window.location.pathname});
@@ -1440,547 +1709,1107 @@ socket.on('connect', () => {
 });
 window.addEventListener('pagehide',     () => socket.emit('geo_leave_route'));
 window.addEventListener('beforeunload', () => socket.emit('geo_leave_route'));
-
-let myUsername=null, currentMode=null, currentRoomId=null, currentRoomPrivacy=null;
-let amCreator=false, mySid=null, pendingInviteRoomId=null;
-let regionPolygon=[], regionIsWorld=true, regionForRoom=false, regionExplicitlySet=false;
-let regionMapInst=null, regionLayer=null, regionDrawing=false, regionDrawPoints=[];
-let spCorrectLat=null, spCorrectLng=null;
-let guessMapInst=null, guessMarker=null, currentGuess=null, guessLocked=false;
-let resultMapInst=null, reMapInst=null;
-let roundTimerInterval=null, roundAdvanceInterval=null, allRooms=[];
-
+ 
+/* ── App state ────────────────────────────────────────── */
+let myUsername    = null;
+let currentMode   = null;
+let currentRoomId = null;
+let currentRoomPrivacy = null;
+let amCreator     = false;
+let mySid         = null;
+let pendingInviteRoomId = null;
+let allRooms      = [];
+ 
+let selectedPrivacy = 'public';
+let selectedRounds  = 5;
+let selectedTime    = 90;
+ 
+let regionForRoom       = false;
+let regionExplicitlySet = false;
+ 
+// Guess / game state
+let spCorrectLat = null;
+let spCorrectLng = null;
+let guessMapInst  = null;
+let guessMarker   = null;
+let currentGuess  = null;
+let guessLocked   = false;
+let resultMapInst = null;
+let reMapInst     = null;
+let roundTimerInterval  = null;
+let roundAdvanceInterval = null;
+let currentRegionInfo = null;  // {label, creators} displayed during gameplay
+ 
+/* ── Region state (v2) ────────────────────────────────── */
+let regionMode   = 'world'; // 'world' | 'custom' | 'preset'
+let customPolygons  = [];   // List[List[List[float]]] — drawn polygons
+let customLayers    = [];   // Leaflet layers for drawn polygons
+let _geoDrawEnabled = false;
+let _geoDrawActive  = false;
+let _geoDrawPoints  = [];
+let _geoDrawLayer   = null;
+let selectedPresets      = []; // [{id,title,username,region,created_str}]
+let presetSearchResults  = [];
+let presetMapLayers      = []; // [{id, layers:[L.layer,...]}]
+let presetSearchTimeout  = null;
+let regionMapInst        = null;
+ 
+/* ── View helpers ─────────────────────────────────────── */
 function showView(id) {
-  document.querySelectorAll('.geo-view').forEach(v=>v.classList.remove('active'));
-  const el=document.getElementById(id); if(el) el.classList.add('active');
+  document.querySelectorAll('.geo-view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
 }
-function showSV(show)       { document.getElementById('sv-wrap').classList.toggle('active',show); }
-function showHud(show)      { document.getElementById('game-hud').classList.toggle('active',show); }
-function showSpHud(show)    { document.getElementById('sp-hud').style.display=show?'block':'none'; }
-function showGuessMap(show) { document.getElementById('guess-map-wrap').classList.toggle('map-visible',show); }
-
+function showSV(show)       { document.getElementById('sv-wrap').classList.toggle('active', show); }
+function showHud(show)      { document.getElementById('game-hud').classList.toggle('active', show); }
+function showSpHud(show)    { document.getElementById('sp-hud').style.display = show ? 'block' : 'none'; }
+function showGuessMap(show) { document.getElementById('guess-map-wrap').classList.toggle('map-visible', show); }
+ 
 function loadSV(panoId) {
-  if (!GEO_MAPS_KEY) { geoToast('⚠ No Google Maps API key configured',8000); return; }
+  if (!GEO_MAPS_KEY) { geoToast('⚠ No Google Maps API key configured', 8000); return; }
   document.getElementById('sv-iframe').src =
     `https://www.google.com/maps/embed/v1/streetview?key=${GEO_MAPS_KEY}&pano=${panoId}&heading=0&pitch=0&fov=90`;
 }
-function clearSV() { document.getElementById('sv-iframe').src='about:blank'; }
-
-// ── Region preview modal ───────────────────────────
-function showRegionPreview(polygon, label) {
-  if (!polygon || polygon.length < 3) return;
-  document.getElementById('region-preview-title').textContent =
-    '◎ ' + (label || 'Region Preview');
-  document.getElementById('region-preview-overlay').classList.add('active');
+function clearSV() { document.getElementById('sv-iframe').src = 'about:blank'; }
  
-  // Initialise Leaflet map once, then re-use
+/* ── Region preview modal ─────────────────────────────── */
+// polygons: List[List[List[float]]]
+function showRegionPreview(polygons, label) {
+  if (!polygons || polygons.length === 0) return;
+  document.getElementById('region-preview-title').textContent = '◎ ' + (label || 'Region Preview');
+  document.getElementById('region-preview-overlay').classList.add('active');
   setTimeout(() => {
     if (!regionPreviewMapInst) {
-      regionPreviewMapInst = L.map('region-preview-map', {
-        zoomControl: true, attributionControl: false,
-      });
+      regionPreviewMapInst = L.map('region-preview-map', {zoomControl: true, attributionControl: false});
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        { attribution: '© OpenStreetMap' }).addTo(regionPreviewMapInst);
+        {attribution: '© OpenStreetMap'}).addTo(regionPreviewMapInst);
     }
-    // Clear old layers except tile layer
     regionPreviewMapInst.eachLayer(l => {
       if (!(l instanceof L.TileLayer)) regionPreviewMapInst.removeLayer(l);
     });
     regionPreviewMapInst.invalidateSize();
- 
-    const poly = L.polygon(polygon, {
-      color:       'rgba(26,144,208,0.9)',
-      weight:      2,
-      fillColor:   'rgba(26,144,208,0.15)',
-      fillOpacity: 1,
-    }).addTo(regionPreviewMapInst);
- 
-    regionPreviewMapInst.fitBounds(poly.getBounds().pad(0.15), { maxZoom: 12 });
-  }, 60); // small delay so the overlay is visible before Leaflet measures it
+    const allBounds = [];
+    polygons.forEach(poly => {
+      if (!Array.isArray(poly) || poly.length < 3) return;
+      const layer = L.polygon(poly, {
+        color: 'rgba(26,144,208,0.9)', weight: 2,
+        fillColor: 'rgba(26,144,208,0.15)', fillOpacity: 1,
+      }).addTo(regionPreviewMapInst);
+      const b = layer.getBounds();
+      if (b.isValid()) allBounds.push(b);
+    });
+    if (allBounds.length > 0) {
+      const combined = allBounds.reduce((acc, b) => acc.extend(b), allBounds[0]);
+      regionPreviewMapInst.fitBounds(combined.pad(0.15), {maxZoom: 12});
+    }
+  }, 60);
 }
- 
 function hideRegionPreview() {
   document.getElementById('region-preview-overlay').classList.remove('active');
 }
-// Close on backdrop click
 document.getElementById('region-preview-overlay')
   .addEventListener('click', e => { if (e.target.id === 'region-preview-overlay') hideRegionPreview(); });
-
-function geoToast(msg, ms=2500) {
-  const el=document.getElementById('geo-toast');
-  el.textContent=msg; el.classList.add('show');
-  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),ms);
+ 
+/* ── Toast ────────────────────────────────────────────── */
+function geoToast(msg, ms = 2500) {
+  const el = document.getElementById('geo-toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms);
 }
+ 
+/* ── Formatters ───────────────────────────────────────── */
 function fmtDist(km) {
-  if(km==null) return '—';
-  if(km<1)    return Math.round(km*1000)+' m';
-  if(km<10)   return km.toFixed(2)+' km';
-  if(km<1000) return km.toFixed(1)+' km';
-  return (km/1000).toFixed(2)+' k km';
+  if (km == null) return '—';
+  if (km < 1)    return Math.round(km * 1000) + ' m';
+  if (km < 10)   return km.toFixed(2) + ' km';
+  if (km < 1000) return km.toFixed(1) + ' km';
+  return (km / 1000).toFixed(2) + ' k km';
 }
-function fmtTime(s) { const m=Math.floor(s/60),ss=s%60; return m+':'+String(ss).padStart(2,'0'); }
-
+function fmtTime(s) {
+  const m = Math.floor(s / 60), ss = s % 60;
+  return m + ':' + String(ss).padStart(2, '0');
+}
+function escGeo(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+ 
+/* ── Username ─────────────────────────────────────────── */
 function submitUsername() {
-  const val=document.getElementById('username-inp').value.trim();
-  if(!val){document.getElementById('username-err').textContent='Enter a username.';return;}
-  document.getElementById('username-err').textContent='';
-  socket.emit('geo_set_username',{username:val});
+  const val = document.getElementById('username-inp').value.trim();
+  if (!val) { document.getElementById('username-err').textContent = 'Enter a username.'; return; }
+  document.getElementById('username-err').textContent = '';
+  socket.emit('geo_set_username', {username: val});
 }
-socket.on('geo_username_ack', data=>{
-  if(!data.ok){
-    if(document.getElementById('view-username').classList.contains('active'))
-      document.getElementById('username-err').textContent=data.error;
+socket.on('geo_username_ack', data => {
+  if (!data.ok) {
+    if (document.getElementById('view-username').classList.contains('active'))
+      document.getElementById('username-err').textContent = data.error;
     return;
   }
-  myUsername=data.username;
-  document.getElementById('mode-username-label').textContent=myUsername;
-  document.getElementById('lobby-username-label').textContent=myUsername;
-  if(document.getElementById('view-username').classList.contains('active')) showView('view-mode');
+  myUsername = data.username;
+  document.getElementById('mode-username-label').textContent = myUsername;
+  document.getElementById('lobby-username-label').textContent = myUsername;
+  if (document.getElementById('view-username').classList.contains('active')) showView('view-mode');
 });
-
-function startSinglePlayer() { currentMode='sp'; regionForRoom=false; openRegionDraw(); }
+ 
+/* ── Mode select ──────────────────────────────────────── */
+function startSinglePlayer() {
+  currentMode = 'sp';
+  regionForRoom = false;
+  openRegionDraw();
+}
 function startMultiplayer() {
-  currentMode='mp';
-  regionExplicitlySet=false; regionIsWorld=true; regionPolygon=[]; regionDrawPoints=[];
-  if(regionLayer&&regionMapInst){regionMapInst.removeLayer(regionLayer);regionLayer=null;}
-  const crd=document.getElementById('create-region-display');
-  if(crd) crd.innerHTML=`<button class="geo-btn ghost" style="width:100%;padding:11px" onclick="openRegionForRoom()">🌍 Draw Region on Map…</button>`;
-  socket.emit('geo_get_lobby'); showView('view-lobby');
+  currentMode = 'mp';
+  regionExplicitlySet = false;
+  resetRegionState();
+  const crd = document.getElementById('create-region-display');
+  if (crd) crd.innerHTML = `<button class="geo-btn ghost" style="width:100%;padding:11px" onclick="openRegionForRoom()">🌍 Set Region…</button>`;
+  socket.emit('geo_get_lobby');
+  showView('view-lobby');
 }
 function backToModeFromLobby() { showView('view-mode'); }
-
+ 
+/* ── Region draw view ─────────────────────────────────── */
 function openRegionDraw() {
   showView('view-region');
-  setTimeout(()=>{
-    if(!regionMapInst){
-      regionMapInst=L.map('region-map',{center:[20,0],zoom:2,minZoom:1,worldCopyJump:false});
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(regionMapInst);
+  setTimeout(() => {
+    if (!regionMapInst) {
+      regionMapInst = L.map('region-map', {center: [20, 0], zoom: 2, minZoom: 1, worldCopyJump: false});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {attribution: '© OpenStreetMap'}).addTo(regionMapInst);
       _setupRegionDrawEvents();
     }
-    regionMapInst.invalidateSize(); clearRegion();
-  },50);
+    regionMapInst.invalidateSize();
+    // Reset to current mode state
+    onRegionModeChange();
+  }, 50);
 }
-function openRegionForRoom() { regionForRoom=true; openRegionDraw(); }
-
+function openRegionForRoom() {
+  regionForRoom = true;
+  openRegionDraw();
+}
+function cancelRegion() {
+  regionForRoom ? showView('view-lobby') : showView('view-mode');
+}
+ 
+/* ── Region mode logic ────────────────────────────────── */
+function onRegionModeChange() {
+  const select = document.getElementById('rt-mode-select');
+  if (!select) return;
+  regionMode = select.value;
+ 
+  const customCtrl = document.getElementById('rt-custom-controls');
+  const presetCtrl = document.getElementById('rt-preset-controls');
+ 
+  if (customCtrl) customCtrl.style.display  = regionMode === 'custom' ? 'flex' : 'none';
+  if (presetCtrl) presetCtrl.style.display  = regionMode === 'preset' ? 'flex' : 'none';
+ 
+  // Enable/disable map drawing
+  _geoDrawEnabled = (regionMode === 'custom');
+  if (!_geoDrawEnabled && regionMapInst) regionMapInst.dragging.enable();
+ 
+  // Clear the other mode's state
+  if (regionMode !== 'custom') {
+    _clearCustomLayers();
+  }
+  if (regionMode !== 'preset') {
+    _clearPresetLayers();
+    const dd = document.getElementById('rt-preset-dropdown');
+    if (dd) { dd.classList.remove('open'); dd.innerHTML = ''; }
+  }
+ 
+  // Close preset dropdown when switching away
+  if (regionMode !== 'preset') {
+    selectedPresets = [];
+    updatePresetCount();
+  }
+ 
+  // Hint text
+  const hints = {
+    'world':  'The entire world will be used — confirm when ready.',
+    'custom': 'Click and drag on the map to draw regions. Draw multiple.',
+    'preset': 'Search and select preset regions below.',
+  };
+  const hint = document.getElementById('region-hint');
+  if (hint) hint.textContent = hints[regionMode] || '';
+ 
+  updateConfirmButton();
+}
+ 
+/* ── Custom polygon drawing ──────────────────────────── */
 function _setupRegionDrawEvents() {
-  const map=regionMapInst;
-  map.on('mousedown',e=>{
-    if(e.originalEvent.button!==0) return;
-    regionDrawing=true; regionDrawPoints=[[e.latlng.lat,e.latlng.lng]];
-    if(regionLayer){map.removeLayer(regionLayer);regionLayer=null;}
-    map.dragging.disable(); document.getElementById('confirm-region-btn').disabled=true;
+  const map = regionMapInst;
+ 
+  map.on('mousedown', e => {
+    if (!_geoDrawEnabled || e.originalEvent.button !== 0) return;
+    _geoDrawActive = true;
+    _geoDrawPoints = [[e.latlng.lat, e.latlng.lng]];
+    if (_geoDrawLayer) { map.removeLayer(_geoDrawLayer); _geoDrawLayer = null; }
+    map.dragging.disable();
   });
-  map.on('mousemove',e=>{
-    if(!regionDrawing) return;
-    regionDrawPoints.push([e.latlng.lat,e.latlng.lng]);
-    if(regionLayer) map.removeLayer(regionLayer);
-    regionLayer=L.polygon(regionDrawPoints,{color:'rgba(26,144,208,0.9)',weight:2,fillColor:'rgba(26,144,208,0.1)',fillOpacity:1}).addTo(map);
+ 
+  map.on('mousemove', e => {
+    if (!_geoDrawActive || !_geoDrawEnabled) return;
+    _geoDrawPoints.push([e.latlng.lat, e.latlng.lng]);
+    if (_geoDrawLayer) map.removeLayer(_geoDrawLayer);
+    _geoDrawLayer = L.polygon(_geoDrawPoints, {
+      color: 'rgba(26,144,208,0.9)', weight: 2,
+      fillColor: 'rgba(26,144,208,0.1)', fillOpacity: 1,
+    }).addTo(map);
   });
-  map.on('mouseup',()=>{
-    if(!regionDrawing) return;
-    regionDrawing=false; map.dragging.enable();
-    if(regionDrawPoints.length>=3){
-      if(regionLayer) map.removeLayer(regionLayer);
-      regionLayer=L.polygon(regionDrawPoints,{color:'rgba(26,144,208,0.9)',weight:2,fillColor:'rgba(26,144,208,0.12)',fillOpacity:1}).addTo(map);
-      regionPolygon=[...regionDrawPoints]; regionIsWorld=false;
-      document.getElementById('confirm-region-btn').disabled=false;
-      document.getElementById('region-hint').textContent=`Region drawn (${regionPolygon.length} pts) — Confirm or redraw`;
-    } else { clearRegion(); }
+ 
+  map.on('mouseup', () => {
+    if (!_geoDrawActive) return;
+    _geoDrawActive = false;
+    map.dragging.enable();
+    if (_geoDrawPoints.length >= 3) {
+      if (_geoDrawLayer) map.removeLayer(_geoDrawLayer);
+      const layer = L.polygon(_geoDrawPoints, {
+        color: 'rgba(26,144,208,0.85)', weight: 2,
+        fillColor: 'rgba(26,144,208,0.12)', fillOpacity: 1,
+      }).addTo(map);
+      customLayers.push(layer);
+      customPolygons.push([..._geoDrawPoints]);
+      _geoDrawPoints = [];
+      _geoDrawLayer  = null;
+      const el = document.getElementById('rt-custom-count');
+      if (el) el.textContent = `${customPolygons.length} region${customPolygons.length > 1 ? 's' : ''}`;
+      const hint = document.getElementById('region-hint');
+      if (hint) hint.textContent = `${customPolygons.length} region(s) drawn. Draw more or confirm.`;
+    }
+    _geoDrawPoints = [];
+    updateConfirmButton();
   });
-  map.on('touchstart',e=>{
-    const t=e.originalEvent.touches[0],r=map.getContainer().getBoundingClientRect();
-    const ll=map.containerPointToLatLng([t.clientX-r.left,t.clientY-r.top]);
-    regionDrawing=true; regionDrawPoints=[[ll.lat,ll.lng]];
-    if(regionLayer){map.removeLayer(regionLayer);regionLayer=null;} map.dragging.disable();
+ 
+  // Touch support
+  map.on('touchstart', e => {
+    if (!_geoDrawEnabled) return;
+    const t = e.originalEvent.touches[0];
+    const r = map.getContainer().getBoundingClientRect();
+    const ll = map.containerPointToLatLng([t.clientX - r.left, t.clientY - r.top]);
+    _geoDrawActive = true;
+    _geoDrawPoints = [[ll.lat, ll.lng]];
+    if (_geoDrawLayer) { map.removeLayer(_geoDrawLayer); _geoDrawLayer = null; }
+    map.dragging.disable();
   });
-  map.on('touchmove',e=>{
-    if(!regionDrawing) return;
-    const t=e.originalEvent.touches[0],r=map.getContainer().getBoundingClientRect();
-    const ll=map.containerPointToLatLng([t.clientX-r.left,t.clientY-r.top]);
-    regionDrawPoints.push([ll.lat,ll.lng]);
-    if(regionLayer) map.removeLayer(regionLayer);
-    regionLayer=L.polygon(regionDrawPoints,{color:'rgba(26,144,208,0.9)',weight:2,fillColor:'rgba(26,144,208,0.1)',fillOpacity:1}).addTo(map);
+  map.on('touchmove', e => {
+    if (!_geoDrawActive || !_geoDrawEnabled) return;
+    const t = e.originalEvent.touches[0];
+    const r = map.getContainer().getBoundingClientRect();
+    const ll = map.containerPointToLatLng([t.clientX - r.left, t.clientY - r.top]);
+    _geoDrawPoints.push([ll.lat, ll.lng]);
+    if (_geoDrawLayer) map.removeLayer(_geoDrawLayer);
+    _geoDrawLayer = L.polygon(_geoDrawPoints, {
+      color:'rgba(26,144,208,0.9)', weight:2, fillColor:'rgba(26,144,208,0.1)', fillOpacity:1,
+    }).addTo(map);
     e.originalEvent.preventDefault();
   });
-  map.on('touchend',()=>{
-    if(!regionDrawing) return;
-    regionDrawing=false; map.dragging.enable();
-    if(regionDrawPoints.length>=3){
-      if(regionLayer) map.removeLayer(regionLayer);
-      regionLayer=L.polygon(regionDrawPoints,{color:'rgba(26,144,208,0.9)',weight:2,fillColor:'rgba(26,144,208,0.12)',fillOpacity:1}).addTo(map);
-      regionPolygon=[...regionDrawPoints]; regionIsWorld=false;
-      document.getElementById('confirm-region-btn').disabled=false;
-      document.getElementById('region-hint').textContent='Region drawn — Confirm or redraw';
-    } else { clearRegion(); }
+  map.on('touchend', () => {
+    if (!_geoDrawActive) return;
+    _geoDrawActive = false;
+    map.dragging.enable();
+    if (_geoDrawPoints.length >= 3) {
+      if (_geoDrawLayer) map.removeLayer(_geoDrawLayer);
+      const layer = L.polygon(_geoDrawPoints, {
+        color:'rgba(26,144,208,0.85)', weight:2, fillColor:'rgba(26,144,208,0.12)', fillOpacity:1,
+      }).addTo(map);
+      customLayers.push(layer);
+      customPolygons.push([..._geoDrawPoints]);
+    }
+    _geoDrawPoints = [];
+    _geoDrawLayer  = null;
+    updateConfirmButton();
   });
 }
-
-function selectWorldRegion() {
-  regionExplicitlySet=true; regionIsWorld=true; regionPolygon=[];
-  if(regionLayer&&regionMapInst){regionMapInst.removeLayer(regionLayer);regionLayer=null;}
-  document.getElementById('confirm-region-btn').disabled=false;
-  document.getElementById('region-hint').textContent='🌍 Entire world selected';
+ 
+function clearCustomRegion() {
+  _clearCustomLayers();
+  const el = document.getElementById('rt-custom-count');
+  if (el) el.textContent = '';
+  const hint = document.getElementById('region-hint');
+  if (hint) hint.textContent = 'Click and drag on the map to draw regions. Draw multiple.';
+  updateConfirmButton();
 }
-function clearRegion() {
-  regionIsWorld=true; regionPolygon=[]; regionDrawPoints=[];
-  if(regionLayer&&regionMapInst){regionMapInst.removeLayer(regionLayer);regionLayer=null;}
-  document.getElementById('confirm-region-btn').disabled=true;
-  document.getElementById('region-hint').textContent='Click and drag to draw a region on the map';
+ 
+function _clearCustomLayers() {
+  customLayers.forEach(l => regionMapInst && regionMapInst.removeLayer(l));
+  customLayers   = [];
+  customPolygons = [];
+  if (_geoDrawLayer) { regionMapInst && regionMapInst.removeLayer(_geoDrawLayer); _geoDrawLayer = null; }
+  _geoDrawPoints = [];
+  const el = document.getElementById('rt-upload-btn');
+  if (el) el.disabled = true;
 }
+ 
+/* ── Preset search ────────────────────────────────────── */
+function searchPresetsDebounced() {
+  clearTimeout(presetSearchTimeout);
+  presetSearchTimeout = setTimeout(doPresetSearch, 180);
+}
+ 
+async function doPresetSearch() {
+  const q = (document.getElementById('rt-preset-inp')?.value || '').trim();
+  try {
+    const res  = await fetch(`/api/geo/presets/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    presetSearchResults = data.presets || [];
+    renderPresetDropdown();
+  } catch(e) {
+    console.error('[geo] preset search error', e);
+  }
+}
+ 
+function renderPresetDropdown() {
+  const dd = document.getElementById('rt-preset-dropdown');
+  if (!dd) return;
+  if (!presetSearchResults.length) {
+    dd.innerHTML = '<div class="rt-preset-dd-item rt-preset-empty">No presets found.</div>';
+    dd.classList.add('open');
+    return;
+  }
+  dd.innerHTML = presetSearchResults.map(p => {
+    const isSelected = selectedPresets.some(s => s.id === p.id);
+    return `<div class="rt-preset-dd-item ${isSelected ? 'selected' : ''}"
+                 onclick="togglePreset(${p.id})">
+      <div class="rt-pd-info">
+        <div class="rt-pd-title">${escGeo(p.title)}</div>
+        <div class="rt-pd-meta">by ${escGeo(p.username)} · ${escGeo(p.created_str)}</div>
+      </div>
+      ${isSelected ? '<span class="rt-pd-check">✓</span>' : ''}
+    </div>`;
+  }).join('');
+  dd.classList.add('open');
+}
+ 
+async function togglePreset(presetId) {
+  const existingIdx = selectedPresets.findIndex(p => p.id === presetId);
+  if (existingIdx >= 0) {
+    // Deselect
+    removePresetMapLayer(presetId);
+    selectedPresets.splice(existingIdx, 1);
+  } else {
+    // Select — fetch full data with polygon
+    try {
+      const res  = await fetch(`/api/geo/presets/${presetId}`);
+      const data = await res.json();
+      if (data.ok) {
+        selectedPresets.push(data.preset);
+        showPresetOnMap(data.preset);
+      }
+    } catch(e) { console.error('[geo] preset fetch error', e); }
+  }
+  updatePresetCount();
+  updateConfirmButton();
+  renderPresetDropdown(); // refresh checkmarks
+}
+ 
+function showPresetOnMap(preset) {
+  if (!regionMapInst) return;
+  const layers = [];
+  (preset.region || []).forEach(poly => {
+    if (!Array.isArray(poly) || poly.length < 3) return;
+    const l = L.polygon(poly, {
+      color: 'rgba(29,184,122,0.9)', weight: 2,
+      fillColor: 'rgba(29,184,122,0.12)', fillOpacity: 1,
+    }).addTo(regionMapInst);
+    layers.push(l);
+  });
+  presetMapLayers.push({id: preset.id, layers});
+  _fitPresetBounds();
+}
+ 
+function removePresetMapLayer(presetId) {
+  const idx = presetMapLayers.findIndex(p => p.id === presetId);
+  if (idx >= 0) {
+    presetMapLayers[idx].layers.forEach(l => regionMapInst && regionMapInst.removeLayer(l));
+    presetMapLayers.splice(idx, 1);
+  }
+  _fitPresetBounds();
+}
+ 
+function _clearPresetLayers() {
+  presetMapLayers.forEach(pm => pm.layers.forEach(l => regionMapInst && regionMapInst.removeLayer(l)));
+  presetMapLayers  = [];
+  selectedPresets  = [];
+}
+ 
+function _fitPresetBounds() {
+  if (!regionMapInst || presetMapLayers.length === 0) return;
+  const allBounds = [];
+  presetMapLayers.forEach(pm => pm.layers.forEach(l => {
+    const b = l.getBounds();
+    if (b.isValid()) allBounds.push(b);
+  }));
+  if (allBounds.length > 0) {
+    const combined = allBounds.reduce((acc, b) => acc.extend(b), allBounds[0]);
+    regionMapInst.fitBounds(combined.pad(0.12), {maxZoom: 8});
+  }
+}
+ 
+function updatePresetCount() {
+  const el = document.getElementById('rt-preset-count');
+  if (!el) return;
+  el.textContent = selectedPresets.length > 0
+    ? `${selectedPresets.length} selected`
+    : '';
+}
+ 
+// Close preset dropdown when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('rt-preset-controls');
+  if (wrap && !wrap.contains(e.target)) {
+    const dd = document.getElementById('rt-preset-dropdown');
+    if (dd) dd.classList.remove('open');
+  }
+});
+ 
+/* ── Confirm button state ─────────────────────────────── */
+function updateConfirmButton() {
+  const btn = document.getElementById('rt-confirm-btn');
+  if (!btn) return;
+  let enabled = false;
+  if (regionMode === 'world')  enabled = true;
+  if (regionMode === 'custom') enabled = customPolygons.length > 0;
+  if (regionMode === 'preset') enabled = selectedPresets.length > 0;
+  btn.disabled = !enabled;
+ 
+  const upBtn = document.getElementById('rt-upload-btn');
+  if (upBtn) upBtn.disabled = (regionMode !== 'custom' || customPolygons.length === 0);
+}
+ 
+/* ── Get region data for submission ───────────────────── */
+function getRegionForSubmit() {
+  if (regionMode === 'world') {
+    return {polygons: [], region_is_world: true, label: 'Entire World', creators: []};
+  }
+  if (regionMode === 'custom') {
+    return {
+      polygons:         customPolygons,
+      region_is_world:  false,
+      label:            'Custom Region',
+      creators:         [],
+    };
+  }
+  if (regionMode === 'preset') {
+    const allPolygons = selectedPresets.flatMap(p => p.region || []);
+    const label = selectedPresets.length === 1
+      ? selectedPresets[0].title
+      : selectedPresets.map(p => p.title).join(' + ');
+    const creators = [...new Set(selectedPresets.map(p => p.username))];
+    return {polygons: allPolygons, region_is_world: false, label, creators};
+  }
+  return {polygons: [], region_is_world: true, label: 'Entire World', creators: []};
+}
+ 
+function resetRegionState() {
+  regionMode = 'world';
+  const sel  = document.getElementById('rt-mode-select');
+  if (sel) sel.value = 'world';
+  _clearCustomLayers();
+  _clearPresetLayers();
+  updateConfirmButton();
+  const customCtrl = document.getElementById('rt-custom-controls');
+  const presetCtrl = document.getElementById('rt-preset-controls');
+  if (customCtrl) customCtrl.style.display = 'none';
+  if (presetCtrl) presetCtrl.style.display = 'none';
+}
+ 
+/* ── Confirm region ───────────────────────────────────── */
 function confirmRegion() {
-  regionExplicitlySet=true;
-  if(regionForRoom){
-    document.getElementById('create-region-display').innerHTML=`
+  const region = getRegionForSubmit();
+  currentRegionInfo = {label: region.label, creators: region.creators};
+  regionExplicitlySet = true;
+ 
+  if (regionForRoom) {
+    const crd   = document.getElementById('create-region-display');
+    const icon  = region.region_is_world ? '🌍' : (regionMode === 'custom' ? '✏️' : '📌');
+    const extra = region.creators.length > 0 ? ` · by ${region.creators.join(', ')}` : '';
+    if (crd) crd.innerHTML = `
       <div class="region-chosen-display">
-        <span class="rcd-icon">${regionIsWorld?'🌍':'✏️'}</span>
-        <span class="rcd-text">${regionIsWorld?'Entire world':`Custom region (${regionPolygon.length} pts)`}</span>
+        <span class="rcd-icon">${icon}</span>
+        <span class="rcd-text">${escGeo(region.label)}${escGeo(extra)}</span>
         <span class="rcd-change" onclick="openRegionForRoom()">Change</span>
       </div>`;
     showView('view-lobby');
   } else {
+    // Single player
     showView('view-sp-loading');
-    socket.emit('geo_sp_get_panorama',{region:regionPolygon,region_is_world:regionIsWorld});
+    const t = document.getElementById('sp-region-timeout');
+    if (t) t.style.display = 'none';
+    socket.emit('geo_sp_get_panorama', {
+      polygons:        region.polygons,
+      region_is_world: region.region_is_world,
+    });
   }
 }
-function cancelRegion() { regionForRoom?showView('view-lobby'):showView('view-mode'); }
-
-socket.on('geo_sp_loading',data=>{
-  document.getElementById('sp-loading-msg').textContent=data.message||'Finding a location';
-  const t=document.getElementById('sp-region-timeout'); if(t) t.style.display='none';
+ 
+/* ── Preset upload modal ──────────────────────────────── */
+function openPresetUploadModal() {
+  if (customPolygons.length === 0) return;
+  document.getElementById('preset-title-inp').value = '';
+  document.getElementById('preset-upload-err').textContent = '';
+  document.getElementById('preset-upload-modal').classList.add('open');
+  setTimeout(() => document.getElementById('preset-title-inp').focus(), 80);
+}
+function closePresetUploadModal() {
+  document.getElementById('preset-upload-modal').classList.remove('open');
+}
+async function submitPresetCreate() {
+  const titleInp = document.getElementById('preset-title-inp');
+  const errEl    = document.getElementById('preset-upload-err');
+  const createBtn = document.getElementById('pum-create-btn');
+  const title = titleInp.value.trim();
+  if (!title) { errEl.textContent = 'Please enter a title.'; return; }
+ 
+  createBtn.disabled = true;
+  createBtn.textContent = 'Saving…';
+  errEl.textContent = '';
+ 
+  try {
+    const res  = await fetch('/api/geo/presets/create', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({
+        title,
+        username: myUsername,
+        polygons: customPolygons,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      closePresetUploadModal();
+      geoToast(`✓ Preset "${escGeo(title)}" saved!`, 3500);
+    } else {
+      errEl.textContent = data.error;
+    }
+  } catch(e) {
+    errEl.textContent = 'Network error. Try again.';
+  } finally {
+    createBtn.disabled = false;
+    createBtn.textContent = 'Create Preset';
+  }
+}
+ 
+/* ── SP loading / game ────────────────────────────────── */
+socket.on('geo_sp_loading', data => {
+  document.getElementById('sp-loading-msg').textContent = data.message || 'Finding a location';
+  const t = document.getElementById('sp-region-timeout');
+  if (t) t.style.display = 'none';
   showView('view-sp-loading');
 });
-socket.on('geo_sp_panorama',data=>{ spCorrectLat=data.correct_lat; spCorrectLng=data.correct_lng; _startSpGame(data.pano_id); });
-socket.on('geo_sp_error',data=>{ showView('view-mode'); geoToast('⚠ '+(data.message||'Error finding panorama'),6000); });
-
+socket.on('geo_sp_panorama', data => {
+  spCorrectLat = data.correct_lat;
+  spCorrectLng = data.correct_lng;
+  _startSpGame(data.pano_id);
+});
+socket.on('geo_sp_error', data => {
+  showView('view-mode');
+  geoToast('⚠ ' + (data.message || 'Error finding panorama'), 6000);
+});
+ 
 function _startSpGame(panoId) {
-  guessLocked=false; currentGuess=null;
-  if(guessMarker&&guessMapInst){guessMapInst.removeLayer(guessMarker);guessMarker=null;}
+  guessLocked  = false;
+  currentGuess = null;
+  if (guessMarker && guessMapInst) { guessMapInst.removeLayer(guessMarker); guessMarker = null; }
   showView('view-sp-game'); showSV(true); showSpHud(true); showHud(false); showGuessMap(true);
   loadSV(panoId); initGuessMap();
-  const lb=document.getElementById('lock-btn');
-  lb.textContent='Confirm Guess'; lb.disabled=true; lb.className='gmap-btn sp-confirm'; lb.onclick=spConfirmGuess;
-}
-function spConfirmGuess() {
-  if(!currentGuess||guessLocked) return;
-  guessLocked=true;
-  socket.emit('geo_sp_submit_guess',{lat:currentGuess.lat,lng:currentGuess.lng,correct_lat:spCorrectLat,correct_lng:spCorrectLng});
-}
-socket.on('geo_sp_result',data=>{
-  showSV(false); showSpHud(false); showGuessMap(false); clearSV();
-  document.getElementById('sp-dist-val').textContent=fmtDist(data.distance_km);
-  document.getElementById('sp-score-val').textContent=data.score.toLocaleString()+' pts';
-  showView('view-sp-result');
-  setTimeout(()=>{
-    if(!resultMapInst){
-      resultMapInst=L.map('sp-result-map',{center:[20,0],zoom:2});
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(resultMapInst);
+ 
+  // SP HUD label
+  const spLabel = document.getElementById('sp-hud-label');
+  if (spLabel) spLabel.textContent = 'Single Player';
+  const spRegion = document.getElementById('sp-hud-region');
+  if (spRegion) {
+    const ri = currentRegionInfo;
+    if (ri) {
+      let txt = ri.label;
+      if (ri.creators && ri.creators.length > 0) txt += ` · by ${ri.creators[0]}`;
+      spRegion.textContent = txt;
+    } else {
+      spRegion.textContent = '';
     }
-    resultMapInst.eachLayer(l=>{if(!(l instanceof L.TileLayer))resultMapInst.removeLayer(l);});
+  }
+ 
+  const lb = document.getElementById('lock-btn');
+  lb.textContent = 'Confirm Guess'; lb.disabled = true;
+  lb.className   = 'gmap-btn sp-confirm'; lb.onclick = spConfirmGuess;
+  lb.classList.remove('locked-in');
+}
+ 
+function spConfirmGuess() {
+  if (!currentGuess || guessLocked) return;
+  guessLocked = true;
+  socket.emit('geo_sp_submit_guess', {
+    lat:         currentGuess.lat,
+    lng:         currentGuess.lng,
+    correct_lat: spCorrectLat,
+    correct_lng: spCorrectLng,
+  });
+}
+ 
+socket.on('geo_sp_result', data => {
+  showSV(false); showSpHud(false); showGuessMap(false); clearSV();
+  document.getElementById('sp-dist-val').textContent  = fmtDist(data.distance_km);
+  document.getElementById('sp-score-val').textContent = data.score.toLocaleString() + ' pts';
+  showView('view-sp-result');
+  setTimeout(() => {
+    if (!resultMapInst) {
+      resultMapInst = L.map('sp-result-map', {center: [20, 0], zoom: 2});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {attribution: '© OpenStreetMap'}).addTo(resultMapInst);
+    }
+    resultMapInst.eachLayer(l => { if (!(l instanceof L.TileLayer)) resultMapInst.removeLayer(l); });
     resultMapInst.invalidateSize();
-    const cLat=data.correct_lat,cLng=data.correct_lng;
-    L.marker([cLat,cLng],{icon:_makePinIcon('#4caf50',1.4),zIndexOffset:900}).bindPopup('📍 Correct location').addTo(resultMapInst);
-    if(currentGuess){
-      L.marker([currentGuess.lat,currentGuess.lng],{icon:_makePinIcon('#1a90d0',1.0),zIndexOffset:800}).bindPopup('Your guess').addTo(resultMapInst);
-      L.polyline([[cLat,cLng],[currentGuess.lat,currentGuess.lng]],{color:'rgba(255,255,255,.3)',dashArray:'5,5',weight:1.5}).addTo(resultMapInst);
-      resultMapInst.fitBounds(L.latLngBounds([[cLat,cLng],[currentGuess.lat,currentGuess.lng]]).pad(0.25),{maxZoom:10});
-    } else { resultMapInst.setView([cLat,cLng],6); }
-  },80);
+    const cLat = data.correct_lat, cLng = data.correct_lng;
+    L.marker([cLat, cLng], {icon: _makePinIcon('#4caf50', 1.4), zIndexOffset: 900})
+      .bindPopup('📍 Correct location').addTo(resultMapInst);
+    if (currentGuess) {
+      L.marker([currentGuess.lat, currentGuess.lng], {icon: _makePinIcon('#1a90d0', 1.0), zIndexOffset: 800})
+        .bindPopup('Your guess').addTo(resultMapInst);
+      L.polyline([[cLat, cLng], [currentGuess.lat, currentGuess.lng]],
+        {color: 'rgba(255,255,255,.3)', dashArray: '5,5', weight: 1.5}).addTo(resultMapInst);
+      resultMapInst.fitBounds(
+        L.latLngBounds([[cLat, cLng], [currentGuess.lat, currentGuess.lng]]).pad(0.25),
+        {maxZoom: 10}
+      );
+    } else {
+      resultMapInst.setView([cLat, cLng], 6);
+    }
+  }, 80);
 });
-
-function spNextLocation() { showView('view-sp-loading'); guessLocked=false; currentGuess=null; socket.emit('geo_sp_get_panorama',{region:regionPolygon,region_is_world:regionIsWorld}); }
-function spChangeRegion() { regionForRoom=false; openRegionDraw(); }
+ 
+function spNextLocation() {
+  showView('view-sp-loading');
+  guessLocked = false; currentGuess = null;
+  const region = getRegionForSubmit();
+  socket.emit('geo_sp_get_panorama', {
+    polygons: region.polygons,
+    region_is_world: region.region_is_world,
+  });
+}
+function spChangeRegion() { regionForRoom = false; openRegionDraw(); }
 function spBackToMenu()   { showSV(false); showSpHud(false); showGuessMap(false); clearSV(); showView('view-mode'); }
 function spExitGame()     { showSV(false); showSpHud(false); showGuessMap(false); clearSV(); showView('view-mode'); }
-
-let selectedPrivacy='public',selectedRounds=5,selectedTime=90;
-function switchLobbyTab(tab,btn){
-  document.querySelectorAll('.l-tab').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.l-pane').forEach(p=>p.classList.remove('active'));
-  btn.classList.add('active'); document.getElementById('lpane-'+tab).classList.add('active');
+ 
+/* ── Lobby ────────────────────────────────────────────── */
+ 
+function switchLobbyTab(tab, btn) {
+  document.querySelectorAll('.l-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.l-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('lpane-' + tab).classList.add('active');
 }
-function selectPrivacy(btn){ document.querySelectorAll('.priv-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); selectedPrivacy=btn.dataset.v; }
-function selectRounds(btn) { document.querySelectorAll('.rounds-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); selectedRounds=parseInt(btn.dataset.v); }
-function selectTime(btn)   { document.querySelectorAll('.time-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); selectedTime=parseInt(btn.dataset.v); }
-
+function selectPrivacy(btn) {
+  document.querySelectorAll('.priv-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); selectedPrivacy = btn.dataset.v;
+}
+function selectRounds(btn) {
+  document.querySelectorAll('.rounds-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); selectedRounds = parseInt(btn.dataset.v);
+}
+function selectTime(btn) {
+  document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); selectedTime = parseInt(btn.dataset.v);
+}
+ 
 function createRoom() {
-  document.getElementById('create-err').textContent='';
-  if(!regionExplicitlySet){ document.getElementById('create-err').textContent='⚠ Please set a Location Region before creating a room.'; return; }
-  socket.emit('geo_create_room',{
-    title: document.getElementById('room-title-inp').value.trim()||'My Room',
-    privacy:selectedPrivacy, rounds:selectedRounds, time_limit:selectedTime,
-    region:regionPolygon, region_is_world:regionIsWorld
+  document.getElementById('create-err').textContent = '';
+  if (!regionExplicitlySet) {
+    document.getElementById('create-err').textContent = '⚠ Please set a Location Region before creating a room.';
+    return;
+  }
+  const region = getRegionForSubmit();
+  socket.emit('geo_create_room', {
+    title:                   (document.getElementById('room-title-inp').value.trim() || 'My Room'),
+    privacy:                 selectedPrivacy,
+    rounds:                  selectedRounds,
+    time_limit:              selectedTime,
+    polygons:                region.polygons,
+    region_is_world:         region.region_is_world,
+    region_label:            region.label,
+    region_preset_usernames: region.creators,
   });
 }
-socket.on('geo_error',data=>{ geoToast('⚠ '+data.message,4000); const e=document.getElementById('create-err'); if(e) e.textContent=data.message; const r=document.getElementById('room-err'); if(r) r.textContent=data.message; });
-socket.on('geo_room_created',data=>{ currentRoomId=data.room_id; amCreator=true; showView('view-room'); });
-socket.on('geo_joined_room', data=>{ currentRoomId=data.room_id; showView('view-room'); });
-socket.on('geo_lobby',data=>{ mySid=data.my_sid; allRooms=data.rooms||[]; renderRoomList(allRooms); });
-function filterRooms(){ const q=document.getElementById('room-search-inp').value.toLowerCase(); renderRoomList(allRooms.filter(r=>r.title.toLowerCase().includes(q)||r.id.includes(q))); }
-function renderRoomList(rooms){
-  const list=document.getElementById('rooms-list'),empty=document.getElementById('no-rooms-msg');
-  list.querySelectorAll('.room-row').forEach(r=>r.remove());
-  if(!rooms.length){empty.style.display='block';return;} empty.style.display='none';
-  rooms.forEach(r=>{
-    const row=document.createElement('div'); row.className='room-row';
-    const regionBtn = (!r.region_is_world && r.region && r.region.length >= 3)
-      ? `<button class="rr-region-btn" onclick="event.stopPropagation();showRegionPreview(${JSON.stringify(r.region)},'${r.title.replace(/'/g,"\\'")}')">🌐 Region</button>`
+ 
+socket.on('geo_error',       data => { geoToast('⚠ ' + data.message, 4000); const e = document.getElementById('create-err'); if (e) e.textContent = data.message; const r = document.getElementById('room-err'); if (r) r.textContent = data.message; });
+socket.on('geo_room_created', data => { currentRoomId = data.room_id; amCreator = true; showView('view-room'); });
+socket.on('geo_joined_room',  data => { currentRoomId = data.room_id; showView('view-room'); });
+ 
+socket.on('geo_lobby', data => {
+  mySid = data.my_sid;
+  allRooms = data.rooms || [];
+  renderRoomList(allRooms);
+});
+ 
+function filterRooms() {
+  const q = document.getElementById('room-search-inp').value.toLowerCase();
+  renderRoomList(allRooms.filter(r =>
+    r.title.toLowerCase().includes(q) || r.id.includes(q)
+  ));
+}
+ 
+function renderRoomList(rooms) {
+  const list  = document.getElementById('rooms-list');
+  const empty = document.getElementById('no-rooms-msg');
+  list.querySelectorAll('.room-row').forEach(r => r.remove());
+  if (!rooms.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+ 
+  rooms.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'room-row';
+ 
+    const regionLabel = r.region_is_world
+      ? '🌍 World'
+      : (r.region_label || 'Custom Region');
+    const creatorStr = (r.region_preset_usernames || []).length > 0
+      ? ` · by ${r.region_preset_usernames.join(', ')}`
       : '';
-    row.innerHTML=`<div style="flex:1"><div class="rr-title">${r.title}</div>
-      <div class="rr-meta">${r.players} player${r.players!==1?'s':''} · ${r.rounds} rounds · ${fmtTime(r.time)} limit</div></div>
-      ${regionBtn}<span class="rr-badge">Join</span>`;
-    row.onclick=()=>socket.emit('geo_join_room',{room_id:r.id});
+    const regionBtn = (!r.region_is_world && r.region && r.region.length > 0)
+      ? `<button class="rr-region-btn" onclick="event.stopPropagation();showRegionPreview(${JSON.stringify(r.region)}, '${escGeo(r.region_label || 'Region').replace(/'/g,"\\'")}')">🌐 Region</button>`
+      : '';
+ 
+    row.innerHTML = `
+      <div style="flex:1">
+        <div class="rr-title">${escGeo(r.title)}</div>
+        <div class="rr-meta">${r.players} player${r.players !== 1 ? 's' : ''} · ${r.rounds} rounds · ${fmtTime(r.time)} · ${escGeo(regionLabel)}${escGeo(creatorStr)}</div>
+      </div>
+      ${regionBtn}
+      <span class="rr-badge">Join</span>`;
+    row.onclick = () => socket.emit('geo_join_room', {room_id: r.id});
     list.appendChild(row);
   });
 }
-
-socket.on('geo_room_state',data=>{
-  currentRoomId=data.id; currentRoomPrivacy=data.privacy;
-  document.getElementById('room-title-label').textContent=data.title;
-  document.getElementById('rib-rounds').textContent=data.rounds_total;
-  document.getElementById('rib-time').textContent=fmtTime(data.time_limit);
-  document.getElementById('rib-region').textContent=data.region_is_world?'🌍 World':'✏️ Custom';
+ 
+/* ── Waiting room ─────────────────────────────────────── */
+socket.on('geo_room_state', data => {
+  currentRoomId      = data.id;
+  currentRoomPrivacy = data.privacy;
+  document.getElementById('room-title-label').textContent = data.title;
+  document.getElementById('rib-rounds').textContent   = data.rounds_total;
+  document.getElementById('rib-time').textContent     = fmtTime(data.time_limit);
+  document.getElementById('rib-privacy').textContent  = data.privacy === 'private' ? '🔒 Private' : '🌐 Public';
+ 
+  // Region label
   currentRoomRegion = data.region || [];
+  let regionText    = data.region_is_world
+    ? '🌍 World'
+    : (data.region_label || 'Custom Region');
+  if ((data.region_preset_usernames || []).length > 0) {
+    regionText += ` · by ${data.region_preset_usernames.join(', ')}`;
+  }
+  document.getElementById('rib-region').textContent = regionText;
+ 
   const ribBtn = document.getElementById('rib-region-btn');
-  if (ribBtn) ribBtn.style.display = (!data.region_is_world && currentRoomRegion.length >= 3) ? 'inline-block' : 'none';
-  document.getElementById('rib-privacy').textContent=data.privacy==='private'?'🔒 Private':'🌐 Public';
-  const list=document.getElementById('waiting-player-list'); list.innerHTML='';
-  data.players.forEach(p=>{
-    const isMe=p.sid===mySid,isCreator=p.sid===data.creator_sid;
-    const row=document.createElement('div'); row.className='player-row'+(isMe?' me':'');
-    row.innerHTML=`<div class="pr-avatar">${p.username[0].toUpperCase()}</div>
-      <div class="pr-name">${p.username}${isMe?' <span style="color:var(--c-ocean,#1a90d0);font-size:.6rem">(you)</span>':''}</div>
-      ${isCreator?'<span class="pr-crown" title="Creator">👑</span>':''}`;
+  if (ribBtn) {
+    const hasRegion = !data.region_is_world && currentRoomRegion.length > 0;
+    ribBtn.style.display = hasRegion ? 'inline-block' : 'none';
+    ribBtn.onclick = () => showRegionPreview(currentRoomRegion, data.region_label || 'Region');
+  }
+ 
+  // Player list
+  const plist = document.getElementById('waiting-player-list');
+  plist.innerHTML = '';
+  data.players.forEach(p => {
+    const isMe      = p.sid === mySid;
+    const isCreator = p.sid === data.creator_sid;
+    const row       = document.createElement('div');
+    row.className   = 'player-row' + (isMe ? ' me' : '');
+    row.innerHTML   = `
+      <div class="pr-avatar">${p.username[0].toUpperCase()}</div>
+      <div class="pr-name">${escGeo(p.username)}${isMe ? ' <span style="color:var(--c-ocean,#1a90d0);font-size:.6rem">(you)</span>' : ''}</div>
+      ${isCreator ? '<span class="pr-crown" title="Creator">👑</span>' : ''}`;
+    plist.appendChild(row);
+  });
+ 
+  amCreator = data.creator_sid === mySid;
+  document.getElementById('start-game-btn').style.display = amCreator ? 'inline-block' : 'none';
+  document.getElementById('waiting-hint').textContent = amCreator
+    ? 'Start whenever you\'re ready.'
+    : 'Waiting for the room creator to start the game…';
+ 
+  const ip = document.getElementById('invite-panel');
+  if (amCreator && data.privacy === 'private' && data.status === 'waiting')
+    ip.classList.add('visible');
+  else
+    ip.classList.remove('visible');
+});
+ 
+socket.on('geo_you_are_creator', () => {
+  amCreator = true;
+  document.getElementById('start-game-btn').style.display = 'inline-block';
+  document.getElementById('waiting-hint').textContent = 'You are now the room creator.';
+  if (currentRoomPrivacy === 'private') document.getElementById('invite-panel').classList.add('visible');
+});
+socket.on('geo_player_joined', data => geoToast(`${data.username} joined`));
+ 
+socket.on('geo_invite_candidates', data => {
+  const list     = document.getElementById('invite-candidate-list');
+  const emptyMsg = document.getElementById('invite-empty-msg');
+  list.querySelectorAll('.invite-candidate-row').forEach(r => r.remove());
+  const users = data.users || [];
+  if (!users.length) { emptyMsg.style.display = 'block'; return; }
+  emptyMsg.style.display = 'none';
+  users.forEach(username => {
+    const row = document.createElement('div');
+    row.className = 'invite-candidate-row';
+    row.innerHTML = `<div class="icr-name">${escGeo(username)}</div>
+      <button class="icr-invite-btn" onclick="sendInvite('${escGeo(username)}',this)">Invite</button>`;
     list.appendChild(row);
   });
-  amCreator=data.creator_sid===mySid;
-  document.getElementById('start-game-btn').style.display=amCreator?'inline-block':'none';
-  document.getElementById('waiting-hint').textContent=amCreator?'Start whenever you\'re ready.':'Waiting for the room creator to start the game…';
-  const ip=document.getElementById('invite-panel');
-  if(amCreator&&data.privacy==='private'&&data.status==='waiting') ip.classList.add('visible');
-  else ip.classList.remove('visible');
 });
-socket.on('geo_you_are_creator',()=>{
-  amCreator=true;
-  document.getElementById('start-game-btn').style.display='inline-block';
-  document.getElementById('waiting-hint').textContent='You are now the room creator.';
-  if(currentRoomPrivacy==='private') document.getElementById('invite-panel').classList.add('visible');
-});
-socket.on('geo_player_joined',data=>geoToast(`${data.username} joined`));
-
-socket.on('geo_invite_candidates',data=>{
-  const list=document.getElementById('invite-candidate-list'),emptyMsg=document.getElementById('invite-empty-msg');
-  list.querySelectorAll('.invite-candidate-row').forEach(r=>r.remove());
-  const users=data.users||[];
-  if(!users.length){emptyMsg.style.display='block';return;} emptyMsg.style.display='none';
-  users.forEach(username=>{
-    const row=document.createElement('div'); row.className='invite-candidate-row';
-    row.innerHTML=`<div class="icr-name">${username}</div><button class="icr-invite-btn" onclick="sendInvite('${username}',this)">Invite</button>`;
-    list.appendChild(row);
-  });
-});
-function sendInvite(username,btn){ btn.disabled=true; btn.textContent='Sent ✓'; socket.emit('geo_invite_user',{username}); }
-socket.on('geo_invited',data=>{
-  pendingInviteRoomId=data.room_id;
-  document.getElementById('ib-from-label').textContent=`📨 Invite from ${data.from_username}`;
-  document.getElementById('ib-room-label').textContent=`Join "${data.room_title}"?`;
+function sendInvite(username, btn) { btn.disabled = true; btn.textContent = 'Sent ✓'; socket.emit('geo_invite_user', {username}); }
+socket.on('geo_invited', data => {
+  pendingInviteRoomId = data.room_id;
+  document.getElementById('ib-from-label').textContent = `📨 Invite from ${data.from_username}`;
+  document.getElementById('ib-room-label').textContent = `Join "${data.room_title}"?`;
   document.getElementById('invite-banner').classList.add('visible');
-  clearTimeout(window._inviteDismissTimer); window._inviteDismissTimer=setTimeout(dismissInvite,30000);
+  clearTimeout(window._inviteDismissTimer);
+  window._inviteDismissTimer = setTimeout(dismissInvite, 30000);
 });
-function acceptInvite()  { if(pendingInviteRoomId) socket.emit('geo_join_room_by_invite',{room_id:pendingInviteRoomId}); dismissInvite(); }
-function dismissInvite() { pendingInviteRoomId=null; document.getElementById('invite-banner').classList.remove('visible'); clearTimeout(window._inviteDismissTimer); }
-function startGame() { socket.emit('geo_start_game'); }
+function acceptInvite()  { if (pendingInviteRoomId) socket.emit('geo_join_room_by_invite', {room_id: pendingInviteRoomId}); dismissInvite(); }
+function dismissInvite() { pendingInviteRoomId = null; document.getElementById('invite-banner').classList.remove('visible'); clearTimeout(window._inviteDismissTimer); }
+function startGame()  { socket.emit('geo_start_game'); }
 function leaveRoom() {
-  _cleanupGameState(); socket.emit('geo_leave_room'); socket.emit('geo_get_lobby'); showView('view-lobby');
+  _cleanupGameState();
+  socket.emit('geo_leave_room');
+  socket.emit('geo_get_lobby');
+  showView('view-lobby');
 }
-
-socket.on('geo_loading',data=>{
-  document.getElementById('mp-loading-msg').textContent=data.message||'Finding a location';
-  const t=document.getElementById('mp-region-timeout'); if(t) t.style.display='none';
-  const b=document.getElementById('mp-change-region-btn'); if(b) b.style.display='none';
+ 
+/* ── MP loading ───────────────────────────────────────── */
+socket.on('geo_loading', data => {
+  document.getElementById('mp-loading-msg').textContent = data.message || 'Finding a location';
+  const t = document.getElementById('mp-region-timeout');
+  if (t) t.style.display = 'none';
+  const b = document.getElementById('mp-change-region-btn');
+  if (b) b.style.display = 'none';
   showSV(false); showHud(false); showGuessMap(false); _cleanupRoundTimer();
   showView('view-mp-loading');
 });
-
-socket.on('geo_region_timeout',data=>{
-  const spT=document.getElementById('sp-region-timeout');
-  if(spT&&document.getElementById('view-sp-loading').classList.contains('active')) spT.style.display='block';
-  const mpT=document.getElementById('mp-region-timeout');
-  if(mpT&&document.getElementById('view-mp-loading').classList.contains('active')){
-    mpT.style.display='block';
-    if(amCreator){ const btn=document.getElementById('mp-change-region-btn'); if(btn) btn.style.display='inline-block'; }
+socket.on('geo_region_timeout', data => {
+  const spT = document.getElementById('sp-region-timeout');
+  if (spT && document.getElementById('view-sp-loading').classList.contains('active')) spT.style.display = 'block';
+  const mpT = document.getElementById('mp-region-timeout');
+  if (mpT && document.getElementById('view-mp-loading').classList.contains('active')) {
+    mpT.style.display = 'block';
+    if (amCreator) { const btn = document.getElementById('mp-change-region-btn'); if (btn) btn.style.display = 'inline-block'; }
   }
 });
-
-socket.on('geo_fetch_error',data=>{ geoToast('⚠ '+(data.message||'Could not fetch panorama'),6000); socket.emit('geo_get_lobby'); showView('view-room'); });
-
-socket.on('geo_round_start',data=>{
-  guessLocked=false; currentGuess=null;
-  if(guessMarker&&guessMapInst){guessMapInst.removeLayer(guessMarker);guessMarker=null;}
-  // Hide round transition timer
-  const rtt=document.getElementById('round-transition-timer');
-  if(rtt) rtt.classList.remove('visible');
-  document.getElementById('hud-round-val').textContent=`${data.round} / ${data.total_rounds}`;
-  document.getElementById('hud-round-label').textContent='Round';
-  document.getElementById('hud-locked-label').textContent='';
+socket.on('geo_fetch_error', data => {
+  geoToast('⚠ ' + (data.message || 'Could not fetch panorama'), 6000);
+  socket.emit('geo_get_lobby'); showView('view-room');
+});
+ 
+/* ── Round start ──────────────────────────────────────── */
+socket.on('geo_round_start', data => {
+  guessLocked = false; currentGuess = null;
+  if (guessMarker && guessMapInst) { guessMapInst.removeLayer(guessMarker); guessMarker = null; }
+  // Hide transition timer
+  const rtt = document.getElementById('round-transition-timer');
+  if (rtt) rtt.classList.remove('visible');
+ 
+  document.getElementById('hud-round-val').textContent = `${data.round} / ${data.total_rounds}`;
+  document.getElementById('hud-round-label').textContent = 'Round';
+  document.getElementById('hud-locked-label').textContent = '';
+ 
+  // Region HUD
+  _updateGameRegionHUD(data.region_label || '', data.region_preset_usernames || []);
+ 
   showView('view-game'); showSV(true); showHud(true); showSpHud(false); showGuessMap(true);
-  const lb=document.getElementById('lock-btn');
-  lb.textContent='Lock In Guess'; lb.disabled=true; lb.className='gmap-btn lock'; lb.onclick=lockGuess; lb.classList.remove('locked-in');
+  const lb = document.getElementById('lock-btn');
+  lb.textContent = 'Lock In Guess'; lb.disabled = true;
+  lb.className   = 'gmap-btn lock'; lb.onclick = lockGuess;
+  lb.classList.remove('locked-in');
   loadSV(data.pano_id); initGuessMap(); _startRoundTimer(data.round_secs);
 });
-
-socket.on('geo_guess_locked',data=>{
-  document.getElementById('hud-locked-label').textContent=`${data.locked_count}/${data.total} locked in`;
-  geoToast(`${data.username} locked in`);
-});
-
+ 
+function _updateGameRegionHUD(label, creators) {
+  const valEl = document.getElementById('hud-region-val');
+  if (valEl) {
+    let txt = label || 'Entire World';
+    if (creators && creators.length > 0) txt += ` · ${creators[0]}`;
+    valEl.textContent = txt;
+  }
+}
+ 
 function _startRoundTimer(totalSecs) {
   _cleanupRoundTimer();
-  let remaining=totalSecs;
-  const bigTimer=document.getElementById('geo-round-timer');
-  const bigVal=document.getElementById('geo-timer-val');
+  let remaining = totalSecs;
+  const bigTimer = document.getElementById('geo-round-timer');
+  const bigVal   = document.getElementById('geo-timer-val');
   bigTimer.classList.add('visible');
-  const _upd=()=>{ bigVal.textContent=fmtTime(remaining); bigTimer.classList.toggle('urgent',remaining<=10); if(remaining<=0) _cleanupRoundTimer(); };
+  const _upd = () => {
+    bigVal.textContent = fmtTime(remaining);
+    bigTimer.classList.toggle('urgent', remaining <= 10);
+    if (remaining <= 0) _cleanupRoundTimer();
+  };
   _upd();
-  roundTimerInterval=setInterval(()=>{remaining--;_upd();},1000);
+  roundTimerInterval = setInterval(() => { remaining--; _upd(); }, 1000);
 }
 function _cleanupRoundTimer() {
-  if(roundTimerInterval){clearInterval(roundTimerInterval);roundTimerInterval=null;}
-  const t=document.getElementById('geo-round-timer'); if(t) t.classList.remove('visible','urgent');
+  if (roundTimerInterval) { clearInterval(roundTimerInterval); roundTimerInterval = null; }
+  const t = document.getElementById('geo-round-timer');
+  if (t) t.classList.remove('visible', 'urgent');
 }
-
+ 
 function lockGuess() {
-  if(!currentGuess||guessLocked) return;
-  guessLocked=true;
-  const lb=document.getElementById('lock-btn'); lb.textContent='✓ Locked In'; lb.classList.add('locked-in');
-  socket.emit('geo_submit_guess',{lat:currentGuess.lat,lng:currentGuess.lng,locked:true});
+  if (!currentGuess || guessLocked) return;
+  guessLocked = true;
+  const lb = document.getElementById('lock-btn');
+  lb.textContent = '✓ Locked In'; lb.classList.add('locked-in');
+  socket.emit('geo_submit_guess', {lat: currentGuess.lat, lng: currentGuess.lng, locked: true});
 }
-
-socket.on('geo_round_end',data=>{
+ 
+socket.on('geo_guess_locked', data => {
+  document.getElementById('hud-locked-label').textContent = `${data.locked_count}/${data.total} locked in`;
+  geoToast(`${data.username} locked in`);
+});
+ 
+/* ── Round end ────────────────────────────────────────── */
+socket.on('geo_round_end', data => {
   _cleanupRoundTimer();
   showSV(false); showHud(false); showGuessMap(false); clearSV();
-  document.getElementById('re-round-label').textContent=`Round ${data.round} Results`;
+  document.getElementById('re-round-label').textContent = `Round ${data.round} Results`;
   _renderResultsTable(data.results);
   showView('view-round-end');
-
-  // Big transition countdown at top of screen
-  let secs=data.advance_secs||9;
-  const rtt=document.getElementById('round-transition-timer');
-  const rttVal=document.getElementById('rtt-val');
-  const rttLabel=document.getElementById('rtt-label');
-  if(rtt){
-    rttLabel.textContent = data.round >= (data.total_rounds||99) ? 'GAME ENDS IN' : 'NEXT ROUND IN';
-    rttVal.textContent=secs;
+ 
+  let secs = data.advance_secs || 9;
+  const rtt    = document.getElementById('round-transition-timer');
+  const rttVal = document.getElementById('rtt-val');
+  const rttLab = document.getElementById('rtt-label');
+  if (rtt) {
+    rttLab.textContent = data.round >= (data.total_rounds || 99) ? 'GAME ENDS IN' : 'NEXT ROUND IN';
+    rttVal.textContent = secs;
     rtt.classList.add('visible');
   }
-  const cdEl=document.getElementById('re-countdown');
-  cdEl.textContent=`${secs}s`;
-  roundAdvanceInterval=setInterval(()=>{
+  const cdEl = document.getElementById('re-countdown');
+  cdEl.textContent = `${secs}s`;
+  roundAdvanceInterval = setInterval(() => {
     secs--;
-    cdEl.textContent=`${secs}s`;
-    if(rttVal) rttVal.textContent=secs;
-    if(secs<=0){ clearInterval(roundAdvanceInterval); if(rtt) rtt.classList.remove('visible'); }
-  },1000);
-
-  setTimeout(()=>{
-    if(!reMapInst){
-      reMapInst=L.map('round-end-map',{center:[20,0],zoom:2});
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(reMapInst);
+    cdEl.textContent = `${secs}s`;
+    if (rttVal) rttVal.textContent = secs;
+    if (secs <= 0) { clearInterval(roundAdvanceInterval); if (rtt) rtt.classList.remove('visible'); }
+  }, 1000);
+ 
+  setTimeout(() => {
+    if (!reMapInst) {
+      reMapInst = L.map('round-end-map', {center: [20, 0], zoom: 2});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {attribution: '© OpenStreetMap'}).addTo(reMapInst);
     }
-    reMapInst.eachLayer(l=>{if(!(l instanceof L.TileLayer))reMapInst.removeLayer(l);});
+    reMapInst.eachLayer(l => { if (!(l instanceof L.TileLayer)) reMapInst.removeLayer(l); });
     reMapInst.invalidateSize();
-    const cLat=data.correct_lat,cLng=data.correct_lng,allPts=[[cLat,cLng]];
-    L.marker([cLat,cLng],{icon:_makePinIcon('#4caf50',1.5),zIndexOffset:1000})
+    const cLat = data.correct_lat, cLng = data.correct_lng;
+    const allPts = [[cLat, cLng]];
+    L.marker([cLat, cLng], {icon: _makePinIcon('#4caf50', 1.5), zIndexOffset: 1000})
       .bindPopup('📍 Correct location')
-      .bindTooltip('Answer',{permanent:true,direction:'top',offset:[0,-31],className:'geo-pin-label'})
+      .bindTooltip('Answer', {permanent: true, direction: 'top', offset: [0,-31], className: 'geo-pin-label'})
       .addTo(reMapInst);
-    const COLORS=['#1a90d0','#a78bfa','#ffd700','#ff6b6b','#6bffb8'];
-    data.results.forEach((r,i)=>{
-      if(!r.guessed||r.guess_lat==null) return;
-      const col=COLORS[i%COLORS.length];
-      L.marker([r.guess_lat,r.guess_lng],{icon:_makePinIcon(col,1.0),zIndexOffset:500-i})
+    const COLORS = ['#1a90d0','#a78bfa','#ffd700','#ff6b6b','#6bffb8'];
+    data.results.forEach((r, i) => {
+      if (!r.guessed || r.guess_lat == null) return;
+      const col = COLORS[i % COLORS.length];
+      L.marker([r.guess_lat, r.guess_lng], {icon: _makePinIcon(col, 1.0), zIndexOffset: 500 - i})
         .bindPopup(`${r.username}: ${fmtDist(r.distance_km)}`)
-        .bindTooltip(r.username,{permanent:true,direction:'top',offset:[0,-31],className:'geo-pin-label'})
+        .bindTooltip(r.username, {permanent: true, direction: 'top', offset: [0,-31], className: 'geo-pin-label'})
         .addTo(reMapInst);
-      L.polyline([[cLat,cLng],[r.guess_lat,r.guess_lng]],{color:col,opacity:.45,weight:1.5,dashArray:'4,4'}).addTo(reMapInst);
-      allPts.push([r.guess_lat,r.guess_lng]);
+      L.polyline([[cLat, cLng], [r.guess_lat, r.guess_lng]], {color: col, opacity: .45, weight: 1.5, dashArray: '4,4'}).addTo(reMapInst);
+      allPts.push([r.guess_lat, r.guess_lng]);
     });
-    if(allPts.length>1) reMapInst.fitBounds(L.latLngBounds(allPts).pad(0.2),{maxZoom:10});
-    else reMapInst.setView([cLat,cLng],6);
-  },80);
+    if (allPts.length > 1) reMapInst.fitBounds(L.latLngBounds(allPts).pad(0.2), {maxZoom: 10});
+    else reMapInst.setView([cLat, cLng], 6);
+  }, 80);
 });
-
+ 
 function _renderResultsTable(results) {
-  const tbody=document.getElementById('results-tbody'); tbody.innerHTML='';
-  results.forEach((r,i)=>{
-    const tr=document.createElement('tr'),isMe=r.sid===mySid;
-    tr.innerHTML=`<td class="rt-rank">${i+1}</td>
-      <td style="${isMe?'color:var(--c-ocean,#1a90d0);font-weight:700':''}">${r.username}${isMe?' <span style="font-size:.58rem;opacity:.6">(you)</span>':''}</td>
-      <td class="${r.guessed?'rt-dist':'rt-no-guess'}">${r.guessed?fmtDist(r.distance_km):'No guess'}</td>
+  const tbody = document.getElementById('results-tbody');
+  tbody.innerHTML = '';
+  results.forEach((r, i) => {
+    const tr   = document.createElement('tr');
+    const isMe = r.sid === mySid;
+    tr.innerHTML = `
+      <td class="rt-rank">${i + 1}</td>
+      <td style="${isMe ? 'color:var(--c-ocean,#1a90d0);font-weight:700' : ''}">${escGeo(r.username)}${isMe ? ' <span style="font-size:.58rem;opacity:.6">(you)</span>' : ''}</td>
+      <td class="${r.guessed ? 'rt-dist' : 'rt-no-guess'}">${r.guessed ? fmtDist(r.distance_km) : 'No guess'}</td>
       <td class="rt-score">+${r.round_score.toLocaleString()}</td>
       <td class="rt-total">${r.total_score.toLocaleString()}</td>`;
     tbody.appendChild(tr);
   });
 }
-
-socket.on('geo_game_over',data=>{
-  if(roundAdvanceInterval){clearInterval(roundAdvanceInterval);roundAdvanceInterval=null;}
-  const rtt=document.getElementById('round-transition-timer'); if(rtt) rtt.classList.remove('visible');
+ 
+/* ── Game over ────────────────────────────────────────── */
+socket.on('geo_game_over', data => {
+  if (roundAdvanceInterval) { clearInterval(roundAdvanceInterval); roundAdvanceInterval = null; }
+  const rtt = document.getElementById('round-transition-timer');
+  if (rtt) rtt.classList.remove('visible');
   showSV(false); showHud(false); showGuessMap(false); clearSV();
-  const podium=document.getElementById('go-podium'); podium.innerHTML='';
-  [1,0,2].forEach(idx=>{
-    if(!data.scores[idx]) return;
-    const s=data.scores[idx],isMe=s.sid===mySid;
-    const labels=['🥇','🥈','🥉'],classes=['second','first','third'];
-    const step=document.createElement('div'); step.className='go-step '+(classes[idx]||'');
-    step.innerHTML=`<div style="font-size:1.4rem">${labels[idx]||''}</div>
-      <div class="gs-name" style="${isMe?'color:var(--c-ocean,#1a90d0)':''}">${s.username}</div>
-      <div class="gs-score">${s.total_score.toLocaleString()} pts</div><div class="gs-bar"></div>`;
+ 
+  const podium = document.getElementById('go-podium');
+  podium.innerHTML = '';
+  [1, 0, 2].forEach(idx => {
+    if (!data.scores[idx]) return;
+    const s = data.scores[idx], isMe = s.sid === mySid;
+    const labels = ['🥇','🥈','🥉'], classes = ['second','first','third'];
+    const step = document.createElement('div');
+    step.className = 'go-step ' + (classes[idx] || '');
+    step.innerHTML = `
+      <div style="font-size:1.4rem">${labels[idx] || ''}</div>
+      <div class="gs-name" style="${isMe ? 'color:var(--c-ocean,#1a90d0)' : ''}">${escGeo(s.username)}</div>
+      <div class="gs-score">${s.total_score.toLocaleString()} pts</div>
+      <div class="gs-bar"></div>`;
     podium.appendChild(step);
   });
-  const tbody=document.getElementById('go-scores-tbody'); tbody.innerHTML='';
-  data.scores.forEach((s,i)=>{
-    const tr=document.createElement('tr'),isMe=s.sid===mySid;
-    tr.innerHTML=`<td class="go-rank-cell">${i+1}</td>
-      <td style="${isMe?'color:var(--c-ocean,#1a90d0);font-weight:700':''}">${s.username}${isMe?' <span style="font-size:.58rem;opacity:.6">(you)</span>':''}</td>
+  const tbody = document.getElementById('go-scores-tbody');
+  tbody.innerHTML = '';
+  data.scores.forEach((s, i) => {
+    const tr   = document.createElement('tr');
+    const isMe = s.sid === mySid;
+    tr.innerHTML = `
+      <td class="go-rank-cell">${i + 1}</td>
+      <td style="${isMe ? 'color:var(--c-ocean,#1a90d0);font-weight:700' : ''}">${escGeo(s.username)}${isMe ? ' <span style="font-size:.58rem;opacity:.6">(you)</span>' : ''}</td>
       <td class="go-score-cell">${s.total_score.toLocaleString()} pts</td>`;
     tbody.appendChild(tr);
   });
-  document.getElementById('go-restart-btn').style.display=amCreator?'inline-block':'none';
-  document.getElementById('go-waiting-msg').textContent=amCreator?'':'Waiting for the room creator…';
+  document.getElementById('go-restart-btn').style.display  = amCreator ? 'inline-block' : 'none';
+  document.getElementById('go-waiting-msg').textContent = amCreator ? '' : 'Waiting for the room creator…';
   showView('view-gameover');
 });
-
-socket.on('geo_room_restarted',()=>{ socket.emit('geo_get_lobby'); showView('view-room'); });
+ 
+socket.on('geo_room_restarted', () => { socket.emit('geo_get_lobby'); showView('view-room'); });
 function restartGame() { socket.emit('geo_restart_room'); }
-
+ 
 function _cleanupGameState() {
   _cleanupRoundTimer();
-  if(roundAdvanceInterval){clearInterval(roundAdvanceInterval);roundAdvanceInterval=null;}
-  const rtt=document.getElementById('round-transition-timer'); if(rtt) rtt.classList.remove('visible');
+  if (roundAdvanceInterval) { clearInterval(roundAdvanceInterval); roundAdvanceInterval = null; }
+  const rtt = document.getElementById('round-transition-timer');
+  if (rtt) rtt.classList.remove('visible');
   showSV(false); showHud(false); showSpHud(false); showGuessMap(false); clearSV();
-  currentRoomId=null; currentRoomPrivacy=null; amCreator=false; guessLocked=false; currentGuess=null;
+  currentRoomId = null; currentRoomPrivacy = null; amCreator = false;
+  guessLocked = false; currentGuess = null;
   document.getElementById('invite-panel').classList.remove('visible');
 }
-
+ 
+/* ── Guess map ────────────────────────────────────────── */
 function initGuessMap() {
-  if(guessMapInst){guessMapInst.invalidateSize();return;}
-  guessMapInst=L.map('guess-map',{center:[20,0],zoom:1,minZoom:1,maxZoom:18,zoomControl:false,attributionControl:false});
+  if (guessMapInst) { guessMapInst.invalidateSize(); return; }
+  guessMapInst = L.map('guess-map', {center: [20, 0], zoom: 1, minZoom: 1, maxZoom: 18, zoomControl: false, attributionControl: false});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(guessMapInst);
-  L.control.zoom({position:'topright'}).addTo(guessMapInst);
-  guessMapInst.on('click',e=>{
-    if(guessLocked) return;
-    currentGuess={lat:e.latlng.lat,lng:e.latlng.lng};
-    if(guessMarker) guessMapInst.removeLayer(guessMarker);
-    guessMarker=L.marker([e.latlng.lat,e.latlng.lng],{icon:_makePinIcon('#1a90d0'),zIndexOffset:1000}).addTo(guessMapInst);
-    document.getElementById('lock-btn').disabled=false;
+  L.control.zoom({position: 'topright'}).addTo(guessMapInst);
+  guessMapInst.on('click', e => {
+    if (guessLocked) return;
+    currentGuess = {lat: e.latlng.lat, lng: e.latlng.lng};
+    if (guessMarker) guessMapInst.removeLayer(guessMarker);
+    guessMarker = L.marker([e.latlng.lat, e.latlng.lng],
+      {icon: _makePinIcon('#1a90d0'), zIndexOffset: 1000}).addTo(guessMapInst);
+    document.getElementById('lock-btn').disabled = false;
   });
-  const wrap=document.getElementById('guess-map-wrap');
+  const wrap = document.getElementById('guess-map-wrap');
   let t;
-  wrap.addEventListener('mouseenter',()=>{clearTimeout(t);wrap.classList.add('expanded');});
-  wrap.addEventListener('mouseleave',()=>{t=setTimeout(()=>wrap.classList.remove('expanded'),400);});
-  // Invalidate AFTER the CSS transition finishes, not before.
-  // transitionend fires once per transitioned property; invalidateSize() is cheap so duplicates are fine.
-  wrap.addEventListener('transitionend',()=>{ if(guessMapInst) guessMapInst.invalidateSize(); });
+  wrap.addEventListener('mouseenter', () => { clearTimeout(t); wrap.classList.add('expanded'); });
+  wrap.addEventListener('mouseleave', () => { t = setTimeout(() => wrap.classList.remove('expanded'), 400); });
+  wrap.addEventListener('transitionend', () => { if (guessMapInst) guessMapInst.invalidateSize(); });
 }
 </script>
 {% endblock %}

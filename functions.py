@@ -14,6 +14,7 @@ from better_profanity import profanity as _profanity_filter
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid as _uuid
 import mimetypes as _mimetypes
+import json as _json_mod
 
 
 
@@ -429,6 +430,81 @@ def db_query(sql: str) -> tuple[list[str], list[list]]:
     rows    = [list(r) for r in c.fetchmany(500)]   # cap at 500 rows
     conn.close()
     return columns, rows
+
+
+def db_get_row(table: str, rowid: int) -> tuple[list[str], list] | None:
+    """Fetch a single row by rowid. Returns (columns, row) or None."""
+    conn = get_db()
+    conn.row_factory = None
+    c = conn.cursor()
+    try:
+        c.execute(f"SELECT rowid, * FROM {table} WHERE rowid = ?", (rowid,))
+        row = c.fetchone()
+        if not row:
+            conn.close()
+            return None
+        cols = [d[0] for d in c.description]
+        conn.close()
+        return cols, list(row)
+    except Exception as e:
+        conn.close()
+        raise ValueError(f"Cannot fetch row: {e}")
+ 
+ 
+def db_insert(table: str, data: dict) -> int:
+    """
+    Insert a row. data = {col: value, ...} (do NOT include rowid).
+    Returns the new rowid.
+    """
+    if not data:
+        raise ValueError("No column data provided.")
+    cols   = list(data.keys())
+    vals   = [data[c] for c in cols]
+    ph     = ", ".join("?" * len(cols))
+    col_str = ", ".join(cols)
+    conn   = get_db()
+    try:
+        c = conn.cursor()
+        c.execute(f"INSERT INTO {table} ({col_str}) VALUES ({ph})", vals)
+        conn.commit()
+        new_id = c.lastrowid
+        conn.close()
+        return new_id
+    except Exception as e:
+        conn.close()
+        raise ValueError(f"Insert failed: {e}")
+ 
+ 
+def db_update_row(table: str, rowid: int, data: dict) -> None:
+    """
+    Update a row by rowid. data = {col: value, ...} for columns to change.
+    Skips the rowid column itself if present in data.
+    """
+    data = {k: v for k, v in data.items() if k.lower() != "rowid"}
+    if not data:
+        raise ValueError("No columns to update.")
+    set_clause = ", ".join(f"{col} = ?" for col in data)
+    vals       = list(data.values()) + [rowid]
+    conn       = get_db()
+    try:
+        conn.execute(f"UPDATE {table} SET {set_clause} WHERE rowid = ?", vals)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        conn.close()
+        raise ValueError(f"Update failed: {e}")
+ 
+ 
+def db_delete_row(table: str, rowid: int) -> None:
+    """Delete a row by rowid."""
+    conn = get_db()
+    try:
+        conn.execute(f"DELETE FROM {table} WHERE rowid = ?", (rowid,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        conn.close()
+        raise ValueError(f"Delete failed: {e}")
 
 
 ##############################################
@@ -1541,5 +1617,76 @@ def updates_edit(update_id: int, version: str, title: str, description: str) -> 
 def updates_delete(update_id: int) -> None:
     conn = get_db()
     conn.execute("DELETE FROM updates WHERE id=?", (update_id,))
+    conn.commit()
+    conn.close()
+    
+
+
+def geo_preset_create(title: str, username: str, polygons: list) -> dict:
+    """
+    Saves a new preset.
+    polygons: List[List[List[float]]] — array of polygons, each polygon = [[lat,lng], ...]
+    """
+    now  = time.time()
+    conn = get_db()
+    c    = conn.cursor()
+    c.execute(
+        "INSERT INTO geo_presets (title, username, region, created_at) VALUES (?,?,?,?)",
+        (title, username, _json_mod.dumps(polygons), now)
+    )
+    pid = c.lastrowid
+    conn.commit()
+    conn.close()
+    return {"id": pid, "title": title, "username": username, "created_at": now}
+ 
+ 
+def geo_preset_search(query: str = "", limit: int = 40) -> list[dict]:
+    """Returns presets matching query (title search), newest first."""
+    conn = get_db()
+    c    = conn.cursor()
+    if query:
+        c.execute(
+            "SELECT id, title, username, created_at FROM geo_presets "
+            "WHERE title LIKE ? ORDER BY created_at DESC LIMIT ?",
+            (f"%{query}%", limit)
+        )
+    else:
+        c.execute(
+            "SELECT id, title, username, created_at FROM geo_presets "
+            "ORDER BY created_at DESC LIMIT ?",
+            (limit,)
+        )
+    rows = [
+        {"id": r[0], "title": r[1], "username": r[2], "created_at": r[3]}
+        for r in c.fetchall()
+    ]
+    conn.close()
+    return rows
+ 
+ 
+def geo_preset_get_by_id(preset_id: int) -> dict | None:
+    """Returns full preset including region polygon data."""
+    conn = get_db()
+    c    = conn.cursor()
+    c.execute(
+        "SELECT id, title, username, region, created_at FROM geo_presets WHERE id=?",
+        (preset_id,)
+    )
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "id":         row[0],
+        "title":      row[1],
+        "username":   row[2],
+        "region":     _json_mod.loads(row[3]),   # List[List[List[float]]]
+        "created_at": row[4],
+    }
+ 
+ 
+def geo_preset_delete(preset_id: int) -> None:
+    conn = get_db()
+    conn.execute("DELETE FROM geo_presets WHERE id=?", (preset_id,))
     conn.commit()
     conn.close()

@@ -366,6 +366,72 @@ def db_query_run():
         return jsonify({"error": str(e)}), 400
 
 
+@admin_bp.route("/db/row/<table>/<int:rowid>")
+@require_role("DEV")
+def db_get_row(table, rowid):
+    allowed = set(f.db_get_tables())
+    if table not in allowed:
+        return jsonify({"error": "Table not found."}), 404
+    try:
+        result = f.db_get_row(table, rowid)
+        if not result:
+            return jsonify({"error": "Row not found."}), 404
+        cols, row = result
+        return jsonify({"columns": cols, "row": row})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+ 
+ 
+@admin_bp.route("/db/insert/<table>", methods=["POST"])
+@require_role("DEV")
+def db_insert_row(table):
+    allowed = set(f.db_get_tables())
+    if table not in allowed:
+        return jsonify({"ok": False, "error": "Table not found."}), 404
+    data = request.get_json(silent=True) or {}
+    row_data = data.get("row", {})
+    if not row_data:
+        return jsonify({"ok": False, "error": "No data provided."}), 400
+    try:
+        new_id = f.db_insert(table, row_data)
+        app_log.info(f"[admin] {_name()!r} inserted row into {table!r} (rowid={new_id})")
+        return jsonify({"ok": True, "rowid": new_id})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+ 
+ 
+@admin_bp.route("/db/update/<table>/<int:rowid>", methods=["POST"])
+@require_role("DEV")
+def db_update_row(table, rowid):
+    allowed = set(f.db_get_tables())
+    if table not in allowed:
+        return jsonify({"ok": False, "error": "Table not found."}), 404
+    data = request.get_json(silent=True) or {}
+    row_data = data.get("row", {})
+    if not row_data:
+        return jsonify({"ok": False, "error": "No data provided."}), 400
+    try:
+        f.db_update_row(table, rowid, row_data)
+        app_log.info(f"[admin] {_name()!r} updated row rowid={rowid} in {table!r}")
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+ 
+ 
+@admin_bp.route("/db/delete/<table>/<int:rowid>", methods=["POST"])
+@require_role("DEV")
+def db_delete_row(table, rowid):
+    allowed = set(f.db_get_tables())
+    if table not in allowed:
+        return jsonify({"ok": False, "error": "Table not found."}), 404
+    try:
+        f.db_delete_row(table, rowid)
+        app_log.info(f"[admin] {_name()!r} deleted row rowid={rowid} from {table!r}")
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
 # ── Admin Power Control (DEV only) ────────────────────────────────────────────
 @admin_bp.route("/power")
 @require_role("DEV")

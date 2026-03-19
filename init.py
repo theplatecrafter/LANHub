@@ -251,6 +251,17 @@ def init_db():
             timestamp   REAL    NOT NULL
         )
     """)
+    
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS geo_presets (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            title      TEXT    NOT NULL,
+            username   TEXT    NOT NULL,
+            region     TEXT    NOT NULL,  -- JSON: List[List[List[float]]] (array of polygons)
+            created_at REAL    NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_geo_presets_title ON geo_presets(title)")
  
     for col, defn in [
         ("reply_to_id", "INTEGER REFERENCES chat_messages(id)"),
