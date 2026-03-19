@@ -10,7 +10,7 @@ Region format (v2):
 
 Requires: pip install streetview
 """
-import uuid, time, threading, random, math, urllib.request
+import uuid, time, threading, random, math, urllib.request, hashlib
 import json as _json
 from flask import request
 from flask_socketio import emit
@@ -31,8 +31,114 @@ except ImportError:
 geo_sessions: dict[str, dict] = {}
 geo_rooms:    dict[str, dict] = {}
 
-ROUND_ADVANCE_SECS   = 9
-MAX_LOCATION_RETRIES = 50
+ROUND_ADVANCE_SECS   = int(getattr(config, "GEO_ROUND_ADVANCE_SECS",   9))
+MAX_LOCATION_RETRIES = int(getattr(config, "GEO_MAX_LOCATION_RETRIES", 50))
+
+# ── Region coverage cache ─────────────────────────────────────────────────────
+#
+# Maps a hash of the polygon geometry to a list of fine-grained cells that are
+# known to contain Street View coverage inside the region.
+#
+# Lifecycle
+# ---------
+# An entry is created the first time a full quadtree search succeeds for a
+# region and grows by one cell per successful round. Entries are deleted the
+# moment no active room or SP session references that region any more.
+#
+# Avoiding repeated locations
+# ---------------------------
+# On a cache hit, _cache_try() queries a RANDOM POINT within the cached cell
+# (not the cell centre). Because the cell is known to have coverage, any point
+# inside it plus the cell's search radius will still reliably find a panorama —
+# but since the query coordinate differs every call, the Street View API returns
+# a different nearby panorama each time.
+#
+# Tracking "in use"
+# -----------------
+# Every room dict carries "region_key"; every SP session carries "sp_region_key".
+# _cache_release() is called whenever a region stops being used and evicts the
+# entry only if nothing else still holds the same key.
+#
+# Structure: { region_hash: [cell, cell, ...] }
+#   where cell = (lat_min, lat_max, lng_min, lng_max)
+#
+
+# ── Region coverage cache ─────────────────────────────────────────────────────
+# Maps region_hash -> set of cells (lat_min, lat_max, lng_min, lng_max) that
+# are known to contain Street View coverage inside that region.
+#
+# The quadtree always runs from the coarsest grid down, but cells in this set
+# skip the metadata API call — they are instantly counted as covered.
+# This keeps the search structure intact while eliminating redundant API calls
+# on repeated runs of the same region.
+#
+# Entries are evicted as soon as no room or SP session references the region.
+_region_coverage_cache: dict[str, set] = {}
+
+_CACHE_MAX_CELLS_PER_REGION = int(getattr(config, "GEO_CACHE_MAX_CELLS", 500))
+
+
+def _region_hash(polygons: list) -> str | None:
+    if not polygons:
+        return None
+    rounded = [
+        [[round(c, 5) for c in pt] for pt in poly]
+        for poly in polygons
+    ]
+    blob = _json.dumps(rounded, sort_keys=True, separators=(',', ':')).encode()
+    return hashlib.md5(blob).hexdigest()
+
+
+def _cache_add(region_key: str, cell: tuple) -> None:
+    if region_key is None:
+        return
+    if region_key not in _region_coverage_cache:
+        _region_coverage_cache[region_key] = set()
+    cells = _region_coverage_cache[region_key]
+    if len(cells) < _CACHE_MAX_CELLS_PER_REGION:
+        cells.add(cell)
+    app_log.debug(
+        f"[geo cache] region {region_key[:8]}: {len(cells)} cells known"
+    )
+
+
+def _cache_remove_cell(region_key: str, cell: tuple) -> None:
+    if region_key is None:
+        return
+    cells = _region_coverage_cache.get(region_key)
+    if cells:
+        cells.discard(cell)
+
+
+def _cache_release(region_key: str) -> None:
+    """
+    Evict the cache entry for region_key if nothing still references it.
+    Called after a room is deleted or an SP session switches/disconnects.
+    The caller must update geo_rooms / geo_sessions BEFORE calling this so
+    the reference scan sees the correct state.
+    """
+    if region_key is None or region_key not in _region_coverage_cache:
+        return
+    for room in geo_rooms.values():
+        if room.get("region_key") == region_key:
+            app_log.debug(
+                f"[geo cache] release skipped for {region_key[:8]} "
+                f"(held by room {room['id']})"
+            )
+            return
+    for sess in geo_sessions.values():
+        if sess.get("sp_region_key") == region_key:
+            app_log.debug(
+                f"[geo cache] release skipped for {region_key[:8]} "
+                f"(held by SP session)"
+            )
+            return
+    del _region_coverage_cache[region_key]
+    app_log.info(
+        f"[geo cache] released region {region_key[:8]} — "
+        f"cache now holds {len(_region_coverage_cache)} region(s)"
+    )
+
 
 _WORLD_CITIES = [
     (40.71,-74.01),(34.05,-118.24),(41.88,-87.63),(29.76,-95.37),(33.45,-112.07),
@@ -91,7 +197,6 @@ def _point_in_polygon(lat: float, lng: float, polygon: list) -> bool:
 
 
 def _point_in_any_polygon(lat: float, lng: float, polygons: list) -> bool:
-    """Returns True if (lat,lng) is inside any polygon in the list."""
     return any(
         _point_in_polygon(lat, lng, poly)
         for poly in polygons
@@ -113,7 +218,6 @@ def _random_polygon_point(polygon: list):
 
 
 def _random_point_in_any_polygon(polygons: list):
-    """Pick a random interior point from any polygon, trying each in random order."""
     order = list(range(len(polygons)))
     random.shuffle(order)
     for i in order:
@@ -134,7 +238,6 @@ def haversine_km(lat1, lng1, lat2, lng2) -> float:
 
 
 def _region_diagonal_km(polygons: list) -> float:
-    """Bounding-box diagonal across ALL polygons combined."""
     all_lats = [p[0] for poly in polygons for p in poly]
     all_lngs = [p[1] for poly in polygons for p in poly]
     if not all_lats:
@@ -144,11 +247,6 @@ def _region_diagonal_km(polygons: list) -> float:
 
 def geo_score(distance_km: float, polygons: list = None,
               region_is_world: bool = True) -> int:
-    """
-    Score 0–5000. World mode: exponential decay over 2000 km.
-    Region mode: decay scaled to bbox diagonal × GEO_REGION_SCORE_DECAY_FACTOR.
-    polygons: List[List[List[float]]] — list of polygons.
-    """
     if region_is_world or not polygons:
         if distance_km < 0.025:
             return 5000
@@ -166,11 +264,6 @@ def geo_score(distance_km: float, polygons: list = None,
 # ── Street View Metadata API ──────────────────────────────────────────────────
 
 def _sv_metadata_check(lat: float, lng: float, radius_m: int, api_key: str):
-    """
-    Query the official (free) Street View Static metadata endpoint.
-    Returns (pano_id, pano_lat, pano_lng) or None.
-    pano_lat/pano_lng are the ACTUAL panorama coordinates, not the query point.
-    """
     url = (
         "https://maps.googleapis.com/maps/api/streetview/metadata"
         f"?location={lat},{lng}&radius={radius_m}&source=outdoor&key={api_key}"
@@ -190,63 +283,45 @@ def _sv_metadata_check(lat: float, lng: float, radius_m: int, api_key: str):
     except Exception as e:
         app_log.debug(f"[geo] metadata check error ({lat:.3f},{lng:.3f}) r={radius_m}m: {e}")
         return None
- 
- 
+
+
 # ── Cell geometry helpers ─────────────────────────────────────────────────────
- 
+
 def _cell_diagonal_km(lat_min: float, lat_max: float,
                        lng_min: float, lng_max: float) -> float:
-    """Haversine distance from SW corner to NE corner of a cell."""
     return haversine_km(lat_min, lng_min, lat_max, lng_max)
- 
- 
+
+
 def _cell_center(lat_min: float, lat_max: float,
                   lng_min: float, lng_max: float) -> tuple:
     return ((lat_min + lat_max) / 2.0, (lng_min + lng_max) / 2.0)
- 
- 
+
+
 def _cell_search_radius_m(diagonal_km: float, max_radius_m: int) -> int:
-    """
-    Search radius = half the cell diagonal (so the search circle
-    circumscribes the cell), capped at max_radius_m.
-    """
     return min(max_radius_m, max(100, int(diagonal_km * 500)))
- 
- 
+
+
 def _cell_has_region_overlap(lat_min: float, lat_max: float,
                                lng_min: float, lng_max: float,
                                polygons: list) -> bool:
-    """
-    Fast pre-filter: returns True if the cell plausibly overlaps the region.
-    Checks the center + 4 corners + 4 edge midpoints against all polygons.
-    This catches thin corridors that miss the center-only test.
-    """
     c_lat = (lat_min + lat_max) / 2.0
     c_lng = (lng_min + lng_max) / 2.0
     probe_points = [
-        (c_lat,   c_lng),                          # center
-        (lat_min, lng_min),                         # SW
-        (lat_min, lng_max),                         # SE
-        (lat_max, lng_min),                         # NW
-        (lat_max, lng_max),                         # NE
-        (c_lat,   lng_min),                         # W edge mid
-        (c_lat,   lng_max),                         # E edge mid
-        (lat_min, c_lng),                           # S edge mid
-        (lat_max, c_lng),                           # N edge mid
+        (c_lat,   c_lng),
+        (lat_min, lng_min), (lat_min, lng_max),
+        (lat_max, lng_min), (lat_max, lng_max),
+        (c_lat,   lng_min), (c_lat,   lng_max),
+        (lat_min, c_lng),   (lat_max, c_lng),
     ]
     return any(
         _point_in_any_polygon(lat, lng, polygons)
         for lat, lng in probe_points
     )
- 
- 
+
+
 def _subdivide_cell(lat_min: float, lat_max: float,
                      lng_min: float, lng_max: float,
                      n: int) -> list:
-    """
-    Divide a cell into n×n sub-cells.
-    Returns a list of (lat_min, lat_max, lng_min, lng_max) tuples.
-    """
     lat_step = (lat_max - lat_min) / n
     lng_step = (lng_max - lng_min) / n
     cells = []
@@ -259,59 +334,43 @@ def _subdivide_cell(lat_min: float, lat_max: float,
                 lng_min + (j + 1) * lng_step,
             ))
     return cells
- 
- 
+
+
 # ── Adaptive quadtree region search ──────────────────────────────────────────
- 
-def _find_pano_region(polygons: list, api_key: str, on_timeout=None):
+
+def _find_pano_region(polygons: list, region_key: str,
+                      api_key: str, on_timeout=None):
     """
-    Adaptive quadtree coverage search.
- 
-    Algorithm
-    ---------
-    1. Cover the combined bounding box of all polygons with an initial
-       coarse grid of GEO_COVERAGE_INITIAL_DIVISIONS × GEO_COVERAGE_INITIAL_DIVISIONS
-       cells. Keep only cells that overlap the region (9-point probe).
- 
-    2. For each surviving cell, query the Street View Metadata API with a
-       search radius equal to half the cell's diagonal. If the returned
-       panorama lands INSIDE the cell AND INSIDE the region polygon, the
-       cell is marked "covered".
- 
-    3. Take all covered cells from step 2, subdivide each one into
-       GEO_COVERAGE_SUBDIVIDE_BY × GEO_COVERAGE_SUBDIVIDE_BY sub-cells,
-       and repeat step 2 on those sub-cells.
- 
-    4. Repeat until the cell diagonal ≤ GEO_COVERAGE_MIN_CELL_KM  OR
-       the iteration count reaches GEO_COVERAGE_MAX_DEPTH.
- 
-    5. From the finest-level covered cells, pick one UNIFORMLY AT RANDOM
-       (so dense city clusters are not over-represented) and do a final
-       tight-radius query to return the definitive pano ID.
- 
-    The double containment check (cell bounds + polygon bounds) is what
-    prevents panoramas from leaking outside the drawn region.
- 
+    Adaptive quadtree coverage search with per-region cell caching.
+
+    Fast path  — cache hit:  one random-point metadata query, ~1 API call.
+    Slow path  — cache miss: full quadtree, winning cell written to cache.
+
     Returns (pano_id, pano_lat, pano_lng) or None.
     """
-    # ── Config ────────────────────────────────────────────────────────────────
     initial_divs  = int(  getattr(config, "GEO_COVERAGE_INITIAL_DIVISIONS",  4))
     subdivide_by  = int(  getattr(config, "GEO_COVERAGE_SUBDIVIDE_BY",       3))
     min_cell_km   = float(getattr(config, "GEO_COVERAGE_MIN_CELL_KM",      3.0))
     max_depth     = int(  getattr(config, "GEO_COVERAGE_MAX_DEPTH",          6))
     timeout_s     = float(getattr(config, "GEO_COVERAGE_TIMEOUT_SECS",     30.0))
     max_radius_m  = int(  getattr(config, "GEO_COVERAGE_MAX_RADIUS_M",   50_000))
- 
-    # ── Combined bounding box ─────────────────────────────────────────────────
+
+    # ── Fast path ─────────────────────────────────────────────────────────────
+    known_cells = _region_coverage_cache.get(region_key) or set()
+    app_log.info(
+        f"[geo] Quadtree search for {region_key[:8]} "
+        f"({len(known_cells)} cells already known)"
+    )
+
+    # ── Slow path: full quadtree ───────────────────────────────────────────────
     all_lats = [p[0] for poly in polygons for p in poly]
     all_lngs = [p[1] for poly in polygons for p in poly]
     bb_lat_min, bb_lat_max = min(all_lats), max(all_lats)
     bb_lng_min, bb_lng_max = min(all_lngs), max(all_lngs)
- 
-    # ── Timeout machinery ─────────────────────────────────────────────────────
+
     start_time    = time.time()
     timeout_fired = False
- 
+
     def _check_timeout():
         nonlocal timeout_fired
         if not timeout_fired and on_timeout and (time.time() - start_time) >= timeout_s:
@@ -320,155 +379,141 @@ def _find_pano_region(polygons: list, api_key: str, on_timeout=None):
                 on_timeout()
             except Exception:
                 pass
- 
-    # ── Step 1: initial coarse grid ───────────────────────────────────────────
+
     initial_cells = _subdivide_cell(
-        bb_lat_min, bb_lat_max,
-        bb_lng_min, bb_lng_max,
-        initial_divs,
+        bb_lat_min, bb_lat_max, bb_lng_min, bb_lng_max, initial_divs,
     )
- 
-    # Pre-filter: discard cells that don't overlap the region at all
-    live_cells = [
-        c for c in initial_cells
-        if _cell_has_region_overlap(*c, polygons)
-    ]
- 
+    live_cells = [c for c in initial_cells if _cell_has_region_overlap(*c, polygons)]
+
     diag_km = _cell_diagonal_km(
         bb_lat_min, bb_lat_max, bb_lng_min, bb_lng_max
     ) / initial_divs
- 
+
     app_log.info(
-        f"[geo] Adaptive search start: {len(initial_cells)} coarse cells → "
-        f"{len(live_cells)} overlap region, cell diag ≈ {diag_km:.1f} km"
+        f"[geo] Adaptive search start: {len(initial_cells)} coarse cells -> "
+        f"{len(live_cells)} overlap region, cell diag ~= {diag_km:.1f} km"
     )
- 
-    # ── Steps 2–4: iterative coverage probing ─────────────────────────────────
-    covered_cells = []   # finest-level cells with confirmed coverage
- 
+
+    covered_cells = []
+
     for depth in range(max_depth):
         _check_timeout()
         if not live_cells:
-            app_log.info(f"[geo] Depth {depth}: no live cells remaining, stopping.")
+            app_log.info(f"[geo] Depth {depth}: no live cells, stopping.")
             break
- 
-        diag_km = _cell_diagonal_km(*live_cells[0], ) if live_cells else 0.0
- 
+
+        diag_km = _cell_diagonal_km(*live_cells[0]) if live_cells else 0.0
         app_log.info(
             f"[geo] Depth {depth}: probing {len(live_cells)} cells, "
-            f"diag ≈ {diag_km:.1f} km"
+            f"diag ~= {diag_km:.1f} km"
         )
- 
+
         newly_covered = []
- 
+        known_cells = _region_coverage_cache.get(region_key) or set()
         for cell in live_cells:
             lat_min, lat_max, lng_min, lng_max = cell
+
+            if cell in known_cells:
+                # Already confirmed coverage for this cell — skip the API call
+                newly_covered.append(cell)
+                continue
+
             c_lat, c_lng = _cell_center(*cell)
-            diag = _cell_diagonal_km(*cell)
+            diag     = _cell_diagonal_km(*cell)
             radius_m = _cell_search_radius_m(diag, max_radius_m)
- 
+
             _check_timeout()
             result = _sv_metadata_check(c_lat, c_lng, radius_m, api_key)
             if not result:
                 continue
- 
+
             pano_id, pano_lat, pano_lng = result
- 
-            # Double containment: pano must be inside THIS cell AND inside region
-            pano_in_cell   = (lat_min <= pano_lat <= lat_max and
-                               lng_min <= pano_lng <= lng_max)
-            pano_in_region = _point_in_any_polygon(pano_lat, pano_lng, polygons)
- 
-            if pano_in_cell and pano_in_region:
+            if (lat_min <= pano_lat <= lat_max and
+                    lng_min <= pano_lng <= lng_max and
+                    _point_in_any_polygon(pano_lat, pano_lng, polygons)):
                 newly_covered.append(cell)
- 
+                _cache_add(region_key, cell)   # learn this cell for future runs
+
+
         app_log.info(
             f"[geo] Depth {depth}: {len(newly_covered)}/{len(live_cells)} cells covered"
         )
- 
+
         if not newly_covered:
-            # No coverage found at this level — stop, don't go deeper
             app_log.info(f"[geo] Depth {depth}: zero coverage hits, stopping early.")
             break
- 
-        # Check termination condition
+
         avg_diag = sum(_cell_diagonal_km(*c) for c in newly_covered) / len(newly_covered)
         if avg_diag <= min_cell_km or depth == max_depth - 1:
-            # We've reached sufficient resolution — these are our final candidates
             covered_cells = newly_covered
             app_log.info(
                 f"[geo] Terminating at depth {depth}: avg diag {avg_diag:.2f} km, "
                 f"{len(covered_cells)} candidate cells"
             )
             break
- 
-        # Subdivide covered cells for next iteration
-        next_cells = []
-        for cell in newly_covered:
-            sub = _subdivide_cell(*cell, subdivide_by)
-            # Pre-filter sub-cells against region
-            next_cells.extend(
-                s for s in sub
-                if _cell_has_region_overlap(*s, polygons)
-            )
-        # Shuffle so we don't systematically prefer SW cells
+
+        # Subdivide only ONE randomly chosen covered cell (constant probe count
+        # per depth, avoids exponential blowup in dense urban regions)
+        chosen_to_subdivide = random.choice(newly_covered)
+        sub = _subdivide_cell(*chosen_to_subdivide, subdivide_by)
+        next_cells = [s for s in sub if _cell_has_region_overlap(*s, polygons)]
         random.shuffle(next_cells)
+
+        app_log.info(
+            f"[geo] Depth {depth}: subdividing 1/{len(newly_covered)} covered cells "
+            f"-> {len(next_cells)} sub-cells after region filter"
+        )
+
         live_cells    = next_cells
-        covered_cells = newly_covered   # keep as fallback in case depth terminates
- 
-    # ── Step 5: uniform random selection ─────────────────────────────────────
+        covered_cells = newly_covered
+
     if not covered_cells:
         app_log.warning("[geo] Adaptive search: no covered cells found.")
         return None
- 
-    # Pick uniformly at random — avoids density bias toward city clusters
-    chosen = random.choice(covered_cells)
-    c_lat, c_lng = _cell_center(*chosen)
-    diag    = _cell_diagonal_km(*chosen)
-    # Final query: tight radius = half the smallest cell diagonal
-    radius_m = _cell_search_radius_m(diag, max_radius_m)
- 
-    result = _sv_metadata_check(c_lat, c_lng, radius_m, api_key)
-    if result:
-        pano_id, pano_lat, pano_lng = result
-        # Final containment check
-        lat_min, lat_max, lng_min, lng_max = chosen
-        if (lat_min <= pano_lat <= lat_max and
-                lng_min <= pano_lng <= lng_max and
-                _point_in_any_polygon(pano_lat, pano_lng, polygons)):
-            app_log.info(
-                f"[geo] Adaptive final pano: {pano_id} "
-                f"@ ({pano_lat:.4f},{pano_lng:.4f}), "
-                f"cell diag {diag:.2f} km"
-            )
-            return pano_id, pano_lat, pano_lng
- 
-    # Fallback: iterate remaining covered cells until we get a clean hit
-    random.shuffle(covered_cells)
-    for cell in covered_cells:
-        c_lat, c_lng = _cell_center(*cell)
+
+    # Final query: cell centre (quadtree path uses centre for accuracy)
+    def _try_cell_final(cell):
+        lat_min, lat_max, lng_min, lng_max = cell
+        # Random point inside the cell so each round gets a different pano
+        q_lat = random.uniform(lat_min, lat_max)
+        q_lng = random.uniform(lng_min, lng_max)
         diag     = _cell_diagonal_km(*cell)
         radius_m = _cell_search_radius_m(diag, max_radius_m)
-        result   = _sv_metadata_check(c_lat, c_lng, radius_m, api_key)
+        result   = _sv_metadata_check(q_lat, q_lng, radius_m, api_key)
         if not result:
-            continue
+            return None
         pano_id, pano_lat, pano_lng = result
-        lat_min, lat_max, lng_min, lng_max = cell
-        if (lat_min <= pano_lat <= lat_max and
-                lng_min <= pano_lng <= lng_max and
-                _point_in_any_polygon(pano_lat, pano_lng, polygons)):
-            app_log.info(
-                f"[geo] Adaptive fallback pano: {pano_id} "
-                f"@ ({pano_lat:.4f},{pano_lng:.4f})"
-            )
+        # Only require the pano to be inside the region, not the exact cell
+        if _point_in_any_polygon(pano_lat, pano_lng, polygons):
             return pano_id, pano_lat, pano_lng
- 
+        return None
+
+    chosen = random.choice(covered_cells)
+    hit = _try_cell_final(chosen)
+    if hit:
+        app_log.info(
+            f"[geo] Adaptive final pano: {hit[0]} "
+            f"@ ({hit[1]:.4f},{hit[2]:.4f}), "
+            f"cell diag {_cell_diagonal_km(*chosen):.2f} km"
+        )
+        return hit
+
+    # Fallback: try remaining covered cells
+    random.shuffle(covered_cells)
+    for cell in covered_cells:
+        hit = _try_cell_final(cell)
+        if hit:
+            app_log.info(
+                f"[geo] Adaptive fallback pano: {hit[0]} @ ({hit[1]:.4f},{hit[2]:.4f})"
+            )
+            return hit
+
     app_log.warning("[geo] Adaptive search: all covered cells re-queried with no clean hit.")
     return None
- 
- 
+
+
 # ── Extract pano info from streetview library results ────────────────────────
- 
+
 def _extract_pano_info(result, default_lat, default_lng):
     if isinstance(result, dict):
         pano_id  = result.get("pano_id") or result.get("panoid") or result.get("id", "")
@@ -479,22 +524,18 @@ def _extract_pano_info(result, default_lat, default_lng):
         pano_lat = float(getattr(result, "lat", default_lat))
         pano_lng = float(getattr(result, "lon", getattr(result, "lng", default_lng)))
     return pano_id.strip(), pano_lat, pano_lng
- 
- 
+
+
 # ── Master panorama finder ────────────────────────────────────────────────────
- 
-def _find_pano(polygons: list, region_is_world: bool, on_timeout=None) -> tuple:
-    """
-    Master panorama finder.
-    polygons: List[List[List[float]]] — array of polygons (empty for world mode).
-    Returns (pano_id, pano_lat, pano_lng). Never raises — falls back to world mode.
-    """
+
+def _find_pano(polygons: list, region_is_world: bool,
+               region_key: str = None, on_timeout=None) -> tuple:
     if not _SV_OK:
         raise Exception(
             "The 'streetview' library is not installed. Run: pip install streetview"
         )
- 
-    # ── World mode ────────────────────────────────────────────────────────────
+
+    # World mode
     if region_is_world or not polygons:
         while True:
             if random.random() < 0.85:
@@ -517,25 +558,30 @@ def _find_pano(polygons: list, region_is_world: bool, on_timeout=None) -> tuple:
                 continue
             app_log.info(f"[geo] World pano {pano_id} @ ({pano_lat:.4f},{pano_lng:.4f})")
             return pano_id, pano_lat, pano_lng
- 
-    # ── Region mode ───────────────────────────────────────────────────────────
+
+    # Region mode
     valid_polys = [p for p in polygons if isinstance(p, list) and len(p) >= 3]
     if not valid_polys:
-        app_log.warning("[geo] Empty/degenerate polygons — falling back to world mode")
+        app_log.warning("[geo] Empty/degenerate polygons -- falling back to world mode")
         return _find_pano([], True)
- 
+
     api_key = getattr(config, "GOOGLE_MAPS_EMBED_KEY", "")
- 
+
     if api_key:
-        result = _find_pano_region(valid_polys, api_key, on_timeout=on_timeout)
+        result = _find_pano_region(
+            valid_polys,
+            region_key or _region_hash(valid_polys),
+            api_key,
+            on_timeout=on_timeout,
+        )
         if result:
             return result
-        app_log.warning("[geo] Region search exhausted — falling back to world mode")
+        app_log.warning("[geo] Region search exhausted -- falling back to world mode")
         return _find_pano([], True)
- 
+
     else:
-        # ── No-key fallback: streetview library with random interior points ──
-        app_log.warning("[geo] No API key — using streetview library for region mode")
+        # No-key fallback
+        app_log.warning("[geo] No API key -- using streetview library for region mode")
         max_retries = int(  getattr(config, "GEO_REGION_MAX_RETRIES",      50))
         spread      = float(getattr(config, "GEO_REGION_NEIGHBOR_SPREAD", 0.015))
         offsets = [(0, 0), (spread, 0), (-spread, 0), (0, spread), (0, -spread)]
@@ -560,8 +606,9 @@ def _find_pano(polygons: list, region_is_world: bool, on_timeout=None) -> tuple:
                         f"{pano_id} @ ({pano_lat:.4f},{pano_lng:.4f})"
                     )
                     return pano_id, pano_lat, pano_lng
-        app_log.warning("[geo] Region no-key search exhausted — falling back to world mode")
+        app_log.warning("[geo] Region no-key search exhausted -- falling back to world mode")
         return _find_pano([], True)
+
 
 # ── Room helpers ──────────────────────────────────────────────────────────────
 
@@ -661,7 +708,12 @@ def _cleanup_player(sid: str, full_delete: bool = True):
                 pass
             if not room["players"]:
                 _cancel_room_timer(room)
+                # Room is being destroyed — grab the key, delete the room,
+                # then release (so _cache_release doesn't see the room any more)
+                old_key = room.get("region_key")
                 del geo_rooms[room_id]
+                if old_key:
+                    _cache_release(old_key)
                 _emit_lobby()
             else:
                 if room["creator_sid"] == sid:
@@ -673,7 +725,12 @@ def _cleanup_player(sid: str, full_delete: bool = True):
                 _emit_room(room_id)
                 _emit_lobby()
     if full_delete:
+        # Session is being destroyed — grab the SP key, remove the session,
+        # then release (so _cache_release doesn't see the session any more)
+        old_sp_key = sess.get("sp_region_key")
         geo_sessions.pop(sid, None)
+        if old_sp_key:
+            _cache_release(old_sp_key)
     for rid, r in list(geo_rooms.items()):
         if r["privacy"] == "private" and r["status"] == "waiting":
             _emit_invite_candidates(rid)
@@ -683,6 +740,61 @@ def _cleanup_player(sid: str, full_delete: bool = True):
 
 # ── Round lifecycle ───────────────────────────────────────────────────────────
 
+def _prefetch_room_pano(room_id: str) -> None:
+    """
+    Fire a background pano fetch during the round-end result window so the
+    next round can start immediately. Stores the result in room["prefetched_pano"].
+    Only runs for region mode — world mode is fast enough on its own.
+    """
+    room = geo_rooms.get(room_id)
+    if not room or room.get("region_is_world"):
+        return
+    room["prefetched_pano"] = None
+    polygons   = room.get("region", [])
+    region_key = room.get("region_key")
+
+    def _fetch():
+        try:
+            result = _find_pano(polygons, False, region_key=region_key)
+            r = geo_rooms.get(room_id)
+            if r:
+                r["prefetched_pano"] = result
+                app_log.info(f"[geo prefetch] room {room_id}: pano ready")
+        except Exception as e:
+            app_log.debug(f"[geo prefetch] room {room_id}: fetch failed: {e}")
+
+    threading.Thread(target=_fetch, daemon=True).start()
+
+
+def _prefetch_sp_pano(sid: str) -> None:
+    """
+    Fire a background pano fetch right after the SP result is shown so the
+    next location is ready when the user clicks Next. Stores the result in
+    sess["sp_prefetched_pano"]. Skipped for world mode.
+    """
+    sess = geo_sessions.get(sid)
+    if not sess or sess.get("sp_region_is_world"):
+        return
+    polygons   = sess.get("sp_polygons", [])
+    region_key = sess.get("sp_region_key")
+    if not polygons or not region_key:
+        return
+    sess["sp_prefetched_pano"] = None
+
+    def _fetch():
+        try:
+            result = _find_pano(polygons, False, region_key=region_key)
+            s = geo_sessions.get(sid)
+            # Only store if the session still holds the same region
+            if s and s.get("sp_region_key") == region_key:
+                s["sp_prefetched_pano"] = result
+                app_log.info(f"[geo prefetch] SP {sid[:8]}: pano ready")
+        except Exception as e:
+            app_log.debug(f"[geo prefetch] SP {sid[:8]}: fetch failed: {e}")
+
+    threading.Thread(target=_fetch, daemon=True).start()
+
+
 def _start_round(room_id: str):
     room = geo_rooms.get(room_id)
     if not room:
@@ -690,10 +802,11 @@ def _start_round(room_id: str):
     room["status"]        = "loading"
     room["round_guesses"] = {}
     _cancel_room_timer(room)
-    socketio.emit("geo_loading", {"message": "Finding a location…"}, room=_rn(room_id))
+    socketio.emit("geo_loading", {"message": "Finding a location..."}, room=_rn(room_id))
 
     creator_sid      = room.get("creator_sid")
     is_region_search = not room["region_is_world"]
+    region_key       = room.get("region_key")
 
     def on_timeout():
         socketio.emit(
@@ -703,20 +816,27 @@ def _start_round(room_id: str):
         )
 
     def fetch_and_start():
-        try:
-            pano_id, lat, lng = _find_pano(
-                room["region"],
-                room["region_is_world"],
-                on_timeout=(on_timeout if is_region_search else None),
-            )
-        except Exception as e:
-            error_log.error(f"[geo] Room {room_id} pano lookup failed: {e}")
-            socketio.emit("geo_fetch_error", {"message": str(e)}, room=_rn(room_id))
-            room2 = geo_rooms.get(room_id)
-            if room2:
-                room2["status"] = "waiting"
-                _emit_room(room_id)
-            return
+        prefetched = room.get("prefetched_pano")
+        if prefetched:
+            room["prefetched_pano"] = None
+            pano_id, lat, lng = prefetched
+            app_log.info(f"[geo] Room {room_id}: using prefetched pano {pano_id}")
+        else:
+            try:
+                pano_id, lat, lng = _find_pano(
+                    room["region"],
+                    room["region_is_world"],
+                    region_key=region_key,
+                    on_timeout=(on_timeout if is_region_search else None),
+                )
+            except Exception as e:
+                error_log.error(f"[geo] Room {room_id} pano lookup failed: {e}")
+                socketio.emit("geo_fetch_error", {"message": str(e)}, room=_rn(room_id))
+                room2 = geo_rooms.get(room_id)
+                if room2:
+                    room2["status"] = "waiting"
+                    _emit_room(room_id)
+                return
 
         room2 = geo_rooms.get(room_id)
         if not room2:
@@ -826,6 +946,9 @@ def _end_round(room_id: str):
             _start_round(room_id)
 
     t = threading.Timer(ROUND_ADVANCE_SECS, advance)
+    # Begin fetching the next pano during the result window
+    if room["round_current"] < room["rounds_total"]:
+        _prefetch_room_pano(room_id)
     t.daemon = True
     t.start()
 
@@ -889,7 +1012,7 @@ def handle_create_room(data):
     privacy                 = data.get("privacy", "public")
     rounds                  = int(data.get("rounds", 5))
     time_limit              = int(data.get("time_limit", 90))
-    polygons                = data.get("polygons") or []          # List[List[List[float]]]
+    polygons                = data.get("polygons") or []
     region_is_world         = bool(data.get("region_is_world", True))
     region_label            = str(data.get("region_label", "Entire World"))[:120]
     region_preset_usernames = list(data.get("region_preset_usernames") or [])
@@ -903,8 +1026,9 @@ def handle_create_room(data):
     if not region_is_world and len(polygons) == 0:
         emit("geo_error", {"message": "Draw a region or select a preset first."}); return
 
-    room_id  = uuid.uuid4().hex[:8]
-    username = geo_sessions[sid]["username"]
+    room_id    = uuid.uuid4().hex[:8]
+    username   = geo_sessions[sid]["username"]
+    region_key = _region_hash(polygons) if not region_is_world else None
 
     geo_rooms[room_id] = {
         "id":                      room_id,
@@ -915,6 +1039,7 @@ def handle_create_room(data):
         "status":                  "waiting",
         "region":                  polygons,
         "region_is_world":         region_is_world,
+        "region_key":              region_key,
         "region_label":            region_label,
         "region_preset_usernames": region_preset_usernames,
         "rounds_total":            rounds,
@@ -925,6 +1050,7 @@ def handle_create_room(data):
         "round_guesses":           {},
         "round_timer":             None,
         "round_start_time":        None,
+        "prefetched_pano": None,
     }
     geo_sessions[sid]["room_id"] = room_id
     socketio.server.enter_room(sid, _rn(room_id))
@@ -934,7 +1060,7 @@ def handle_create_room(data):
     app_log.info(
         f"[geo] {username!r} created room {room_id} "
         f"({rounds}r,{time_limit}s,world={region_is_world},{privacy}) "
-        f"label={region_label!r}"
+        f"label={region_label!r} cache_key={region_key and region_key[:8]}"
     )
 
 
@@ -1052,6 +1178,7 @@ def handle_restart_room(_=None):
         emit("geo_error", {"message": "Only the room creator can restart."}); return
     if room["status"] != "game_over":
         return
+    # Region unchanged on restart — region_key stays, cache is preserved
     room["status"]        = "waiting"
     room["round_current"] = 1
     for p in room["players"]:
@@ -1091,12 +1218,35 @@ def handle_invite_user(data):
 @socketio.on("geo_sp_get_panorama")
 def handle_sp_get_panorama(data):
     sid             = request.sid
-    polygons        = data.get("polygons") or []     # List[List[List[float]]]
+    polygons        = data.get("polygons") or []
     region_is_world = bool(data.get("region_is_world", True))
 
-    emit("geo_sp_loading", {"message": "Finding a location…"})
-    geo_sessions[sid]["sp_polygons"]        = polygons
-    geo_sessions[sid]["sp_region_is_world"] = region_is_world
+    emit("geo_sp_loading", {"message": "Finding a location..."})
+
+    sess       = geo_sessions.get(sid, {})
+    old_sp_key = sess.get("sp_region_key")
+    new_sp_key = _region_hash(polygons) if not region_is_world else None
+
+    # Update the session key BEFORE calling _cache_release so the scan in
+    # _cache_release sees the new key (not the old one) on this session.
+    sess["sp_region_key"]      = new_sp_key
+    sess["sp_polygons"]        = polygons
+    sess["sp_region_is_world"] = region_is_world
+    
+    # Use the prefetched pano if the region hasn't changed
+    if new_sp_key and new_sp_key == old_sp_key:
+        prefetched = sess.pop("sp_prefetched_pano", None)
+        if prefetched:
+            app_log.info(f"[geo] SP {sid[:8]}: using prefetched pano {prefetched[0]}")
+            socketio.emit(
+                "geo_sp_panorama",
+                {"pano_id": prefetched[0], "correct_lat": prefetched[1], "correct_lng": prefetched[2]},
+                to=sid,
+            )
+            return   # skip starting the fetch thread
+
+    if old_sp_key and old_sp_key != new_sp_key:
+        _cache_release(old_sp_key)
 
     def on_timeout():
         socketio.emit("geo_region_timeout", {}, to=sid)
@@ -1106,6 +1256,7 @@ def handle_sp_get_panorama(data):
             pano_id, lat, lng = _find_pano(
                 polygons,
                 region_is_world,
+                region_key=new_sp_key,
                 on_timeout=(on_timeout if not region_is_world else None),
             )
             socketio.emit(
@@ -1140,6 +1291,8 @@ def handle_sp_submit_guess(data):
         "correct_lat": correct_lat,
         "correct_lng": correct_lng,
     })
+    _prefetch_sp_pano(request.sid)
+
 
 
 # ── Disconnect ────────────────────────────────────────────────────────────────

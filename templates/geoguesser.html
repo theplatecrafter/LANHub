@@ -1824,8 +1824,7 @@ function fmtDist(km) {
   if (km == null) return '—';
   if (km < 1)    return Math.round(km * 1000) + ' m';
   if (km < 10)   return km.toFixed(2) + ' km';
-  if (km < 1000) return km.toFixed(1) + ' km';
-  return (km / 1000).toFixed(2) + ' k km';
+  return km.toFixed(1) + ' km';
 }
 function fmtTime(s) {
   const m = Math.floor(s / 60), ss = s % 60;
@@ -2202,7 +2201,7 @@ function getRegionForSubmit() {
   }
   return {polygons: [], region_is_world: true, label: 'Entire World', creators: []};
 }
- 
+
 function resetRegionState() {
   regionMode = 'world';
   const sel  = document.getElementById('rt-mode-select');
