@@ -569,9 +569,24 @@
   const HISTORY   = {{ HISTORY }};
   const socket    = _socket;
   const chCmdBars = {};  // { channelId: cmdBar }
+  const chPendingHistory = {};
 
   let chRepState = null;
   
+  function _applyHistory(channel_id, messages, has_more) {
+    const st = chState[channel_id];
+    if (!st) return;
+    messages.forEach(m => {
+        if (m.username === myUsername) st.myMsgIds.add(m.id);
+        appendBubble(channel_id, m, false);
+        if (st.oldestId === null || m.id < st.oldestId) st.oldestId = m.id;
+    });
+    if (!has_more) {
+        st.noMore = true;
+        document.getElementById(`pane-hist-${channel_id}`)?.classList.add("visible");
+    }
+    setTimeout(() => scrollPaneBottom(channel_id), 0);
+}
 
     function openChRepModal(channelId, id, username, message) {
     chRepState = { channelId, id, username, message };
@@ -776,6 +791,12 @@
 
     switchTab(ch.id);
     setOnline(ch.id, data.online_count);
+    // Flush any history that arrived before the pane was ready
+    if (chPendingHistory[ch.id]) {
+        const h = chPendingHistory[ch.id];
+        delete chPendingHistory[ch.id];
+        _applyHistory(ch.id, h.messages, h.has_more);
+    }
 
     // Update sidebar result
     const resultEl = document.getElementById(`ch-result-${ch.id}`);
@@ -787,19 +808,13 @@
 
   socket.on("ch_history", data => {
     const { channel_id, messages, has_more } = data;
-    const st = chState[channel_id];
-    if (!st) return;
-    messages.forEach(m => {
-      if (m.username === myUsername) st.myMsgIds.add(m.id);
-      appendBubble(channel_id, m, false);
-      if (st.oldestId === null || m.id < st.oldestId) st.oldestId = m.id;
-    });
-    if (!has_more) {
-      st.noMore = true;
-      document.getElementById(`pane-hist-${channel_id}`)?.classList.add("visible");
+    // Pane may not exist yet — buffer until ch_join_ack creates it
+    if (!chState[channel_id] || !document.getElementById(`pane-msgs-${channel_id}`)) {
+        chPendingHistory[channel_id] = data;
+        return;
     }
-    setTimeout(() => scrollPaneBottom(channel_id), 0);
-  });
+    _applyHistory(channel_id, messages, has_more);
+});
 
   socket.on("ch_older_messages", data => {
     const { channel_id, messages, has_more } = data;
@@ -1123,6 +1138,10 @@
     const wrap = document.createElement("div");
     wrap.className = "bubble-wrap";
 
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    const allowEdit = renderMsgContent(bubble, msg);
+
     const actions = document.createElement("div");
     actions.className = "msg-actions";
     actions.appendChild(makeActionBtn("↩", "Reply", () =>
@@ -1146,10 +1165,6 @@
       del.classList.add("delete");
       actions.appendChild(del);
     }
-
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    const allowEdit = renderMsgContent(bubble, msg);
 
     if (msg.reply_to_id && msg.reply_username) {
       const q = document.createElement("div"); q.className = "reply-quote";
