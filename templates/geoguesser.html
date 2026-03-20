@@ -508,7 +508,7 @@ nav.topbar, .status-bar { display: none !important; }
 .geo-scan-ring.r3 { width:44px;  height:44px;  border-color:rgba(29,184,122,.38); }
 .geo-scan-trail {
   position:absolute; inset:0; border-radius:50%;
-  animation:scan-spin 2.6s linear infinite;
+  animation: scan-spin-trail 2.6s linear infinite;
   background:conic-gradient(
     from 90deg,
     transparent 0deg,
@@ -522,7 +522,7 @@ nav.topbar, .status-bar { display: none !important; }
   top:50%; left:50%;
   transform-origin:left center;
   transform:translateY(-50%);
-  animation:scan-spin 2.6s linear infinite;
+  animation: scan-spin-sweep 2.6s linear infinite;
   background:linear-gradient(90deg, rgba(29,184,122,.4), var(--c-land));
   box-shadow:0 0 6px rgba(29,184,122,.6);
 }
@@ -547,7 +547,8 @@ nav.topbar, .status-bar { display: none !important; }
 .geo-scan-ping.p1{ top:26%; left:64%; animation-delay:.9s; }
 .geo-scan-ping.p2{ top:62%; left:33%; animation-delay:1.7s; }
 .geo-scan-ping.p3{ top:40%; left:75%; animation-delay:2.3s; }
-@keyframes scan-spin  { from{ transform:translateY(-50%) rotate(0deg); } to{ transform:translateY(-50%) rotate(360deg); } }
+@keyframes scan-spin-trail  { from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+@keyframes scan-spin-sweep  { from{ transform:translateY(-50%) rotate(0deg); } to{ transform:translateY(-50%) rotate(360deg); } }
 @keyframes ping-flash { 0%,100%{ opacity:0; transform:scale(0); } 50%{ opacity:1; transform:scale(1); } }
 
 .loading-msg {
@@ -1346,6 +1347,15 @@ nav.topbar, .status-bar { display: none !important; }
     <div class="geo-scan-ping p3"></div>
   </div>
   <div class="loading-msg" id="sp-loading-msg">Finding a location</div>
+  <div id="sp-search-status" style="
+    margin-top:18px;
+    font-family:var(--f-data);font-size:.62rem;
+    letter-spacing:.1em;text-align:center;
+    color:rgba(29,184,122,.55);
+    max-width:320px;line-height:1.8;
+    min-height:1.4em;
+    transition:opacity .3s;
+  "></div>
   <div id="sp-region-timeout" style="display:none">
     <button class="geo-btn ghost" style="margin-top:20px;margin-bottom:10px;width:100%" onclick="spChangeRegion()">
       🗺 Change Selected Region
@@ -1523,6 +1533,15 @@ nav.topbar, .status-bar { display: none !important; }
     <div class="geo-scan-ping p3"></div>
   </div>
   <div class="loading-msg" id="mp-loading-msg">Finding a location</div>
+  <div id="mp-search-status" style="
+    margin-top:18px;
+    font-family:var(--f-data);font-size:.62rem;
+    letter-spacing:.1em;text-align:center;
+    color:rgba(29,184,122,.55);
+    max-width:320px;line-height:1.8;
+    min-height:1.4em;
+    transition:opacity .3s;
+  "></div>
   <div id="mp-region-timeout" style="display:none">
     <button class="geo-btn ghost" id="mp-change-region-btn"
             style="display:none;margin-top:20px;margin-bottom:10px;width:100%" onclick="leaveRoom()">
@@ -1737,6 +1756,8 @@ let guessLocked   = false;
 let resultMapInst = null;
 let reMapInst     = null;
 let roundTimerInterval  = null;
+let roundEndActive    = false;  // true while the 9s results screen is showing
+let pendingRoundStart = null;   // buffers geo_round_start received during that window
 let roundAdvanceInterval = null;
 let currentRegionInfo = null;  // {label, creators} displayed during gameplay
  
@@ -2579,6 +2600,7 @@ function leaveRoom() {
  
 /* ── MP loading ───────────────────────────────────────── */
 socket.on('geo_loading', data => {
+  if (roundEndActive) return;
   document.getElementById('mp-loading-msg').textContent = data.message || 'Finding a location';
   const t = document.getElementById('mp-region-timeout');
   if (t) t.style.display = 'none';
@@ -2602,26 +2624,35 @@ socket.on('geo_fetch_error', data => {
 });
  
 /* ── Round start ──────────────────────────────────────── */
-socket.on('geo_round_start', data => {
+function _applyRoundStart(data) {
   guessLocked = false; currentGuess = null;
   if (guessMarker && guessMapInst) { guessMapInst.removeLayer(guessMarker); guessMarker = null; }
   // Hide transition timer
   const rtt = document.getElementById('round-transition-timer');
   if (rtt) rtt.classList.remove('visible');
- 
+
   document.getElementById('hud-round-val').textContent = `${data.round} / ${data.total_rounds}`;
   document.getElementById('hud-round-label').textContent = 'Round';
   document.getElementById('hud-locked-label').textContent = '';
- 
+
   // Region HUD
   _updateGameRegionHUD(data.region_label || '', data.region_preset_usernames || []);
- 
+
   showView('view-game'); showSV(true); showHud(true); showSpHud(false); showGuessMap(true);
   const lb = document.getElementById('lock-btn');
   lb.textContent = 'Lock In Guess'; lb.disabled = true;
   lb.className   = 'gmap-btn lock'; lb.onclick = lockGuess;
   lb.classList.remove('locked-in');
   loadSV(data.pano_id); initGuessMap(); _startRoundTimer(data.round_secs);
+}
+
+socket.on('geo_round_start', data => {
+  if (roundEndActive) {
+    // Pano is ready but the results countdown isn't done — buffer it.
+    pendingRoundStart = data;
+    return;
+  }
+  _applyRoundStart(data);
 });
  
 function _updateGameRegionHUD(label, creators) {
@@ -2668,6 +2699,8 @@ socket.on('geo_guess_locked', data => {
  
 /* ── Round end ────────────────────────────────────────── */
 socket.on('geo_round_end', data => {
+  roundEndActive    = true;
+  pendingRoundStart = null;
   _cleanupRoundTimer();
   showSV(false); showHud(false); showGuessMap(false); clearSV();
   document.getElementById('re-round-label').textContent = `Round ${data.round} Results`;
@@ -2689,7 +2722,18 @@ socket.on('geo_round_end', data => {
     secs--;
     cdEl.textContent = `${secs}s`;
     if (rttVal) rttVal.textContent = secs;
-    if (secs <= 0) { clearInterval(roundAdvanceInterval); if (rtt) rtt.classList.remove('visible'); }
+    if (secs <= 0) {
+      clearInterval(roundAdvanceInterval);
+      roundEndActive = false;
+      if (rtt) rtt.classList.remove('visible');
+      // If the server already sent the next round start, apply it now
+      if (pendingRoundStart) {
+        const d = pendingRoundStart;
+        pendingRoundStart = null;
+        _applyRoundStart(d);
+      }
+    }
+
   }, 1000);
  
   setTimeout(() => {
@@ -2790,6 +2834,52 @@ function _cleanupGameState() {
   document.getElementById('invite-panel').classList.remove('visible');
 }
  
+socket.on('geo_region_no_coverage', () => {
+  // Clean up any active game state
+  showSV(false); showHud(false); showSpHud(false); showGuessMap(false); clearSV();
+
+  // Show a non-blocking overlay message, then return to region selection
+  const msg = document.createElement('div');
+  msg.id = 'geo-no-coverage-overlay';
+  msg.style.cssText = `
+    position:fixed;inset:0;z-index:900;display:flex;align-items:center;
+    justify-content:center;background:rgba(1,8,16,.88);backdrop-filter:blur(10px);
+  `;
+  msg.innerHTML = `
+    <div style="background:var(--c-panel);border:1px solid rgba(232,69,69,.4);
+         border-radius:var(--r-lg);padding:36px 40px;max-width:420px;text-align:center;
+         box-shadow:0 40px 80px rgba(0,0,0,.75)">
+      <div style="font-size:2rem;margin-bottom:16px">🌐</div>
+      <div style="font-family:var(--f-data);font-size:.58rem;letter-spacing:.2em;
+           text-transform:uppercase;color:var(--c-red);margin-bottom:10px">
+        No Coverage Found
+      </div>
+      <div style="font-family:var(--f-data);font-size:.75rem;color:var(--c-sky-dim);
+           line-height:1.7;margin-bottom:24px">
+        Could not find a Street View panorama in the selected region.
+        Please try a different or larger region.
+      </div>
+      <button onclick="this.closest('div[style]').remove();
+                       regionForRoom ? showView('view-lobby') : openRegionDraw();"
+              style="padding:10px 28px;background:var(--c-ocean);border:none;
+                     border-radius:var(--r);font-family:var(--f-data);font-size:.72rem;
+                     font-weight:700;letter-spacing:.1em;cursor:pointer;color:#010a14">
+        Change Region
+      </button>
+    </div>
+  `;
+  document.getElementById('geo-root').appendChild(msg);
+});
+
+socket.on('geo_search_status', data => {
+  const spEl = document.getElementById('sp-search-status');
+  if (spEl) spEl.textContent = '';
+  const mpEl = document.getElementById('mp-search-status');
+  if (mpEl) mpEl.textContent = '';
+  if (spEl) spEl.textContent = data.message;
+  if (mpEl) mpEl.textContent = data.message;
+});
+
 /* ── Guess map ────────────────────────────────────────── */
 function initGuessMap() {
   if (guessMapInst) { guessMapInst.invalidateSize(); return; }
