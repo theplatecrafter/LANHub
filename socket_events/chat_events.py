@@ -222,6 +222,10 @@ def handle_report_message(data):
     )
     app_log.info(f"[chat] Report #{rid}: {ip} reported msg #{msg_id} by '{reported_username}'")
 
+@socketio.on("leave_chat")
+def handle_leave_chat(_=None):
+    _cleanup_chat(request.sid)
+
 # Exposed for the consolidated disconnect handler in channels_events.py
 def _cleanup_chat(sid: str) -> None:
     if sid not in active_sessions:

@@ -830,5 +830,7 @@
       .replace(/&/g,"&amp;").replace(/</g,"&lt;")
       .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   }
+  window.addEventListener('pagehide', () => socket.emit('leave_chat'));
+  window.addEventListener('beforeunload', () => socket.emit('leave_chat'));
 </script>
 {% endblock %}
