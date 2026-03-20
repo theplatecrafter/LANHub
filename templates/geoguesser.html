@@ -1701,6 +1701,15 @@ nav.topbar, .status-bar { display: none !important; }
    GeoGuesser — Complete JS (v2 — multi-polygon regions)
    ========================================================= */
  
+// Polyfill crypto.randomUUID for non-secure (HTTP) contexts
+if (typeof crypto.randomUUID !== 'function') {
+  crypto.randomUUID = function () {
+    return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c =>
+      (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+    );
+  };
+}
+
 let regionPreviewMapInst = null;
 let currentRoomRegion    = [];
 const GEO_MAPS_KEY = {{ google_maps_key | tojson }};
@@ -2785,6 +2794,8 @@ function _renderResultsTable(results) {
 /* ── Game over ────────────────────────────────────────── */
 socket.on('geo_game_over', data => {
   if (roundAdvanceInterval) { clearInterval(roundAdvanceInterval); roundAdvanceInterval = null; }
+  roundEndActive    = false;
+  pendingRoundStart = null;
   const rtt = document.getElementById('round-transition-timer');
   if (rtt) rtt.classList.remove('visible');
   showSV(false); showHud(false); showGuessMap(false); clearSV();
@@ -2826,6 +2837,8 @@ function restartGame() { socket.emit('geo_restart_room'); }
 function _cleanupGameState() {
   _cleanupRoundTimer();
   if (roundAdvanceInterval) { clearInterval(roundAdvanceInterval); roundAdvanceInterval = null; }
+  roundEndActive    = false;
+  pendingRoundStart = null;
   const rtt = document.getElementById('round-transition-timer');
   if (rtt) rtt.classList.remove('visible');
   showSV(false); showHud(false); showSpHud(false); showGuessMap(false); clearSV();
