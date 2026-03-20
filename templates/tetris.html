@@ -894,6 +894,9 @@ body::before {
           <canvas id="opponent-canvas" width="250" height="500"></canvas>
           <div class="canvas-overlay" id="opponent-overlay"></div>
         </div>
+        <div id="opp-garbage-warning" style="display:none; align-items:center; justify-content:center; gap:6px; padding:5px 12px; background:var(--red-dim); border:1px solid var(--red); border-radius:var(--radius); font-family:var(--font-mono); font-size:0.78rem; font-weight:700; color:var(--red); letter-spacing:0.06em; animation:warn-pulse 0.6s ease infinite; margin-top:4px;">
+          ⚠ <span id="opp-garbage-count">0</span> lines queued
+        </div>
       </div>
       <div class="side-panel" style="width:70px;">
         <div class="panel-box">
@@ -970,6 +973,8 @@ body::before {
      ════════════════════════════════════════════════════════════ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script>
+let gameEnded = false;
+
 // Bootstrap _socket exactly as base.html does
 const _socket = io();
 _socket.on('connect', () => _socket.emit('page_open', { path: window.location.pathname }));
@@ -1053,6 +1058,27 @@ function getKicks(type, fromState, toState) {
   // Index: 0=0→R, 1=R→2, 2=2→L, 3=L→0
   const idx = (fromState % 4);
   return table[idx];
+}
+
+function showDisarmed(who) {
+  const isPlayer = (who === 'player');
+  const warnEl   = document.getElementById(isPlayer ? 'garbage-warning' : 'opp-garbage-warning');
+  const toastMsg = isPlayer ? '🛡 DISARMED!' : '🛡 BLOCKED!';
+
+  // Flash green briefly before clearing
+  if (warnEl) {
+    warnEl.style.background    = 'var(--green-dim)';
+    warnEl.style.borderColor   = 'var(--green)';
+    warnEl.style.color         = 'var(--green)';
+    const countEl = warnEl.querySelector('span');
+    if (countEl) countEl.textContent = 'DISARMED';
+    setTimeout(() => {
+      warnEl.style.background  = '';
+      warnEl.style.borderColor = '';
+      warnEl.style.color       = '';
+    }, 600);
+  }
+  showGameToast(toastMsg);
 }
 
 // ── 7-Bag Randomizer ──────────────────────────────────────────
@@ -1235,10 +1261,11 @@ class TetrisGame {
     if (this.garbageQueue > 0 && cleared === 0) {
       this._addGarbageLines(this.garbageQueue);
       this.garbageQueue = 0;
-      if (typeof clearGarbageQueue === 'function') clearGarbageQueue();
+      if (this.opts.onClearGarbage) this.opts.onClearGarbage(false); // false = landed
     } else if (cleared > 0) {
-      this.garbageQueue = 0; // cancel incoming garbage
-      if (typeof clearGarbageQueue === 'function') clearGarbageQueue();
+      const hadGarbage = this.garbageQueue > 0;
+      this.garbageQueue = 0;
+      if (this.opts.onClearGarbage) this.opts.onClearGarbage(true, hadGarbage);
     }
 
     this._spawn();
@@ -1659,14 +1686,21 @@ function startBotGame() {
 
 function startBotOpponent() {
   botGame = new TetrisGame({
-    onGarbage: (lines) => { if (playerGame) playerGame.receiveGarbage(lines); },
-    onScore:   (sc, lv) => {
+    onGarbage: (lines) => {
+      if (playerGame) {
+        playerGame.receiveGarbage(lines);
+        updateGarbageQueue(lines);
+      }
+    },
+    onScore: (sc, lv) => {
       document.getElementById('opp-score-val').textContent = sc.toLocaleString();
       document.getElementById('opp-level-val').textContent = 'Lv ' + lv;
     },
     onBoard: (board) => { oppBoard = board; },
-    onGameOver: () => {
-      showResult(true, 'Bot topped out!');
+    onGameOver: () => { showResult(true, 'Bot topped out!'); },
+    onClearGarbage: (disarmed, hadGarbage) => {
+      if (disarmed && hadGarbage) showDisarmed('opp');
+      clearOppGarbageQueue();
     },
   });
   botGame.alive = true;
@@ -1782,7 +1816,10 @@ function startGame() {
 
   playerGame = new TetrisGame({
     onGarbage: (lines) => {
-      if (gameMode === 'vsbot' && botGame) botGame.receiveGarbage(lines);
+      if (gameMode === 'vsbot' && botGame) {
+        botGame.receiveGarbage(lines);
+        updateOppGarbageQueue(lines);
+      }
       if (gameMode === 'vsplayer' && mpRoomId) _socket.emit('tetris_garbage', { room_id: mpRoomId, lines });
     },
     onScore: (sc, lv, ln, cleared) => {
@@ -1797,6 +1834,10 @@ function startGame() {
       if (gameMode === 'vsplayer' && mpRoomId) {
         _socket.emit('tetris_board_update', { room_id: mpRoomId, board });
       }
+    },
+    onClearGarbage: (disarmed, hadGarbage) => {
+      if (disarmed && hadGarbage) showDisarmed('player');
+      clearGarbageQueue();
     },
   });
   playerGame.alive = true;
@@ -1824,12 +1865,21 @@ function playerDied() {
 }
 
 function showResult(won, sub) {
+  if (gameEnded) return;
+  gameEnded = true;
+  if (playerGame) playerGame.alive = false;
+  if (botGame)    botGame.alive    = false;
   document.getElementById('result-title').textContent = won ? '🏆 You Win!' : '💀 Game Over';
   document.getElementById('result-sub').textContent   = sub;
   setTimeout(() => showScreen('screen-result'), 800);
 }
 
 function resetGame() {
+  gameEnded = false;
+  oppPendingGarbage = 0;
+  clearOppGarbageQueue();
+  
+
   if (animFrameId) cancelAnimationFrame(animFrameId);
   playerGame = botGame = null;
   keys = {};
@@ -2110,8 +2160,6 @@ let garbageClearTimer = null;
 
 function updateGarbageQueue(lines) {
   pendingGarbageLines += lines;
-
-  // Side block indicator
   const container = document.getElementById('player-garbage-queue');
   for (let i = 0; i < lines; i++) {
     const block = document.createElement('div');
@@ -2119,15 +2167,10 @@ function updateGarbageQueue(lines) {
     container.appendChild(block);
   }
   while (container.children.length > 20) container.removeChild(container.firstChild);
-
-  // Warning bar
   const warn = document.getElementById('garbage-warning');
   document.getElementById('garbage-warning-count').textContent = pendingGarbageLines;
   warn.classList.add('visible');
-
-  // Auto-clear after 3s (the game loop will also clear when lines land)
-  clearTimeout(garbageClearTimer);
-  garbageClearTimer = setTimeout(() => clearGarbageQueue(), 3000);
+  // No auto-clear timer — blocks persist until garbage resolves
 }
 
 function clearGarbageQueue() {
@@ -2135,6 +2178,21 @@ function clearGarbageQueue() {
   document.getElementById('player-garbage-queue').innerHTML = '';
   document.getElementById('garbage-warning').classList.remove('visible');
 }
+
+let oppPendingGarbage = 0;
+function updateOppGarbageQueue(lines) {
+  oppPendingGarbage += lines;
+  const el = document.getElementById('opp-garbage-warning');
+  if (!el) return;
+  document.getElementById('opp-garbage-count').textContent = oppPendingGarbage;
+  el.style.display = 'flex';
+}
+function clearOppGarbageQueue() {
+  oppPendingGarbage = 0;
+  const el = document.getElementById('opp-garbage-warning');
+  if (el) el.style.display = 'none';
+}
+
 
 // ── Countdown helper ──────────────────────────────────────────
 function countdown(cb) {
