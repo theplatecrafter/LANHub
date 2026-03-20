@@ -493,14 +493,12 @@ def handle_kick(data):
 @socketio.on('uno_leave_room')
 def handle_leave_room(_=None):
     sid = request.sid
+    # Save username before cleanup wipes the session
+    username = uno_sessions.get(sid, {}).get('username')
     _cleanup_uno(sid)
-    # Re-register the session without room
-    if sid not in uno_sessions and sid in [s for s in uno_sessions]:
-        pass
-    # Re-add to sessions without room if still connected
-    for s, v in list(uno_sessions.items()):
-        if s == sid:
-            v['room_id'] = None
+    # Restore session so the user can still create/join rooms
+    if username:
+        uno_sessions[sid] = {'username': username, 'room_id': None}
     emit('uno_left_room')
     _emit_lobby()
 
