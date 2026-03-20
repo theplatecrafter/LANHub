@@ -235,7 +235,8 @@ async function runQuery() {
   }
   // rowid may come back as the PK column name instead of 'rowid' literally
   const rowidInCols = data.columns.includes('rowid');
-  const schemaPk    = currentSchema.find(c => c.pk)?.name;
+  const schemaPkCol = currentSchema.find(c => c.pk);
+  const schemaPk    = schemaPkCol ? schemaPkCol.name : null;
   const pkInCols    = schemaPk ? data.columns.includes(schemaPk) : false;
   renderTable(data.columns, data.rows, data.count, rowidInCols || pkInCols, schemaPk);
 }
@@ -280,12 +281,6 @@ function renderTable(columns, rows, count, showActions, pkCol) {
       : '';
     return `<tr>${cells}${actionCell}</tr>`;
   }).join('');
-
-  table.style.display = '';
-  meta.innerHTML = `<span>${count} row${count !== 1 ? 's' : ''}${count >= 500 ? ' (capped at 500)' : ''}</span>` +
-    (showActions && currentTable ? `<span style="color:var(--cyan);font-size:.62rem">▸ ${esc(currentTable)}</span>` : '');
-  meta.classList.add('visible');
-}
 
   table.style.display = '';
   meta.innerHTML = `<span>${count} row${count !== 1 ? 's' : ''}${count >= 500 ? ' (capped at 500)' : ''}</span>` +
