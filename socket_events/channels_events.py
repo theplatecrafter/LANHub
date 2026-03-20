@@ -306,6 +306,25 @@ def handle_ch_load_older(data):
 
 
 # ── Disconnect ──────────────────────────────────────────────────────────────────
+@socketio.on("leave_channels")
+def handle_leave_channels(_=None):
+    sid = request.sid
+    info = ch_sessions.pop(sid, None)
+    if not info:
+        return
+    username = info.get("username", "")
+    for channel_id in list(info.get("channels", set())):
+        socketio.emit("ch_user_left", {
+            "channel_id":   channel_id,
+            "username":     username,
+            "online_count": _online(channel_id),
+        }, to=_room(channel_id))
+    dead = [k for k, v in ch_msg_ownership.items() if v == sid]
+    for k in dead:
+        ch_msg_ownership.pop(k, None)
+    if username:
+        app_log.info(f"[channels] {username} left via page unload.")
+
 @socketio.on("disconnect")
 def handle_disconnect_all():
     sid = request.sid

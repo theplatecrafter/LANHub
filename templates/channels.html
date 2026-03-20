@@ -1318,5 +1318,8 @@
     clearTimeout(el._t);
     el._t = setTimeout(() => { el.className = ok ? "ok" : "err"; }, 3000);
   }
+
+window.addEventListener('pagehide', () => socket.emit('leave_channels'));
+window.addEventListener('beforeunload', () => socket.emit('leave_channels'));
 </script>
 {% endblock %}
