@@ -233,7 +233,11 @@ async function runQuery() {
     document.getElementById('result-meta').classList.remove('visible');
     return;
   }
-  renderTable(data.columns, data.rows, data.count, data.columns.includes('rowid'));
+  // rowid may come back as the PK column name instead of 'rowid' literally
+  const rowidInCols = data.columns.includes('rowid');
+  const schemaPk    = currentSchema.find(c => c.pk)?.name;
+  const pkInCols    = schemaPk ? data.columns.includes(schemaPk) : false;
+  renderTable(data.columns, data.rows, data.count, rowidInCols || pkInCols, schemaPk);
 }
 
 /* ── Refresh ────────────────────────────────────────────────── */
@@ -243,7 +247,7 @@ async function doRefresh() {
 }
 
 /* ── Render table ───────────────────────────────────────────── */
-function renderTable(columns, rows, count, showActions) {
+function renderTable(columns, rows, count, showActions, pkCol) {
   const thead = document.getElementById('result-thead');
   const tbody = document.getElementById('result-tbody');
   const table = document.getElementById('result-table');
@@ -254,9 +258,13 @@ function renderTable(columns, rows, count, showActions) {
     (showActions && currentTable ? '<th class="act-col">Actions</th>' : '') +
     '</tr>';
 
+  // prefer explicit rowid column; fall back to schema PK (INTEGER PRIMARY KEY = rowid in SQLite)
   const rowidIdx = columns.indexOf('rowid');
+  const pkIdx    = pkCol ? columns.indexOf(pkCol) : -1;
+  const idIdx    = rowidIdx >= 0 ? rowidIdx : pkIdx;
+
   tbody.innerHTML = rows.map(row => {
-    const rowid = rowidIdx >= 0 ? row[rowidIdx] : null;
+    const rowid = idIdx >= 0 ? row[idIdx] : null;
     const cells = row.map(cell => {
       if (cell === null || cell === undefined) return `<td class="null-val">NULL</td>`;
       if (typeof cell === 'number')            return `<td class="num-val">${cell}</td>`;
@@ -272,6 +280,12 @@ function renderTable(columns, rows, count, showActions) {
       : '';
     return `<tr>${cells}${actionCell}</tr>`;
   }).join('');
+
+  table.style.display = '';
+  meta.innerHTML = `<span>${count} row${count !== 1 ? 's' : ''}${count >= 500 ? ' (capped at 500)' : ''}</span>` +
+    (showActions && currentTable ? `<span style="color:var(--cyan);font-size:.62rem">▸ ${esc(currentTable)}</span>` : '');
+  meta.classList.add('visible');
+}
 
   table.style.display = '';
   meta.innerHTML = `<span>${count} row${count !== 1 ? 's' : ''}${count >= 500 ? ' (capped at 500)' : ''}</span>` +
