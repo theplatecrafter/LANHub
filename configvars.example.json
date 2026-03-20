@@ -39,6 +39,7 @@
   },
   "uno": {
     "UNO_BOT_THINK_DELAY": 1.3,
+    "UNO_BOT_ONLY_DELAY": 0.18,
     "UNO_BOT_REPLACE_DELAY": 1.0
   },
   "slither": {

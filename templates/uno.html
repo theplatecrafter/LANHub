@@ -15,7 +15,134 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans-serif;color:#eaf2ff}
 
+/* ── Launcher visual ──────────────────────────────── */
+#launcher-wrap {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+#launcher-wrap.active { display: flex; }
+
+.launcher-body {
+  width: 70px; height: 90px;
+  background: linear-gradient(160deg, #2d1a4a, #1a0f2e);
+  border: 2px solid rgba(255,100,50,.5);
+  border-radius: 8px 8px 4px 4px;
+  position: relative;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end;
+  padding-bottom: 8px;
+  box-shadow: 0 0 18px rgba(255,80,20,.2), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.launcher-slot {
+  width: 50px; height: 12px;
+  background: #0a0812;
+  border: 1px solid rgba(255,100,50,.4);
+  border-radius: 2px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.launcher-slot-inner {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,100,30,.15), transparent);
+  animation: slot-scan 2s linear infinite;
+}
+@keyframes slot-scan {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.launcher-btn {
+  width: 36px; height: 18px;
+  background: linear-gradient(135deg, #ff4500, #cc2200);
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #881100, 0 0 10px rgba(255,80,20,.5);
+  transition: all .08s;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .45rem; color: #fff; letter-spacing: .05em;
+}
+.launcher-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #881100; }
+
+/* Fire animation */
+@keyframes launcher-fire {
+  0%   { transform: translateY(0) scale(1);   opacity: 1; }
+  40%  { transform: translateY(-24px) scale(1.2); opacity: 1; }
+  100% { transform: translateY(-48px) scale(.7);  opacity: 0; }
+}
+.launcher-fire-burst {
+  position: absolute; top: -4px; left: 50%;
+  transform: translateX(-50%);
+  font-size: .8rem; pointer-events: none;
+  animation: launcher-fire .45s cubic-bezier(.34,1.1,.64,1) both;
+}
+
+/* No-fire animation (nothing happens) */
+@keyframes launcher-click {
+  0%,100% { transform: translateX(0); }
+  25%      { transform: translateX(-3px); }
+  75%      { transform: translateX(3px); }
+}
+.launcher-click-anim { animation: launcher-click .22s ease both; }
+
+.launcher-result {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .62rem; color: rgba(255,255,255,.4);
+  min-height: 16px; text-align: center;
+  transition: color .2s;
+}
+.launcher-result.fired { color: #ff4d4d; font-weight: 700; }
+.launcher-result.safe  { color: #22c55e; }
+
+.launcher-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .5rem; text-transform: uppercase;
+  letter-spacing: .14em; color: rgba(255,100,50,.6);
+}
+
+/* ── Attack action overlays ───────────────────────── */
+#trade-overlay,
+#all-hit-overlay,
+#hit-fire-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.82);
+  backdrop-filter: blur(14px);
+  z-index: 400;
+  align-items: center; justify-content: center;
+}
+#trade-overlay.open,
+#all-hit-overlay.open,
+#hit-fire-overlay.open { display: flex; }
+
+.launch-press-btn {
+  margin-top: 16px;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, #ff4500, #cc2200);
+  border: none; border-radius: var(--radius);
+  color: #fff; font-family: 'Share Tech Mono', monospace;
+  font-size: .9rem; font-weight: 700;
+  letter-spacing: .1em; cursor: pointer;
+  box-shadow: 0 0 24px rgba(255,80,20,.5);
+  transition: all .12s;
+}
+.launch-press-btn:hover {
+  box-shadow: 0 0 36px rgba(255,80,20,.7);
+  transform: translateY(-2px);
+}
+
 /* ── CSS vars ─────────────────────────────────────────── */
+.opp-card.is-me {
+  border-color: rgba(0,255,180,.3);
+  background: rgba(0,255,180,.04);
+}
+.opp-card.is-me.active-player {
+  border-color: #00ffb4;
+  box-shadow: 0 0 22px rgba(0,255,180,.4), 0 0 6px rgba(0,255,180,.15) inset;
+}
+
 :root{
   --cw:58px;--ch:88px;--cw-lg:80px;--ch-lg:120px;
   --red:#ef4444;--green:#22c55e;--blue:#3b82f6;--yellow:#eab308;
@@ -26,6 +153,120 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   --shadow-card:0 4px 20px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.15);
   --trans:.22s cubic-bezier(.34,1.1,.64,1);
 }
+
+/* ── Rules modal ──────────────────────────────────── */
+#rules-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.84);
+  backdrop-filter:blur(16px);z-index:600;
+  align-items:center;justify-content:center;
+}
+#rules-overlay.open{display:flex;}
+.rules-box{
+  background:linear-gradient(145deg,#12101e,#1e1a30);
+  border:1px solid rgba(255,215,0,.25);border-radius:var(--radius-lg);
+  padding:32px 36px;max-width:520px;width:92%;max-height:85vh;
+  overflow-y:auto;box-shadow:0 32px 80px rgba(0,0,0,.7);
+  animation:pop-in .25s cubic-bezier(.34,1.56,.64,1) both;
+}
+.rules-title{
+  font-size:1.2rem;font-weight:900;color:#ffd700;margin-bottom:6px;
+}
+.rules-type-label{
+  font-family:'Share Tech Mono',monospace;font-size:.58rem;
+  letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.3);
+  margin-bottom:20px;
+}
+.rules-section-label{
+  font-family:'Share Tech Mono',monospace;font-size:.58rem;
+  letter-spacing:.16em;text-transform:uppercase;color:rgba(255,215,0,.5);
+  margin:18px 0 8px;
+}
+.rules-list{list-style:none;display:flex;flex-direction:column;gap:7px;}
+.rules-list li{
+  display:flex;gap:10px;align-items:flex-start;
+  font-family:'Share Tech Mono',monospace;font-size:.72rem;
+  color:rgba(255,255,255,.65);line-height:1.55;
+}
+.rules-list li::before{content:'▸';color:#ffd700;flex-shrink:0;margin-top:1px;}
+.card-desc-grid{
+  display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin-top:4px;
+}
+.cdc-label{
+  font-family:'Share Tech Mono',monospace;font-size:.68rem;font-weight:700;
+  color:#fff;white-space:nowrap;align-self:start;
+}
+.cdc-desc{
+  font-family:'Share Tech Mono',monospace;font-size:.66rem;
+  color:rgba(255,255,255,.55);line-height:1.5;
+}
+.rules-close-btn{
+  margin-top:24px;width:100%;padding:10px;background:transparent;
+  border:1px solid rgba(255,255,255,.15);border-radius:var(--radius);
+  color:rgba(255,255,255,.45);font-family:'Share Tech Mono',monospace;
+  font-size:.72rem;cursor:pointer;transition:all .15s;
+}
+.rules-close-btn:hover{border-color:#ffd700;color:#ffd700;}
+
+/* ── Rules button ─────────────────────────────────── */
+.rules-btn{
+  padding:5px 14px;background:transparent;
+  border:1px solid rgba(255,215,0,.25);border-radius:20px;
+  color:rgba(255,215,0,.55);font-family:'Share Tech Mono',monospace;
+  font-size:.62rem;letter-spacing:.08em;cursor:pointer;transition:all .14s;
+}
+.rules-btn:hover{border-color:#ffd700;color:#ffd700;background:rgba(255,215,0,.06);}
+
+/* ── Card tooltip ─────────────────────────────────── */
+#card-tooltip{
+  position:fixed;z-index:500;pointer-events:none;
+  background:rgba(8,6,18,.97);border:1px solid rgba(255,255,255,.14);
+  border-radius:var(--radius);padding:8px 13px;
+  font-family:'Share Tech Mono',monospace;font-size:.68rem;
+  color:rgba(255,255,255,.75);max-width:220px;line-height:1.55;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);
+  opacity:0;transition:opacity .12s;
+}
+#card-tooltip.visible{opacity:1;}
+
+/* ── Direction arrow ──────────────────────────────── */
+#direction-arrow-row{
+  position:relative;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  gap:8px;padding:0 18px 4px;flex-shrink:0;
+  font-family:'Share Tech Mono',monospace;font-size:.6rem;
+  letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(255,255,255,.2);
+}
+.dir-arrow{
+  font-size:1rem;transition:transform .5s ease;
+  color:rgba(255,255,255,.35);
+}
+
+#swap-overlay,
+#roulette-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.82);
+  backdrop-filter: blur(14px);
+  z-index: 400;
+  align-items: center;
+  justify-content: center;
+}
+#swap-overlay.open,
+#roulette-overlay.open { display: flex; }
+
+#aw-tdraw2-overlay,
+#aw-fswap-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.82);
+  backdrop-filter: blur(14px);
+  z-index: 400;
+  align-items: center; justify-content: center;
+}
+#aw-tdraw2-overlay.open,
+#aw-fswap-overlay.open { display: flex; }
 
 /* ── ROOT SHELL ───────────────────────────────────────── */
 #uno-root{
@@ -447,6 +688,32 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 .uno-card.yellow{background:linear-gradient(145deg,#eab308,#713f12);color:#fff;}
 .uno-card.wild  {background:var(--wild-bg);color:#fff;}
 
+/* ── UNO Flip dark-side card colours ─────────────────── */
+.uno-card.pink   {background:linear-gradient(145deg,#ec4899,#9d174d);color:#fff;}
+.uno-card.teal   {background:linear-gradient(145deg,#14b8a6,#134e4a);color:#fff;}
+.uno-card.orange {background:linear-gradient(145deg,#f97316,#7c2d12);color:#fff;}
+.uno-card.purple {background:linear-gradient(145deg,#a855f7,#581c87);color:#fff;}
+
+/* Dark-side wild uses dark palette */
+#uno-root.dark-side .uno-card.wild {
+  background:conic-gradient(from 225deg,#ec4899 0 90deg,#14b8a6 90deg 180deg,#f97316 180deg 270deg,#a855f7 270deg 360deg);
+}
+
+/* Dark-side ambient glow */
+#uno-root.dark-side::before {
+  background:
+    radial-gradient(ellipse at 18% 18%,rgba(168,85,247,.1)  0%,transparent 45%),
+    radial-gradient(ellipse at 82% 78%,rgba(20,184,166,.1)  0%,transparent 45%),
+    radial-gradient(ellipse at 80% 18%,rgba(249,115,22,.08) 0%,transparent 45%),
+    radial-gradient(ellipse at 20% 82%,rgba(236,72,153,.08) 0%,transparent 45%);
+}
+
+/* Colour-picker buttons for dark side */
+.cpb-pink  {background:linear-gradient(145deg,#ec4899,#9d174d);}
+.cpb-teal  {background:linear-gradient(145deg,#14b8a6,#134e4a);}
+.cpb-orange{background:linear-gradient(145deg,#f97316,#7c2d12);}
+.cpb-purple{background:linear-gradient(145deg,#a855f7,#581c87);}
+
 .card-face{font-size:1.4rem;line-height:1;z-index:1;text-shadow:1px 1px 3px rgba(0,0,0,.5);}
 .uno-card.lg .card-face{font-size:2.2rem;}
 .card-corner{
@@ -753,6 +1020,83 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   </div>
 </div>
 
+<!-- Rules overlay -->
+<div id="rules-overlay">
+  <div class="rules-box">
+    <div class="rules-title" id="rules-title">Rules</div>
+    <div class="rules-type-label" id="rules-type-label"></div>
+    <div class="rules-section-label">How to play</div>
+    <ul class="rules-list" id="rules-list"></ul>
+    <div class="rules-section-label">Card guide</div>
+    <div class="card-desc-grid" id="rules-card-grid"></div>
+    <button class="rules-close-btn" onclick="closeRules()">Close</button>
+  </div>
+</div>
+
+<!-- Card tooltip -->
+<div id="card-tooltip"></div>
+
+<!-- Swap target overlay (No Mercy — 7 card) -->
+<div id="swap-overlay">
+  <div class="color-box" style="max-width:360px">
+    <p>Choose a player to swap hands with</p>
+    <div id="swap-targets" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- Roulette colour overlay (No Mercy — color_roulette card) -->
+<div id="roulette-overlay">
+  <div class="color-box">
+    <p>🎰 Pick a colour — you draw until you get it!</p>
+    <div class="color-btns">
+      <button class="color-pick-btn cpb-red"    onclick="chooseRouletteColor('red')">🔴</button>
+      <button class="color-pick-btn cpb-green"  onclick="chooseRouletteColor('green')">🟢</button>
+      <button class="color-pick-btn cpb-blue"   onclick="chooseRouletteColor('blue')">🔵</button>
+      <button class="color-pick-btn cpb-yellow" onclick="chooseRouletteColor('yellow')">🟡</button>
+    </div>
+  </div>
+</div>
+
+<!-- Trade hands overlay (UNO Attack) -->
+<div id="trade-overlay">
+  <div class="color-box" style="max-width:360px">
+    <p>🤝 Choose a player to trade hands with</p>
+    <div id="trade-targets" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- All Wild: Targeted Draw 2 target chooser -->
+<div id="aw-tdraw2-overlay">
+  <div class="color-box" style="max-width:360px">
+    <p>→+2 Choose a player to draw 2 cards</p>
+    <div id="aw-tdraw2-targets" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- All Wild: Forced Swap target chooser -->
+<div id="aw-fswap-overlay">
+  <div class="color-box" style="max-width:360px">
+    <p>↔ Choose a player to swap hands with</p>
+    <div id="aw-fswap-targets" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- Wild All-Hit press overlay (UNO Attack) -->
+<div id="all-hit-overlay">
+  <div class="color-box" style="text-align:center">
+    <p>🚀 Wild All-Hit — press the launcher once!</p>
+    <button class="launch-press-btn" onclick="submitAllHitPress()">PRESS</button>
+  </div>
+</div>
+
+<!-- Wild Hit-Fire press overlay (UNO Attack) -->
+<div id="hit-fire-overlay">
+  <div class="color-box" style="text-align:center">
+    <p>🔥 Wild Hit-Fire — keep pressing until it fires!</p>
+    <button class="launch-press-btn" onclick="submitHitFirePress()">PRESS</button>
+  </div>
+</div>
+
 <!-- ── Toast ──────────────────────────────────────────── -->
 <div id="uno-toast"></div>
 
@@ -777,7 +1121,11 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
         <div class="cf-fg"><label>Room Title</label><input type="text" id="room-title-inp" placeholder="My UNO Room" maxlength="40" autocomplete="off"/></div>
         <div class="cf-row">
           <div class="cf-fg"><label>Game Type</label>
-            <select id="room-type-sel"><option value="classic">Classic UNO (2–10 players)</option></select>
+            <select id="room-type-sel">
+              {% for t in uno_types %}
+              <option value="{{ t.key }}">{{ t.name }} ({{ t.min }}–{{ t.max }} players)</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
         <div class="cf-fg"><label>Privacy</label>
@@ -795,7 +1143,9 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
         <input type="text" id="room-search" placeholder="Search rooms…" oninput="filterRooms()"/>
         <div class="type-filter-btns">
           <button class="tfb active" data-type="" onclick="setTypeFilter(this)">All</button>
-          <button class="tfb" data-type="classic" onclick="setTypeFilter(this)">Classic</button>
+          {% for t in uno_types %}
+          <button class="tfb" data-type="{{ t.key }}" onclick="setTypeFilter(this)">{{ t.name }}</button>
+          {% endfor %}
         </div>
       </div>
       <div id="rooms-list">
@@ -834,6 +1184,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
     <div class="wait-banner" id="wait-banner" style="display:none">⏳ Waiting for the room creator to start…</div>
     <div class="room-controls">
       <button class="rc-btn start" id="start-btn" onclick="startGame()" disabled>▶ Start Game</button>
+      <button class="rules-btn" onclick="showRulesForRoom()">📖 Rules</button>
       <button class="rc-btn leave" onclick="leaveRoom()">← Leave Room</button>
     </div>
     <div style="font-family:'Share Tech Mono',monospace;font-size:.62rem;color:rgba(255,255,255,.25)" id="room-status-hint"></div>
@@ -845,6 +1196,11 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   <div id="turn-atmosphere"></div>
 
   <div id="opponents-row"></div>
+  <div id="direction-arrow-row">
+    <span class="dir-arrow" id="dir-arrow-left">←</span>
+    <span id="dir-arrow-label">direction of play</span>
+    <span class="dir-arrow" id="dir-arrow-right">→</span>
+  </div>
 
   <div id="game-center">
     <div class="gc-item">
@@ -855,6 +1211,15 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
         </div>
       </div>
       <div id="deck-count"></div>
+    </div>
+    <!-- Launcher (UNO Attack only) -->
+    <div id="launcher-wrap">
+      <div class="launcher-label">Launcher</div>
+      <div class="launcher-body" id="launcher-body">
+        <div class="launcher-slot"><div class="launcher-slot-inner"></div></div>
+        <button class="launcher-btn" onclick="drawCard()">FIRE</button>
+      </div>
+      <div class="launcher-result" id="launcher-result"></div>
     </div>
 
     <div id="pending-draw-badge"></div>
@@ -871,6 +1236,10 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
     <div class="hand-meta">
       <span class="hand-label" id="hand-label">Your Hand</span>
       <span id="uno-self-badge">UNO!</span>
+      <button class="rules-btn" id="ingame-rules-btn"
+        onclick="showRulesFromSnapshot()" style="margin-left:auto;display:none">
+        📖 Rules
+      </button>
       <span id="spectator-badge">👁 Spectating</span>
     </div>
     <div id="hand-scroll"></div>
@@ -935,22 +1304,98 @@ let pendingInvite   = null;
 let gameState       = null;
 let amSpectator     = false;
 let prevTopCard     = null;  // for flip detection
+window._lastLaunchSeq = 0;   // ← add this
 
-const CARD_LABELS = {'skip':'⊘','reverse':'⟳','draw2':'+2','wild':'★','wild4':'+4'};
+
+const CARD_LABELS = {
+  'skip':'⊘', 'reverse':'⟳', 'draw2':'+2', 'wild':'★', 'wild4':'+4',
+  // No Mercy
+  'skip_all':'⊘⊘', 'discard_all':'✕C', 'draw4':'+4',
+  'reverse_draw4':'⟳+4', 'draw6':'+6', 'draw10':'+10', 'color_roulette':'🎰',
+  // Attack
+  'hit2':'HIT2', 'trade_hands':'↔', 'wild_all_hit':'ALL🚀', 'wild_hit_fire':'🔥',
+  // Flip
+  'draw_one':'+1', 'draw_five':'+5', 'skip_everyone':'⊘×',
+  'flip':'↕', 'wild_draw2':'+2', 'wild_draw_color':'+C',
+  // All Wild
+  'w_reverse':'⟳', 'w_skip':'⊘', 'w_dskip':'⊘⊘',
+  'w_draw2':'+2', 'w_draw4':'+4', 'w_tdraw2':'→+2', 'w_fswap':'↔',
+};
+
+
 function cLabel(v){ return CARD_LABELS[v]||v; }
 
-function isPlayable(card,topCard,pending){
-  if(!topCard) return false;
-  if(pending>0 && card.value!=='draw2' && card.value!=='wild4') return false;
-  if(card.color==='wild') return true;
-  const tc=topCard.chosen_color||topCard.color;
-  if(card.color===tc) return true;
-  if(card.value===topCard.value) return true;
-  return false;
+// ── Rules popup ───────────────────────────────────────
+let _cachedRules = null;  // {rules, card_descriptions, name} from last fetch
+
+function showRulesForRoom() {
+  // Called from waiting room — fetch via socket
+  const type = document.getElementById('room-type-sel')?.value
+             || (gameState && gameState.game_type)
+             || 'classic';
+  socket.emit('uno_get_rules', {uno_type: type});
+}
+
+function showRulesFromSnapshot() {
+  // Called in-game — data is already in the snapshot
+  if (!gameState) return;
+  _renderRules(
+    gameState.game_type || 'Game',
+    gameState.rules || [],
+    gameState.card_descriptions || {}
+  );
+}
+
+socket.on('uno_rules', data => {
+  _cachedRules = data;
+  _renderRules(data.name, data.rules || [], data.card_descriptions || {});
+});
+
+function _renderRules(name, rules, cardDescs) {
+  document.getElementById('rules-title').textContent = '📖 Rules';
+  document.getElementById('rules-type-label').textContent = name;
+
+  const list = document.getElementById('rules-list');
+  list.innerHTML = '';
+  rules.forEach(r => {
+    const li = document.createElement('li');
+    li.textContent = r;
+    list.appendChild(li);
+  });
+
+  const grid = document.getElementById('rules-card-grid');
+  grid.innerHTML = '';
+  Object.entries(cardDescs).forEach(([val, desc]) => {
+    const lbl  = document.createElement('div');
+    lbl.className = 'cdc-label';
+    lbl.textContent = CARD_LABELS[val] || val;
+    const txt  = document.createElement('div');
+    txt.className = 'cdc-desc';
+    txt.textContent = desc;
+    grid.appendChild(lbl);
+    grid.appendChild(txt);
+  });
+
+  document.getElementById('rules-overlay').classList.add('open');
+}
+
+function closeRules() {
+  document.getElementById('rules-overlay').classList.remove('open');
+}
+document.getElementById('rules-overlay').addEventListener('click', e => {
+  if (e.target.id === 'rules-overlay') closeRules();
+});
+
+// Also send rules data in the snapshot — add to extra_snapshot_fields on server.
+// Here we read it from gameState when available:
+function _syncInGameRulesBtn() {
+  const btn = document.getElementById('ingame-rules-btn');
+  if (btn) btn.style.display = 'inline-block';
 }
 
 // ── Views ─────────────────────────────────────────────
 function showView(v){
+  hideCardTooltip();
   document.querySelectorAll('.uno-view').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v)?.classList.add('active');
 }
@@ -1128,7 +1573,66 @@ socket.on('uno_you_won',data=>{
 });
 
 // ── Game state ─────────────────────────────────────────
-socket.on('uno_game_state',data=>{gameState=data;renderGame(data);});
+socket.on('uno_game_state', data => {
+  gameState = data;
+  window._stackableValues    = new Set(data.stackable_values || []);
+  window._drawValues         = data.draw_values || {};
+  window._cardDescriptions   = data.card_descriptions || {};  // ← add
+  window._lastLaunchSeq = window._lastLaunchSeq || 0;
+  _syncInGameRulesBtn();
+  renderGame(data);
+});
+
+function showCardTooltip(e, text) {
+  const el = document.getElementById('card-tooltip');
+  el.textContent = text;
+  el.classList.add('visible');
+  moveCardTooltip(e);
+}
+function moveCardTooltip(e) {
+  const el  = document.getElementById('card-tooltip');
+  const pad = 14;
+  let x = e.clientX + pad;
+  let y = e.clientY - el.offsetHeight - pad;
+  if (x + el.offsetWidth > window.innerWidth)  x = e.clientX - el.offsetWidth - pad;
+  if (y < 0)                                   y = e.clientY + pad;
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+}
+function hideCardTooltip() {
+  document.getElementById('card-tooltip').classList.remove('visible');
+}
+
+// Update isPlayable:
+function isPlayable(card, topCard, pending) {
+  if (!topCard) return false;
+  if (pending > 0) {
+    if (!window._stackableValues.has(card.value)) return false;
+    // No Mercy: card's draw value must be >= accumulated pending total
+    if (Object.keys(window._drawValues).length > 0) {
+      const cardVal = window._drawValues[card.value] || 0;
+      if (cardVal < pending) return false;
+    }
+  }
+  if (card.color === 'wild') return true;
+  const tc = topCard.chosen_color || topCard.color;
+  if (card.color === tc) return true;
+  if (card.value === topCard.value) return true;
+  return false;
+}
+
+// ── UNO Flip: sync colour picker to current side ───────
+const _FLIP_LIGHT_CFG = [['red','🔴','cpb-red'],['green','🟢','cpb-green'],['blue','🔵','cpb-blue'],['yellow','🟡','cpb-yellow']];
+const _FLIP_DARK_CFG  = [['pink','🌸','cpb-pink'],['teal','🌊','cpb-teal'],['orange','🔥','cpb-orange'],['purple','💜','cpb-purple']];
+
+function _syncColorPicker(dark) {
+  const el = document.querySelector('#color-overlay .color-btns');
+  if (!el) return;
+  const cfg = dark ? _FLIP_DARK_CFG : _FLIP_LIGHT_CFG;
+  el.innerHTML = cfg.map(([c,e,cl]) =>
+    `<button class="color-pick-btn ${cl}" onclick="chooseColor('${c}')">${e}</button>`
+  ).join('');
+}
 
 function renderGame(state){
   if(!state)return;
@@ -1136,6 +1640,13 @@ function renderGame(state){
   const isMyTurn = state.current_sid===mySid&&!amSpectator;
   const topCard  = state.top_card;
   const pending  = state.pending_draw;
+  const myIdx    = state.players.findIndex(p=>p.sid===mySid);
+  const pendingAction = state.pending_action;
+  // Flip: must draw until colour (Wild Draw Color targeted this player)
+  const mustDrawUntilColor = !amSpectator
+    && state.game_type==='flip'
+    && pendingAction?.type==='draw_until_color'
+    && myIdx===pendingAction.player_idx;
 
   // Turn indicator
   const turnEl=document.getElementById('topbar-turn');
@@ -1192,8 +1703,15 @@ function renderGame(state){
   else pdb.classList.remove('visible');
 
   // Draw button
-  drawBtn.disabled=!isMyTurn||state.waiting_for_color||state.status==='finished';
-  drawBtn.textContent=(pending>0&&isMyTurn)?`Draw ${pending}`:'Draw';
+  drawBtn.disabled = !isMyTurn
+                || state.waiting_for_color
+                || state.status === 'finished'
+                || state.must_play_drawn;
+  drawBtn.textContent = mustDrawUntilColor
+    ? `Draw until ${pendingAction.color}`
+    : state.must_play_drawn
+      ? 'Play your drawn card'
+      : (pending > 0 && isMyTurn ? `Draw ${pending}` : 'Draw');
 
   // UNO badge
   const unoBadge=document.getElementById('uno-self-badge');
@@ -1204,37 +1722,257 @@ function renderGame(state){
   if(state.waiting_for_color&&isMyTurn)document.getElementById('color-overlay').classList.add('open');
   else document.getElementById('color-overlay').classList.remove('open');
 
+  // ── UNO Flip: dark-side atmosphere + colour-picker ────
+  const root = document.getElementById('uno-root');
+  if (state.game_type === 'flip') {
+    root.classList.toggle('dark-side', !!state.dark_side);
+    _syncColorPicker(!!state.dark_side);
+  } else {
+    root.classList.remove('dark-side');
+    _syncColorPicker(false);  // restore standard colours if switching game types
+  }
+
   renderOpponents(state);
 
   if(amSpectator)renderSpectatorHands(state);
-  else if(myP)renderHand(myP.hand,topCard,pending,isMyTurn,state.waiting_for_color);
+  else if(myP)renderHand(myP.hand,topCard,pending,isMyTurn,state.waiting_for_color,mustDrawUntilColor);
+
+
+  // Replace the two overlay blocks at the end of renderGame() with:
+  const swapOverlay     = document.getElementById('swap-overlay');
+  const rouletteOverlay = document.getElementById('roulette-overlay');
+
+
+  if (pendingAction && pendingAction.type === 'swap_target' && myIdx === pendingAction.player_idx && !amSpectator) {
+    swapOverlay.classList.add('open');
+    renderSwapTargets(state);
+  } else {
+    swapOverlay.classList.remove('open');
+  }
+
+  if (pendingAction && pendingAction.type === 'roulette_color' && myIdx === pendingAction.player_idx && !amSpectator) {
+    rouletteOverlay.classList.add('open');
+  } else {
+    rouletteOverlay.classList.remove('open');
+  }
+
+  // ── No Mercy: mercy counter on opponent cards ─────────────────────────────
+  const mercyLimit = state.mercy_limit;
+  if (mercyLimit) {
+    state.players.forEach(p => {
+      const el = document.querySelector(`[data-pid="${p.id}"] .opp-count`);
+      if (!el) return;
+      const pct = p.hand_count / mercyLimit;
+      if (pct >= 0.8) el.style.color = '#ff4d4d';
+      else if (pct >= 0.6) el.style.color = '#eab308';
+      else el.style.color = '';
+    });
+  }
+
+  const arrowRow   = document.getElementById('direction-arrow-row');
+  const arrowLeft  = document.getElementById('dir-arrow-left');
+  const arrowRight = document.getElementById('dir-arrow-right');
+  if (arrowRow) {
+    // direction 1 = clockwise = left→right in the visual row
+    // direction -1 = counter-clockwise = right→left
+    if (state.direction === 1) {
+      arrowLeft.style.opacity  = '0.2';
+      arrowRight.style.opacity = '1';
+      arrowRight.style.color   = '#ffd700';
+      arrowLeft.style.color    = 'rgba(255,255,255,.2)';
+    } else {
+      arrowLeft.style.opacity  = '1';
+      arrowRight.style.opacity = '0.2';
+      arrowLeft.style.color    = '#ffd700';
+      arrowRight.style.color   = 'rgba(255,255,255,.2)';
+    }
+  }
+
+  // ── UNO Attack: launcher visual, draw button, animation, overlays ─────────
+  const isAttack = state.game_type === 'attack';
+
+  // Show/hide the physical launcher widget (replaces the deck card)
+  const launcherWrap = document.getElementById('launcher-wrap');
+  const deckCardItem = document.getElementById('deck-card').closest('.gc-item');
+  if (launcherWrap) {
+    if (isAttack) {
+      launcherWrap.classList.add('active');
+      if (deckCardItem) deckCardItem.style.display = 'none';
+    } else {
+      launcherWrap.classList.remove('active');
+      if (deckCardItem) deckCardItem.style.display = '';
+    }
+  }
+
+  // Override the draw button label/state for Attack
+  if (isAttack) {
+    const hits = state.pending_hits || 0;
+    drawBtn.textContent = (isMyTurn && hits > 0) ? `🚀 Press ×${hits}` : '🚀 Press Launcher';
+    drawBtn.disabled    = !isMyTurn || state.waiting_for_color || !!state.pending_action;
+  }
+
+  // Launcher fire/click animation (triggers on seq change)
+  const ll = state.last_launch || {};
+  if (isAttack && ll.seq && ll.seq !== window._lastLaunchSeq) {
+    window._lastLaunchSeq = ll.seq;
+    const resultEl = document.getElementById('launcher-result');
+    const bodyEl   = document.getElementById('launcher-body');
+    if (ll.fired) {
+      const burst = document.createElement('div');
+      burst.className = 'launcher-fire-burst';
+      burst.textContent = `+${ll.count}🃏`;
+      bodyEl.appendChild(burst);
+      setTimeout(() => burst.remove(), 500);
+      resultEl.textContent = `${ll.username}: +${ll.count} cards!`;
+      resultEl.className   = 'launcher-result fired';
+    } else {
+      bodyEl.classList.add('launcher-click-anim');
+      setTimeout(() => bodyEl.classList.remove('launcher-click-anim'), 300);
+      resultEl.textContent = `${ll.username}: safe!`;
+      resultEl.className   = 'launcher-result safe';
+    }
+    setTimeout(() => { resultEl.textContent = ''; resultEl.className = 'launcher-result'; }, 2500);
+  }
+
+  // Attack-specific pending-action overlays
+  const tradeOverlay   = document.getElementById('trade-overlay');
+  const allHitOverlay  = document.getElementById('all-hit-overlay');
+  const hitFireOverlay = document.getElementById('hit-fire-overlay');
+
+  if (pendingAction && !amSpectator) {
+    tradeOverlay.classList.toggle('open',
+      pendingAction.type === 'trade_hands'   && myIdx === pendingAction.player_idx);
+    allHitOverlay.classList.toggle('open',
+      pendingAction.type === 'all_hit_press' && myIdx === pendingAction.player_idx);
+    hitFireOverlay.classList.toggle('open',
+      pendingAction.type === 'hit_fire_press'&& myIdx === pendingAction.player_idx);
+    if (pendingAction.type === 'trade_hands' && myIdx === pendingAction.player_idx) {
+      renderTradeTargets(state);
+    }
+  } else {
+    tradeOverlay  ?.classList.remove('open');
+    allHitOverlay ?.classList.remove('open');
+    hitFireOverlay?.classList.remove('open');
+  }
+
+  // ── All Wild: targeted-draw-2 and forced-swap overlays ───────────────────
+  const awTdraw2Overlay = document.getElementById('aw-tdraw2-overlay');
+  const awFswapOverlay  = document.getElementById('aw-fswap-overlay');
+
+  if (state.game_type === 'all_wild' && pendingAction && !amSpectator) {
+    const isTD2  = pendingAction.type === 'targeted_draw2' && myIdx === pendingAction.player_idx;
+    const isFSwap= pendingAction.type === 'forced_swap'    && myIdx === pendingAction.player_idx;
+    awTdraw2Overlay.classList.toggle('open', isTD2);
+    awFswapOverlay .classList.toggle('open', isFSwap);
+    if (isTD2)   renderAWTargets('aw-tdraw2-targets', 'targeted_draw2', 'aw-tdraw2-overlay');
+    if (isFSwap) renderAWTargets('aw-fswap-targets',  'forced_swap',    'aw-fswap-overlay');
+  } else {
+    awTdraw2Overlay?.classList.remove('open');
+    awFswapOverlay ?.classList.remove('open');
+  }
 }
 
-function renderOpponents(state){
-  const row=document.getElementById('opponents-row');
-  // Use p.id (always unique) as the DOM key — p.sid is null for bots
-  const others=state.players.filter(p=>p.sid!==mySid);
-  const newKeys=new Set(others.map(p=>String(p.id)));
-  // Remove stale cards
-  row.querySelectorAll('.opp-card').forEach(el=>{if(!newKeys.has(el.dataset.pid))el.remove();});
-  others.forEach(p=>{
-    const key=String(p.id);
-    const isActive=p.is_current;
-    let div=row.querySelector(`[data-pid="${key}"]`);
-    if(!div){
-      div=document.createElement('div');
-      div.dataset.pid=key;
+function renderSwapTargets(state) {
+  const el = document.getElementById('swap-targets');
+  if (!el) return;
+  el.innerHTML = '';
+  state.players.forEach((p, idx) => {
+    if (p.sid === mySid || p.finished) return;
+    const btn = document.createElement('button');
+    btn.style.cssText = 'padding:10px 16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-family:\'Share Tech Mono\',monospace;font-size:.8rem;cursor:pointer;text-align:left;';
+    btn.textContent = `${p.username}  (${p.hand_count} cards)`;
+    btn.onclick = () => chooseSwapTarget(idx);
+    el.appendChild(btn);
+  });
+}
+
+function renderAWTargets(containerId, actionType, overlayId) {
+  const el = document.getElementById(containerId);
+  if (!el || !gameState) return;
+  el.innerHTML = '';
+  gameState.players.forEach((p, idx) => {
+    if (p.sid === mySid || p.finished) return;
+    const btn = document.createElement('button');
+    btn.style.cssText = 'padding:10px 16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-family:\'Share Tech Mono\',monospace;font-size:.8rem;cursor:pointer;text-align:left;';
+    btn.textContent = `${p.username}  (${p.hand_count} cards)`;
+    btn.onclick = () => {
+      document.getElementById(overlayId).classList.remove('open');
+      socket.emit('uno_player_action', {action_type: actionType, data: {target_idx: idx}});
+    };
+    el.appendChild(btn);
+  });
+}
+
+function renderTradeTargets(state) {
+  const el = document.getElementById('trade-targets');
+  if (!el) return;
+  el.innerHTML = '';
+  state.players.forEach((p, idx) => {
+    if (p.sid === mySid || p.finished) return;
+    const btn = document.createElement('button');
+    btn.style.cssText = 'padding:10px 16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-family:\'Share Tech Mono\',monospace;font-size:.8rem;cursor:pointer;text-align:left;';
+    btn.textContent = `${p.username}  (${p.hand_count} cards)`;
+    btn.onclick = () => {
+      document.getElementById('trade-overlay').classList.remove('open');
+      socket.emit('uno_player_action', {action_type: 'trade_hands', data: {target_idx: idx}});
+    };
+    el.appendChild(btn);
+  });
+}
+
+function submitAllHitPress() {
+  document.getElementById('all-hit-overlay').classList.remove('open');
+  socket.emit('uno_player_action', {action_type: 'all_hit_press', data: {}});
+}
+
+function submitHitFirePress() {
+  document.getElementById('hit-fire-overlay').classList.remove('open');
+  socket.emit('uno_player_action', {action_type: 'hit_fire_press', data: {}});
+}
+
+function chooseSwapTarget(targetIdx) {
+  document.getElementById('swap-overlay').classList.remove('open');
+  socket.emit('uno_player_action', {action_type: 'swap_target', data: {target_idx: targetIdx}});
+}
+function chooseRouletteColor(color) {
+  document.getElementById('roulette-overlay').classList.remove('open');
+  socket.emit('uno_player_action', {action_type: 'roulette_color', data: {color}});
+}
+
+function renderOpponents(state) {
+  const row = document.getElementById('opponents-row');
+  // Include ALL players — mark self with a "(You)" indicator
+  const newKeys = new Set(state.players.map(p => String(p.id)));
+  row.querySelectorAll('.opp-card').forEach(el => {
+    if (!newKeys.has(el.dataset.pid)) el.remove();
+  });
+
+  state.players.forEach(p => {
+    const key      = String(p.id);
+    const isMe     = p.sid === mySid;
+    const isActive = p.is_current;
+    let div = row.querySelector(`[data-pid="${key}"]`);
+    if (!div) {
+      div = document.createElement('div');
+      div.dataset.pid = key;
       row.appendChild(div);
     }
-    div.className=`opp-card${isActive?' active-player':''}${p.finished?' finished':''}`;
-    const show=Math.min(p.hand_count,7);
-    const backs=Array(show).fill('<div class="mini-card-back"></div>').join('');
-    div.innerHTML=`${p.is_bot?'<span style="font-size:.75rem;opacity:.5">🤖</span>':''}<div class="opp-card-backs">${backs}</div><div class="opp-count">${p.hand_count} card${p.hand_count!==1?'s':''}</div><div class="opp-name" title="${escHtml(p.username)}">${escHtml(p.username)}</div>${p.has_uno?'<span class="uno-badge">UNO!</span>':''}${p.finished?`<span style="font-size:.65rem;color:#ffd700">#${p.rank}</span>`:''}`;
+    div.className = `opp-card${isActive ? ' active-player' : ''}${p.finished ? ' finished' : ''}${isMe ? ' is-me' : ''}`;
+    const show  = Math.min(p.hand_count, 7);
+    const backs = Array(show).fill('<div class="mini-card-back"></div>').join('');
+    const nameLabel = escHtml(p.username) + (isMe ? ' <em style="color:#ffd700;font-style:normal">(You)</em>' : '');
+    div.innerHTML = `
+      ${p.is_bot ? '<span style="font-size:.75rem;opacity:.5">🤖</span>' : ''}
+      <div class="opp-card-backs">${backs}</div>
+      <div class="opp-count">${p.hand_count} card${p.hand_count !== 1 ? 's' : ''}</div>
+      <div class="opp-name" title="${escHtml(p.username)}">${nameLabel}</div>
+      ${p.has_uno ? '<span class="uno-badge">UNO!</span>' : ''}
+      ${p.finished ? `<span style="font-size:.65rem;color:${p.mercy_knocked ? '#ff4d4d' : '#ffd700'}">${p.mercy_knocked ? '💀' : '#' + p.rank}</span>` : ''}`;
   });
 }
 
 let _handKey='';
-function renderHand(hand,topCard,pending,isMyTurn,waitingColor){
+function renderHand(hand,topCard,pending,isMyTurn,waitingColor,forceNoPlay){
   if(!Array.isArray(hand))return;
   const scroll=document.getElementById('hand-scroll');
   const newKey=hand.map(c=>c.color+'_'+c.value+'_'+(c.chosen_color||'')).join('|');
@@ -1243,15 +1981,16 @@ function renderHand(hand,topCard,pending,isMyTurn,waitingColor){
     // just update playability classes
     [...scroll.children].forEach((el,idx)=>{
       const card=hand[idx];if(!card)return;
-      const playable=isMyTurn&&!waitingColor&&isPlayable(card,topCard,pending);
+      const playable=isMyTurn&&!waitingColor&&!forceNoPlay&&isPlayable(card,topCard,pending);
       el.className=`uno-card ${card.chosen_color||card.color}${playable?' playable':' not-playable'}`;
     });
     return;
   }
   _handKey=newKey;
+  hideCardTooltip();
   scroll.innerHTML='';
   hand.forEach((card,idx)=>{
-    const playable=isMyTurn&&!waitingColor&&isPlayable(card,topCard,pending);
+    const playable=isMyTurn&&!waitingColor&&!forceNoPlay&&isPlayable(card,topCard,pending);
     const color=card.chosen_color||card.color;
     const label=cLabel(card.value);
     const div=document.createElement('div');
@@ -1261,11 +2000,18 @@ function renderHand(hand,topCard,pending,isMyTurn,waitingColor){
     if(playable){
       div.addEventListener('click',()=>playCard(idx,card));
     }
+    const desc = (window._cardDescriptions || {})[card.value];
+    if (desc) {
+      div.addEventListener('mouseenter', e => showCardTooltip(e, desc));
+      div.addEventListener('mousemove',  e => moveCardTooltip(e));
+      div.addEventListener('mouseleave', hideCardTooltip);
+    }
     scroll.appendChild(div);
   });
 }
 
 function renderSpectatorHands(state){
+  hideCardTooltip();
   const scroll=document.getElementById('hand-scroll');
   scroll.innerHTML='';
   const active=state.players.filter(p=>!p.finished&&Array.isArray(p.hand));
@@ -1288,14 +2034,15 @@ function renderSpectatorHands(state){
 }
 
 // ── Game actions ───────────────────────────────────────
-function playCard(idx,card){
-  if(card.color==='wild'){
-    window._pendingWildIdx=idx;
+function playCard(idx, card) {
+  if (card.color === 'wild' && gameState?.game_type !== 'all_wild') {
+    window._pendingWildIdx = idx;
     document.getElementById('color-overlay').classList.add('open');
-  }else{
-    socket.emit('uno_play_card',{card_idx:idx});
+  } else {
+    socket.emit('uno_play_card', {card_idx: idx});
   }
 }
+
 function chooseColor(color){
   document.getElementById('color-overlay').classList.remove('open');
   if(window._pendingWildIdx!==undefined){
@@ -1329,9 +2076,18 @@ function _showGameOver(data){
 
   const list=document.getElementById('go-rankings');list.innerHTML='';
   const medals=['','🥇','🥈','🥉'];
-  rankings.forEach(r=>{
-    const el=document.createElement('div');el.className=`rank-row r${r.rank}`;
-    el.innerHTML=`<span class="rank-num">${medals[r.rank]||r.rank}</span><span class="rank-name">${escHtml(r.username)}</span>${r.is_bot?'<span class="rank-bot">🤖 Bot</span>':''}`;
+  rankings.forEach(r => {
+    const el = document.createElement('div');
+    const isKnocked = r.mercy_knocked || r.rank === 'knocked_out';
+    el.className = `rank-row${r.rank === 1 ? ' r1' : r.rank === 2 ? ' r2' : ''}`;
+    const rankDisplay = isKnocked
+      ? '💀'
+      : (medals[r.rank] || r.rank);
+    el.innerHTML = `
+      <span class="rank-num">${rankDisplay}</span>
+      <span class="rank-name">${escHtml(r.username)}</span>
+      ${r.is_bot ? '<span class="rank-bot">🤖 Bot</span>' : ''}
+      ${isKnocked ? '<span class="rank-bot" style="color:#ff4d4d">Knocked out</span>' : ''}`;
     list.appendChild(el);
   });
 
@@ -1357,6 +2113,14 @@ socket.on('uno_now_creator', () => {
   document.getElementById('go-creator-btns').style.display = 'flex';
   document.getElementById('go-waiting').style.display      = 'none';
   showToast('You are now the room creator.','info');
+});
+
+socket.on('uno_you_mercy_knocked', () => {
+  amSpectator = true;
+  showToast('💀 You were knocked out by the Mercy Rule! Spectating…', 'err');
+  document.getElementById('spectator-badge').classList.add('visible');
+  document.getElementById('hand-label').textContent = 'All Hands (Spectating)';
+  document.getElementById('draw-btn').disabled = true;
 });
 
 // ── Post-game actions ──────────────────────────────────
@@ -1387,6 +2151,14 @@ socket.on('uno_return_to_room', data => {
   document.getElementById('spectator-badge').classList.remove('visible');
   document.getElementById('hand-label').textContent = 'Your Hand';
   showView('room');
+});
+
+socket.on('uno_mercy_knocked', data => {
+  showToast(`💀 ${data.username} knocked out by Mercy Rule!`, 'err');
+});
+
+socket.on('uno_swap_happened', data => {
+  showToast(`🔄 ${data.source} swapped hands with ${data.target}!`, 'info');
 });
 
 function backToLobby(){
