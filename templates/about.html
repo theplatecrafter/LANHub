@@ -140,6 +140,7 @@
   .badge.green  { color: var(--green);  border-color: var(--green);  background: var(--green-dim); }
   .badge.amber  { color: var(--amber);  border-color: var(--amber);  background: var(--amber-dim); }
   .badge.purple { color: var(--purple); border-color: var(--purple); background: var(--purple-dim); }
+  .badge.red    { color: var(--red);    border-color: var(--red);    background: var(--red-dim); }
 
   /* ── Section headers ────────────────────────────────────── */
   .section {
@@ -204,6 +205,128 @@
     color: var(--text-dim);
     line-height: 1.7;
   }
+
+  /* ── Access model ────────────────────────────────────────── */
+  .access-diagram {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 28px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .access-diagram::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--cyan), var(--purple));
+  }
+
+  .access-modes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 580px) { .access-modes { grid-template-columns: 1fr; } }
+
+  .access-mode {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    background: var(--bg);
+  }
+  .access-mode.public-mode  { border-color: rgba(0,212,255,.25); }
+  .access-mode.private-mode { border-color: rgba(167,139,250,.25); }
+
+  .am-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .am-icon { font-size: 1.1rem; }
+  .am-title {
+    font-family: var(--font-mono); font-size: 0.68rem;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    font-weight: 700;
+  }
+  .public-mode  .am-title { color: var(--cyan); }
+  .private-mode .am-title { color: var(--purple); }
+
+  .am-desc {
+    font-size: 0.78rem; color: var(--text-dim); line-height: 1.65;
+  }
+  .am-tag {
+    display: inline-block; margin-top: 10px;
+    font-family: var(--font-mono); font-size: 0.58rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 20px;
+  }
+  .public-mode  .am-tag { border: 1px solid var(--cyan);   color: var(--cyan);   background: var(--cyan-dim); }
+  .private-mode .am-tag { border: 1px solid var(--purple); color: var(--purple); background: var(--purple-dim); }
+
+  /* Flow arrows */
+  .access-flow {
+    display: flex; align-items: stretch; gap: 0;
+    font-family: var(--font-mono); font-size: 0.72rem;
+    flex-wrap: wrap; gap: 8px;
+  }
+  .flow-node {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 9px 14px;
+    color: var(--text-dim); display: flex; align-items: center; gap: 7px;
+    flex-shrink: 0;
+  }
+  .flow-node.highlight { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-dim); }
+  .flow-node.highlight-purple { border-color: var(--purple); color: var(--purple); background: var(--purple-dim); }
+  .flow-arrow {
+    display: flex; align-items: center;
+    color: var(--border-hi); font-size: 0.9rem; padding: 0 2px;
+  }
+  .flow-label {
+    font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.08em;
+    display: block; margin-top: 2px;
+  }
+
+  /* ── No-domain access ────────────────────────────────────── */
+  .nodomain-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 26px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  @media (max-width: 580px) { .nodomain-card { grid-template-columns: 1fr; } }
+  .nodomain-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--green), var(--cyan));
+  }
+  .nodomain-left h3 {
+    font-size: 0.88rem; font-weight: 700; color: var(--text-bright);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .nodomain-left p {
+    font-size: 0.8rem; color: var(--text-dim); line-height: 1.75;
+  }
+  .nodomain-right {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .nd-step {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 14px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .nd-num {
+    font-family: var(--font-mono); font-size: 0.65rem; font-weight: 800;
+    color: var(--cyan); flex-shrink: 0; width: 18px; padding-top: 1px;
+  }
+  .nd-text {
+    font-family: var(--font-mono); font-size: 0.7rem;
+    color: var(--text-dim); line-height: 1.55;
+  }
+  .nd-text strong { color: var(--text-bright); }
 
   /* ── Feature grid ───────────────────────────────────────── */
   .feature-grid {
@@ -404,6 +527,8 @@
   .fade-up:nth-child(4) { animation-delay: 0.21s; }
   .fade-up:nth-child(5) { animation-delay: 0.28s; }
   .fade-up:nth-child(6) { animation-delay: 0.35s; }
+  .fade-up:nth-child(7) { animation-delay: 0.42s; }
+  .fade-up:nth-child(8) { animation-delay: 0.49s; }
 </style>
 {% endblock %}
 
@@ -436,7 +561,8 @@
       <span class="badge cyan">🐍 Python + Flask</span>
       <span class="badge green">⚡ Real-time Socket.IO</span>
       <span class="badge amber">🌐 LAN-first</span>
-      <span class="badge purple">🎮 Games included</span>
+      <span class="badge purple">🎮 5 Games included</span>
+      <span class="badge red">🔒 Password protection</span>
     </div>
   </div>
 
@@ -458,9 +584,9 @@
            server stats, and board updates all push live to every connected browser.</p>
       </div>
       <div class="what-card" style="--accent: var(--amber);">
-        <h3>🔒 Private by design</h3>
-        <p>Everything stays on your local network. There's an optional GitHub Pages redirector
-           so you can reach your server from outside, but the data never leaves your machine.</p>
+        <h3>🌍 No domain required</h3>
+        <p>Access LANHub from anywhere — even outside your LAN — using the free GitHub Pages
+           redirector. No DNS, no domain purchase, no port-forwarding wizard needed.</p>
       </div>
       <div class="what-card" style="--accent: var(--purple);">
         <h3>🎨 14 Themes</h3>
@@ -469,6 +595,115 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Access model ───────────────────────────────────────── -->
+  <div class="section fade-up">
+    <div class="section-header">
+      <h2>🔐 Access Control</h2>
+      <div class="section-line"></div>
+    </div>
+    <div class="access-diagram">
+      <div class="access-modes">
+
+        <div class="access-mode public-mode">
+          <div class="am-header">
+            <span class="am-icon">🌐</span>
+            <span class="am-title">Public Mode</span>
+          </div>
+          <p class="am-desc">
+            Anyone on your network (or reachable via the redirector) can open LANHub
+            and start using it immediately. No login, no barrier — just open the URL
+            and you're in. Ideal for LAN parties and fully trusted networks.
+          </p>
+          <span class="am-tag">No password required</span>
+        </div>
+
+        <div class="access-mode private-mode">
+          <div class="am-header">
+            <span class="am-icon">🔒</span>
+            <span class="am-title">Password Mode</span>
+          </div>
+          <p class="am-desc">
+            When enabled, visitors must enter a server password before they can see
+            anything. The password is set once by the server administrator and applies
+            to all users. Sessions persist across browser refreshes so users only
+            type it once per device.
+          </p>
+          <span class="am-tag">Server-wide password gate</span>
+        </div>
+
+      </div>
+
+      <!-- Flow diagram -->
+      <div style="margin-top: 4px;">
+        <div style="font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-dim); margin-bottom: 10px;">
+          Connection flow (password mode)
+        </div>
+        <div class="access-flow">
+          <div class="flow-node">👤 Visitor</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node">Opens URL</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node highlight-purple">🔒 Password prompt</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node">Correct?</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-node highlight">✓ Full access</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── No-domain access ───────────────────────────────────── -->
+  <div class="section fade-up">
+    <div class="section-header">
+      <h2>🌍 Accessing from Anywhere</h2>
+      <div class="section-line"></div>
+    </div>
+    <div class="nodomain-card">
+      <div class="nodomain-left">
+        <h3>🔗 Free GitHub Pages Redirector</h3>
+        <p>
+          LANHub ships with a companion GitHub Pages site you can fork for free.
+          It acts as a public-facing bookmark that silently forwards visitors to
+          your server's local IP — so friends outside your house can reach your
+          LANHub without you buying a domain or configuring dynamic DNS.
+        </p>
+        <p style="margin-top: 12px;">
+          The redirector stores nothing and proxies nothing — it's a single
+          HTML file that just points a browser at your IP. All traffic still
+          goes directly to your machine.
+        </p>
+        <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px;">
+          <span class="badge green">✓ Free forever</span>
+          <span class="badge cyan">✓ No domain purchase</span>
+          <span class="badge amber">✓ No proxy / no data routing</span>
+        </div>
+      </div>
+      <div class="nodomain-right">
+        <div style="font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-dim); margin-bottom: 8px;">
+          Setup in 3 steps
+        </div>
+        <div class="nd-step">
+          <span class="nd-num">01</span>
+          <span class="nd-text">Fork the companion <strong>LANHub-redirect</strong> repo on GitHub</span>
+        </div>
+        <div class="nd-step">
+          <span class="nd-num">02</span>
+          <span class="nd-text">Set your server's <strong>local IP address</strong> in the config file</span>
+        </div>
+        <div class="nd-step">
+          <span class="nd-num">03</span>
+          <span class="nd-text">Enable <strong>GitHub Pages</strong> on the repo — you get a free public URL instantly</span>
+        </div>
+        <div class="nd-step" style="border-color: rgba(0,212,255,.2);">
+          <span class="nd-num" style="color: var(--green);">✓</span>
+          <span class="nd-text">Share the GitHub Pages URL. Visitors are forwarded to your LANHub automatically.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- ── Tech stack ─────────────────────────────────────────── -->
   <div class="section fade-up">
@@ -489,6 +724,8 @@
       <span class="stack-pill"><span>🔌</span> Socket.IO 4.x</span>
       <span class="stack-pill"><span>🎨</span> CSS Variables + 14 Themes</span>
       <span class="stack-pill"><span>🖥</span> xterm.js (server console)</span>
+      <span class="stack-pill"><span>🗺</span> Leaflet.js (GeoGuesser maps)</span>
+      <span class="stack-pill"><span>🌐</span> Google Maps Embed API</span>
     </div>
   </div>
 
@@ -537,9 +774,15 @@
         serve an entire household without breaking a sweat.
       </p>
       <p>
-        All game logic (Tetris, Chess, UNO) runs <strong>client-side in the browser</strong>.
-        The server only handles matchmaking, room management, and relaying game events — keeping
-        server CPU usage near zero even during active multiplayer sessions.
+        Access control is intentionally flexible. <strong>Public mode</strong> removes every
+        barrier so a LAN party can get started in seconds. <strong>Password mode</strong> adds
+        a single shared gate for networks where you want a little more control — without forcing
+        individual accounts or a sign-up flow on anyone.
+      </p>
+      <p>
+        All game logic (Tetris, Chess, UNO) runs <strong>server-side in Python</strong> as the
+        authoritative source, with the browser handling only rendering and input. The server
+        relays game state to all clients over Socket.IO, keeping every player perfectly in sync.
       </p>
     </div>
   </div>
