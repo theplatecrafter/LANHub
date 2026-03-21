@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LANHub — Access Restricted</title>
+    <title>LANHub — Home Network Required</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             background: #0f1117;
@@ -14,41 +15,188 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            padding: 1.5rem;
         }
+
         .card {
             background: #1a1d27;
             border: 1px solid #2d3148;
-            border-radius: 14px;
+            border-radius: 16px;
             padding: 2.5rem 2rem;
             width: 100%;
-            max-width: 400px;
+            max-width: 480px;
             text-align: center;
         }
-        .icon { font-size: 2.5rem; margin-bottom: .6rem; }
-        h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: .4rem; color: #f87171; }
-        p { color: #94a3b8; font-size: .9rem; line-height: 1.6; }
+
+        .icon { font-size: 3rem; margin-bottom: 1rem; }
+
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #f87171;
+            margin-bottom: .5rem;
+            letter-spacing: -.01em;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: .95rem;
+            line-height: 1.6;
+            margin-bottom: 1.8rem;
+        }
+
+        /* ── Explanation steps ── */
+        .steps {
+            background: #0f1117;
+            border: 1px solid #2d3148;
+            border-radius: 10px;
+            padding: 1.2rem 1.4rem;
+            text-align: left;
+            margin-bottom: 1.8rem;
+        }
+
+        .steps-title {
+            font-size: .7rem;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: .9rem;
+        }
+
+        .step {
+            display: flex;
+            gap: .8rem;
+            align-items: flex-start;
+            margin-bottom: .8rem;
+        }
+        .step:last-child { margin-bottom: 0; }
+
+        .step-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            margin-top: .1rem;
+        }
+
+        .step-text {
+            font-size: .85rem;
+            color: #94a3b8;
+            line-height: 1.55;
+        }
+
+        .step-text strong { color: #e2e8f0; font-weight: 600; }
+
+        /* ── LAN connect button ── */
+        {% if lan_ip %}
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: .8rem;
+            margin-bottom: 1.4rem;
+            color: #64748b;
+            font-size: .75rem;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #2d3148;
+        }
+
+        .lan-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .6rem;
+            width: 100%;
+            padding: .9rem 1.2rem;
+            background: #6366f1;
+            color: white;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: .95rem;
+            text-decoration: none;
+            transition: background .2s, transform .15s;
+            margin-bottom: .8rem;
+        }
+        .lan-btn:hover {
+            background: #4f52cc;
+            transform: translateY(-1px);
+        }
+        .lan-btn-icon { font-size: 1.1rem; }
+
+        .lan-hint {
+            font-size: .78rem;
+            color: #475569;
+            line-height: 1.5;
+        }
+        .lan-hint strong { color: #64748b; }
+        {% endif %}
     </style>
 </head>
 <body>
     <div class="card">
-        <div class="icon">🔒</div>
-        <h1>LAN Only</h1>
-        <p>This server is restricted to local network access only.<br>
-           You must be connected to the same Wi-Fi or network as the server.</p>
-        {% if lan_ip %}
-        <p style="margin-top:1.5rem; font-size:.9rem; color:#94a3b8;">
-            If you are on the same network, click below:
+
+        <div class="icon">🏠</div>
+        <h1>Home Network Required</h1>
+        <p class="subtitle">
+            This server is only accessible from the <strong>same Wi-Fi or network</strong>
+            as the server computer. You're seeing this page because you arrived via a
+            shared link that routes through the internet.
         </p>
-        <a href="http://{{ lan_ip }}:{{ port }}"
-           style="display:inline-block; margin-top:.8rem; padding:.75rem 1.5rem;
-                  background:#6366f1; color:white; border-radius:8px;
-                  font-weight:600; text-decoration:none; font-size:1rem;">
-            Connect via LAN →
+
+        <div class="steps">
+            <div class="steps-title">Why am I seeing this?</div>
+
+            <div class="step">
+                <div class="step-icon">🔗</div>
+                <div class="step-text">
+                    <strong>You used the shared link.</strong>
+                    That link routes your connection through the internet even if you're
+                    sitting right next to the server — so the server sees it as an
+                    outside connection.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-icon">📶</div>
+                <div class="step-text">
+                    <strong>You need to be on the same Wi-Fi.</strong>
+                    Make sure your phone or computer is connected to the same
+                    Wi-Fi network as the server, not mobile data.
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-icon">🖱️</div>
+                <div class="step-text">
+                    <strong>Then use the direct address below.</strong>
+                    The button below connects directly to the server over your local
+                    network, bypassing the internet entirely.
+                </div>
+            </div>
+        </div>
+
+        {% if lan_ip %}
+        <div class="divider">Connect directly</div>
+
+        <a class="lan-btn" href="http://{{ lan_ip }}:{{ port }}">
+            <span class="lan-btn-icon">🛰️</span>
+            Open LANHub on this network
         </a>
-        <p style="margin-top:1rem; font-size:.75rem; color:#64748b;">
-            If the button above doesn't load, you are not on the correct network.
+
+        <p class="lan-hint">
+            <strong>Button not working?</strong>
+            You are either not on the correct Wi-Fi, or the server is currently offline.
+            Try switching off mobile data and connecting to the right Wi-Fi first.
+        </p>
+        {% else %}
+        <p style="font-size:.82rem; color:#475569;">
+            The server administrator has not configured a direct address yet.
+            Contact them for access instructions.
         </p>
         {% endif %}
+
     </div>
 </body>
 </html>
