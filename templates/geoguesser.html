@@ -1713,7 +1713,14 @@ if (typeof crypto.randomUUID !== 'function') {
 let regionPreviewMapInst = null;
 let currentRoomRegion    = [];
 const GEO_MAPS_KEY = {{ google_maps_key | tojson }};
- 
+
+function _normLng(guessLng, answerLng) {
+  let d = guessLng - answerLng;
+  while (d >  180) { guessLng -= 360; d -= 360; }
+  while (d < -180) { guessLng += 360; d += 360; }
+  return guessLng;
+}
+
 /* ── Pin icon factory ─────────────────────────────────── */
 function _makePinIcon(color, scale = 1) {
   const w = Math.round(22 * scale), h = Math.round(31 * scale);
@@ -1795,13 +1802,66 @@ function showHud(show)      { document.getElementById('game-hud').classList.togg
 function showSpHud(show)    { document.getElementById('sp-hud').style.display = show ? 'block' : 'none'; }
 function showGuessMap(show) { document.getElementById('guess-map-wrap').classList.toggle('map-visible', show); }
  
+// NEW — replace loadSV entirely:
+let _svRetryTimer = null;
+let _svCurrentPanoId = null;
+
 function loadSV(panoId) {
   if (!GEO_MAPS_KEY) { geoToast('⚠ No Google Maps API key configured', 8000); return; }
-  document.getElementById('sv-iframe').src =
-    `https://www.google.com/maps/embed/v1/streetview?key=${GEO_MAPS_KEY}&pano=${panoId}&heading=0&pitch=0&fov=90`;
-    setTimeout(() => GeoSFX.play('svLoaded'), 600);
-  }
-function clearSV() { document.getElementById('sv-iframe').src = 'about:blank'; }
+
+  _svCurrentPanoId = panoId;
+  clearTimeout(_svRetryTimer);
+  document.getElementById('sv-error-banner')?.remove();
+
+  const iframe = document.getElementById('sv-iframe');
+
+  // Cancel the watchdog the moment the iframe finishes loading —
+  // if Google served the pano page at all, it loaded successfully.
+  const onLoad = () => {
+    clearTimeout(_svRetryTimer);
+    iframe.removeEventListener('load', onLoad);
+  };
+  iframe.addEventListener('load', onLoad);
+
+  iframe.src = `https://www.google.com/maps/embed/v1/streetview?key=${GEO_MAPS_KEY}&pano=${panoId}&heading=0&pitch=0&fov=90`;
+  setTimeout(() => GeoSFX.play('svLoaded'), 600);
+
+  // Watchdog: only fires if the iframe never fires 'load' within 12s,
+  // which means a network-level failure (not a pano-not-found case).
+  _svRetryTimer = setTimeout(() => {
+    if (!document.getElementById('sv-wrap').classList.contains('active')) return;
+    if (document.getElementById('sv-error-banner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'sv-error-banner';
+    banner.style.cssText = `
+      position:absolute; bottom:80px; left:50%; transform:translateX(-50%);
+      z-index:50; background:rgba(3,12,28,.95);
+      border:1px solid rgba(232,69,69,.5); border-radius:var(--r,6px);
+      padding:12px 20px; display:flex; align-items:center; gap:14px;
+      font-family:var(--f-data,'monospace'); font-size:.72rem;
+      box-shadow:0 8px 28px rgba(0,0,0,.6); white-space:nowrap;
+    `;
+    banner.innerHTML = `
+      <span style="color:rgba(232,69,69,.9)">⚠ Panorama failed to load</span>
+      <button onclick="
+        document.getElementById('sv-error-banner')?.remove();
+        loadSV(_svCurrentPanoId);"
+        style="padding:5px 14px;background:var(--c-ocean,#1a90d0);border:none;
+               border-radius:4px;color:#010a14;font-family:inherit;
+               font-size:.68rem;font-weight:700;cursor:pointer;">
+        Retry
+      </button>
+    `;
+    document.getElementById('sv-wrap').appendChild(banner);
+  }, 12000);   // longer window — only network failures take this long
+}
+
+function clearSV() {
+  clearTimeout(_svRetryTimer);
+  document.getElementById('sv-error-banner')?.remove();
+  document.getElementById('sv-iframe').src = 'about:blank';
+}
  
 /* ── Region preview modal ─────────────────────────────── */
 // polygons: List[List[List[float]]]
@@ -2397,12 +2457,15 @@ socket.on('geo_sp_result', data => {
     L.marker([cLat, cLng], {icon: _makePinIcon('#4caf50', 1.4), zIndexOffset: 900})
       .bindPopup('📍 Correct location').addTo(resultMapInst);
     if (currentGuess) {
-      L.marker([currentGuess.lat, currentGuess.lng], {icon: _makePinIcon('#1a90d0', 1.0), zIndexOffset: 800})
+      const normLng  = _normLng(currentGuess.lng, cLng);
+      const answerLL = L.latLng(cLat, cLng);
+      const guessLL  = L.latLng(currentGuess.lat, normLng);
+      L.marker(guessLL, {icon: _makePinIcon('#1a90d0', 1.0), zIndexOffset: 800})
         .bindPopup('Your guess').addTo(resultMapInst);
-      L.polyline([[cLat, cLng], [currentGuess.lat, currentGuess.lng]],
+      L.polyline([answerLL, guessLL],
         {color: 'rgba(255,255,255,.3)', dashArray: '5,5', weight: 1.5}).addTo(resultMapInst);
       resultMapInst.fitBounds(
-        L.latLngBounds([[cLat, cLng], [currentGuess.lat, currentGuess.lng]]).pad(0.25),
+        L.latLngBounds([answerLL, guessLL]).pad(0.25),   // ← L.latLng objects preserve normLng
         {maxZoom: 10}
       );
     } else {
@@ -2776,33 +2839,47 @@ socket.on('geo_round_end', data => {
   }, 1000);
  
   setTimeout(() => {
-    if (!reMapInst) {
-      reMapInst = L.map('round-end-map', {center: [20, 0], zoom: 2});
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {attribution: '© OpenStreetMap'}).addTo(reMapInst);
-    }
-    reMapInst.eachLayer(l => { if (!(l instanceof L.TileLayer)) reMapInst.removeLayer(l); });
-    reMapInst.invalidateSize();
-    const cLat = data.correct_lat, cLng = data.correct_lng;
-    const allPts = [[cLat, cLng]];
-    L.marker([cLat, cLng], {icon: _makePinIcon('#4caf50', 1.5), zIndexOffset: 1000})
-      .bindPopup('📍 Correct location')
-      .bindTooltip('Answer', {permanent: true, direction: 'top', offset: [0,-31], className: 'geo-pin-label'})
+  if (!reMapInst) {
+    reMapInst = L.map('round-end-map', {center: [20, 0], zoom: 2});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {attribution: '© OpenStreetMap'}).addTo(reMapInst);
+  }
+  reMapInst.eachLayer(l => { if (!(l instanceof L.TileLayer)) reMapInst.removeLayer(l); });
+  reMapInst.invalidateSize();
+
+  const cLat = data.correct_lat, cLng = data.correct_lng;
+
+  // Build bounds incrementally using L.latLng() so out-of-range
+  // (normalized) longitudes are preserved and not clamped by Leaflet
+  let bounds = L.latLngBounds([L.latLng(cLat, cLng)]);
+
+  L.marker([cLat, cLng], {icon: _makePinIcon('#4caf50', 1.5), zIndexOffset: 1000})
+    .bindPopup('📍 Correct location')
+    .bindTooltip('Answer', {permanent: true, direction: 'top', offset: [0,-31], className: 'geo-pin-label'})
+    .addTo(reMapInst);
+
+  const COLORS = ['#1a90d0','#a78bfa','#ffd700','#ff6b6b','#6bffb8'];
+  data.results.forEach((r, i) => {
+    if (!r.guessed || r.guess_lat == null) return;
+    const col     = COLORS[i % COLORS.length];
+    const normLng = _normLng(r.guess_lng, cLng);
+    const ll      = L.latLng(r.guess_lat, normLng);   // ← L.latLng preserves value
+
+    L.marker(ll, {icon: _makePinIcon(col, 1.0), zIndexOffset: 500 - i})
+      .bindPopup(`${r.username}: ${fmtDist(r.distance_km)}`)
+      .bindTooltip(r.username, {permanent: true, direction: 'top', offset: [0,-31], className: 'geo-pin-label'})
       .addTo(reMapInst);
-    const COLORS = ['#1a90d0','#a78bfa','#ffd700','#ff6b6b','#6bffb8'];
-    data.results.forEach((r, i) => {
-      if (!r.guessed || r.guess_lat == null) return;
-      const col = COLORS[i % COLORS.length];
-      L.marker([r.guess_lat, r.guess_lng], {icon: _makePinIcon(col, 1.0), zIndexOffset: 500 - i})
-        .bindPopup(`${r.username}: ${fmtDist(r.distance_km)}`)
-        .bindTooltip(r.username, {permanent: true, direction: 'top', offset: [0,-31], className: 'geo-pin-label'})
-        .addTo(reMapInst);
-      L.polyline([[cLat, cLng], [r.guess_lat, r.guess_lng]], {color: col, opacity: .45, weight: 1.5, dashArray: '4,4'}).addTo(reMapInst);
-      allPts.push([r.guess_lat, r.guess_lng]);
-    });
-    if (allPts.length > 1) reMapInst.fitBounds(L.latLngBounds(allPts).pad(0.2), {maxZoom: 10});
-    else reMapInst.setView([cLat, cLng], 6);
-  }, 80);
+    L.polyline([[cLat, cLng], ll], {color: col, opacity: .45, weight: 1.5, dashArray: '4,4'}).addTo(reMapInst);
+
+    bounds.extend(ll);   // ← extend with the same L.latLng object
+  });
+
+  if (bounds.isValid()) {
+    reMapInst.fitBounds(bounds.pad(0.2), {maxZoom: 10});
+  } else {
+    reMapInst.setView([cLat, cLng], 6);
+  }
+}, 80);
 });
  
 function _renderResultsTable(results) {
@@ -2879,10 +2956,11 @@ function _cleanupGameState() {
 }
  
 socket.on('geo_region_no_coverage', () => {
-  // Clean up any active game state
   showSV(false); showHud(false); showSpHud(false); showGuessMap(false); clearSV();
 
-  // Show a non-blocking overlay message, then return to region selection
+  // Remove any stale overlay from a previous failure
+  document.getElementById('geo-no-coverage-overlay')?.remove();
+
   const msg = document.createElement('div');
   msg.id = 'geo-no-coverage-overlay';
   msg.style.cssText = `
@@ -2903,7 +2981,7 @@ socket.on('geo_region_no_coverage', () => {
         Could not find a Street View panorama in the selected region.
         Please try a different or larger region.
       </div>
-      <button onclick="this.closest('div[style]').remove();
+      <button onclick="document.getElementById('geo-no-coverage-overlay').remove();
                        regionForRoom ? showView('view-lobby') : openRegionDraw();"
               style="padding:10px 28px;background:var(--c-ocean);border:none;
                      border-radius:var(--r);font-family:var(--f-data);font-size:.72rem;
@@ -2914,6 +2992,7 @@ socket.on('geo_region_no_coverage', () => {
   `;
   document.getElementById('geo-root').appendChild(msg);
 });
+
 
 socket.on('geo_search_status', data => {
   const spEl = document.getElementById('sp-search-status');

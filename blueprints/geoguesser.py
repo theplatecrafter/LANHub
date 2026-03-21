@@ -7,6 +7,43 @@ from glob_vars import app_log, error_log, access_log
 
 geoguesser_bp = Blueprint("geoguesser", __name__)
 
+import urllib.request as _urllib_req
+import json as _json_bp
+import random as _random_bp
+import math as _math_bp
+
+def _quick_coverage_check(polygons: list, api_key: str, attempts: int = 6) -> bool:
+    """
+    Sample a handful of random points in the polygon set.
+    Returns True if at least one has Street View coverage within 50km.
+    Fast enough to run synchronously on preset creation.
+    """
+    if not polygons or not api_key:
+        return True   # no key = skip check, let the game fail naturally
+
+    all_lats = [p[0] for poly in polygons for p in poly]
+    all_lngs = [p[1] for poly in polygons for p in poly]
+    if not all_lats:
+        return False
+
+    mn_lat, mx_lat = min(all_lats), max(all_lats)
+    mn_lng, mx_lng = min(all_lngs), max(all_lngs)
+
+    for _ in range(attempts):
+        lat = _random_bp.uniform(mn_lat, mx_lat)
+        lng = _random_bp.uniform(mn_lng, mx_lng)
+        url = (
+            "https://maps.googleapis.com/maps/api/streetview/metadata"
+            f"?location={lat},{lng}&radius=50000&source=outdoor&key={api_key}"
+        )
+        try:
+            with _urllib_req.urlopen(url, timeout=5) as resp:
+                data = _json_bp.loads(resp.read().decode())
+            if data.get("status") == "OK":
+                return True
+        except Exception:
+            continue
+    return False
 
 @geoguesser_bp.route("/geoguesser")
 def geoguesser():
@@ -65,6 +102,18 @@ def api_preset_create():
     for poly in polygons:
         if not isinstance(poly, list) or len(poly) < 3:
             return jsonify({"ok": False, "error": "Each region must have at least 3 points."}), 400
+
+    # ── Coverage check ────────────────────────────────────────
+    api_key = getattr(config, "GOOGLE_MAPS_EMBED_KEY", "")
+    if api_key:
+        if not _quick_coverage_check(polygons, api_key):
+            return jsonify({
+                "ok":    False,
+                "error": "No Street View panoramas found in this region. "
+                         "Try drawing a larger or more populated area."
+            }), 400
+    # ─────────────────────────────────────────────────────────
+
 
     try:
         preset = f.geo_preset_create(title, username, polygons)
