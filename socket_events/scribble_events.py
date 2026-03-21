@@ -387,6 +387,67 @@ def _close_guess(guess: str, word: str) -> bool:
 
 # ── Socket events ──────────────────────────────────────────────
 
+# NEW helper — insert just above on_join
+def _cleanup_player(sid: str) -> None:
+    """Remove a player from their room, handle drawer disconnect, clean up empty rooms."""
+    rid  = _sid_room.pop(sid, None)
+    room = _rooms.get(rid) if rid else None
+    if not room:
+        return
+
+    pname = room['players'].pop(sid, {}).get('name', '?')
+    # Remove from turn order immediately so they never get picked as drawer
+    room['turn_order'] = [s for s in room['turn_order'] if s in room['players']]
+
+    try:
+        sio_leave(rid)
+    except Exception:
+        pass
+
+    if not room['players']:
+        _cancel_timer(room)
+        rt = room.get('_round_timer')
+        if rt and rt.is_alive():
+            rt.cancel()
+        del _rooms[rid]
+        app_log.info(f"[scribble] room {rid} deleted (empty after {pname!r} left)")
+        return
+
+    _broadcast(room, 'scr_chat_msg', {'sys': True, 'text': f"👋  {pname} left."})
+    _push_state(room)   # immediately update everyone's player list
+
+    c = _cfg()
+    if room['drawer'] == sid:
+        _cancel_timer(room)
+        rt = room.get('_round_timer')
+        if rt and rt.is_alive():
+            rt.cancel()
+        _broadcast(room, 'scr_chat_msg',
+                   {'sys': True, 'text': '🎨  Drawer disconnected — skipping turn.'})
+        if len(room['players']) >= c['MIN_START']:
+            room['turn'] += 1
+            if room['turn_order']:
+                _start_choosing(room)
+            else:
+                room['state'] = 'waiting'
+                _push_state(room)
+        else:
+            room['state'] = 'waiting'
+            _push_state(room)
+    else:
+        if room['state'] == 'drawing':
+            _try_all_guessed(room)
+        # If below min players mid-game, pause back to waiting
+        if len(room['players']) < c['MIN_START'] and room['state'] in ('drawing', 'choosing'):
+            _cancel_timer(room)
+            rt = room.get('_round_timer')
+            if rt and rt.is_alive():
+                rt.cancel()
+            _broadcast(room, 'scr_chat_msg',
+                       {'sys': True, 'text': '⏸  Not enough players — pausing game.'})
+            room['state'] = 'waiting'
+            _push_state(room)
+
 @socketio.on('scribble_join')
 def on_join(data):
     sid      = request.sid
@@ -411,13 +472,32 @@ def on_join(data):
         if room['canvas']:
             socketio.emit('scr_canvas_replay', {'events': room['canvas']}, to=sid)
 
-        socketio.emit('scr_state', _room_state_payload(room, sid), to=sid)
+        # Add to turn order if a game is already in progress
+        # (they'll be eligible to draw from the next turn onwards)
+        if room['state'] in ('drawing', 'choosing', 'round_end') \
+                and sid not in room['turn_order']:
+            room['turn_order'].append(sid)
+
         _broadcast(room, 'scr_chat_msg', {
             'sys':  True,
             'text': f"👤  {username} joined ({len(room['players'])}/{c['MAX_PLAYERS']})",
         })
-        _maybe_start(room)
 
+        # Broadcast to ALL players so the new player appears in everyone's sidebar
+        _push_state(room)
+
+        # Resume a paused game if we now have enough players again
+        if room['state'] == 'waiting' and len(room['players']) >= c['MIN_START']:
+            _broadcast(room, 'scr_chat_msg',
+                       {'sys': True, 'text': '🚀  Enough players — game starting!'})
+            room['turn']       = 0
+            room['round']      = 0
+            room['turn_order'] = list(room['players'].keys())
+            random.shuffle(room['turn_order'])
+            _start_choosing(room)
+        elif room['state'] == 'waiting':
+            pass   # still waiting, _push_state above already told everyone
+        # If mid-game, nothing else needed — player is now in the list and turn_order
 
 @socketio.on('scribble_draw')
 def on_draw(data):
@@ -559,39 +639,11 @@ def on_guess(data):
 
 @socketio.on('disconnect')
 def on_dc():
-    sid = request.sid
     with _lock:
-        rid  = _sid_room.pop(sid, None)
-        room = _rooms.get(rid) if rid else None
-        if not room:
-            return
-        pname = room['players'].pop(sid, {}).get('name', '?')
-        sio_leave(rid)
+        _cleanup_player(request.sid)
 
-        if not room['players']:
-            _cancel_timer(room)
-            del _rooms[rid]
-            app_log.info(f"[scribble] room {rid} deleted (empty)")
-            return
-
-        _broadcast(room, 'scr_chat_msg', {'sys': True, 'text': f"👋  {pname} left."})
-
-        c = _cfg()
-        if room['drawer'] == sid:
-            _cancel_timer(room)
-            rt = room.get('_round_timer')
-            if rt and rt.is_alive():
-                rt.cancel()
-            _broadcast(room, 'scr_chat_msg', {'sys': True, 'text': '🎨  Drawer disconnected — skipping turn.'})
-            if len(room['players']) >= c['MIN_START']:
-                room['turn']      += 1
-                room['turn_order'] = [s for s in room['turn_order'] if s in room['players']]
-                if room['turn_order']:
-                    _start_choosing(room)
-                else:
-                    room['state'] = 'waiting'; _push_state(room)
-            else:
-                room['state'] = 'waiting'; _push_state(room)
-        else:
-            if room['state'] == 'drawing':
-                _try_all_guessed(room)
+@socketio.on('scribble_leave_route')
+def on_leave_route(_=None):
+    """Fired by the client on pagehide/beforeunload — same cleanup as disconnect."""
+    with _lock:
+        _cleanup_player(request.sid)

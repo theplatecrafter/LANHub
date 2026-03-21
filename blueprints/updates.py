@@ -3,6 +3,31 @@ from flask import Blueprint, render_template, request, jsonify, session
 import functions as f
 from glob_vars import app_log, error_log
 import datetime
+import json as _json
+import os as _os
+
+_GLOBAL_FILE = _os.path.join(_os.path.dirname(__file__), "..", "main_update.json")
+
+def _load_global_updates() -> list:
+    try:
+        with open(_GLOBAL_FILE, "r", encoding="utf-8") as f:
+            data = _json.load(f)
+        result = []
+        for u in data.get("updates", []):
+            result.append({
+                "id":          f"global_{u['id']}",
+                "version":     u.get("version", "?"),
+                "title":       u.get("title", ""),
+                "description": u.get("description", ""),
+                "timestamp":   u.get("timestamp", 0),
+                "created_by":  "LANHub Core",
+                "tags":        u.get("tags", []),
+                "source":      "global",   # ← key flag for the frontend
+            })
+        return result
+    except Exception:
+        return []
+
 
 updates_bp = Blueprint("updates", __name__)
 
@@ -16,6 +41,8 @@ def _dev_name():
 def _fmt(row: dict) -> dict:
     row["date_str"] = datetime.datetime.fromtimestamp(row["timestamp"]).strftime("%B %d, %Y")
     row["time_str"] = datetime.datetime.fromtimestamp(row["timestamp"]).strftime("%H:%M")
+    row.setdefault("source", "local")
+    row.setdefault("tags", [])
     return row
 
 
@@ -26,8 +53,11 @@ def updates_page():
 
 @updates_bp.route("/api/updates")
 def api_list():
-    rows = [_fmt(r) for r in f.updates_get_all()]
-    return jsonify({"updates": rows, "is_dev": _is_dev()})
+    local   = [_fmt({**r, "source": "local"}) for r in f.updates_get_all()]
+    global_ = [_fmt(r) for r in _load_global_updates()]
+    # Merge and sort newest-first
+    merged  = sorted(local + global_, key=lambda x: x["timestamp"], reverse=True)
+    return jsonify({"updates": merged, "is_dev": _is_dev()})
 
 
 @updates_bp.route("/api/updates/create", methods=["POST"])

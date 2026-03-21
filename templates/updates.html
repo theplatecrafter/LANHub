@@ -215,6 +215,106 @@
   .uc-icon-btn.edit:hover  { border-color: var(--cyan);  color: var(--cyan);  background: var(--cyan-dim); }
   .uc-icon-btn.del:hover   { border-color: var(--red);   color: var(--red);   background: var(--red-dim); }
 
+  /* ── Global (repo) update — distinct premium style ─────── */
+.update-entry.global-entry .tl-dot {
+  border-color: #a78bfa;
+  box-shadow: 0 0 14px rgba(167,139,250,.5), 0 0 28px rgba(167,139,250,.2);
+  background: radial-gradient(ellipse at 40% 40%, rgba(167,139,250,.15), transparent);
+}
+.update-entry.global-entry:hover .tl-dot {
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  box-shadow: 0 0 22px rgba(167,139,250,.75);
+}
+.update-entry.global-entry .tl-dot-inner { background: #a78bfa; }
+.update-entry.global-entry:hover .tl-dot-inner { background: #fff; }
+
+.update-entry.global-entry .update-card {
+  border-color: rgba(167,139,250,.35);
+  box-shadow: 0 0 0 1px rgba(167,139,250,.08), 0 4px 32px rgba(0,0,0,.25);
+  background: linear-gradient(145deg, rgba(20,12,36,.97), var(--bg-panel));
+}
+.update-entry.global-entry:hover .update-card {
+  border-color: rgba(167,139,250,.65);
+  box-shadow: 0 0 0 1px rgba(167,139,250,.2), 0 8px 40px rgba(0,0,0,.35),
+              0 0 50px rgba(167,139,250,.06);
+}
+
+.update-entry.global-entry .uc-header {
+  background: linear-gradient(90deg, rgba(30,12,60,.9), rgba(20,10,40,.7));
+  border-bottom-color: rgba(167,139,250,.2);
+  position: relative; overflow: hidden;
+}
+/* Shimmer stripe across header */
+.update-entry.global-entry .uc-header::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%, rgba(167,139,250,.07) 40%,
+    rgba(212,160,23,.05) 60%, transparent 80%
+  );
+  pointer-events: none;
+}
+
+.global-badge {
+  font-family: var(--font-mono); font-size: .68rem; font-weight: 800;
+  letter-spacing: .06em; padding: 3px 12px; border-radius: 20px;
+  background: linear-gradient(135deg, #7c3aed, #a78bfa);
+  color: #fff; flex-shrink: 0;
+  box-shadow: 0 0 14px rgba(167,139,250,.5), 0 0 4px rgba(167,139,250,.3) inset;
+  position: relative;
+}
+/* Animated glow ring around badge */
+.global-badge::before {
+  content: '';
+  position: absolute; inset: -2px; border-radius: 22px;
+  background: linear-gradient(135deg, #7c3aed, #f59e0b, #7c3aed);
+  background-size: 200% 200%;
+  animation: badge-spin 3s linear infinite;
+  z-index: -1; opacity: .7;
+}
+@keyframes badge-spin {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.global-source-pill {
+  font-family: var(--font-mono); font-size: .56rem; letter-spacing: .12em;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 20px;
+  border: 1px solid rgba(212,160,23,.4); color: #f59e0b;
+  background: rgba(245,158,11,.07); flex-shrink: 0;
+}
+
+.update-entry.global-entry .uc-title { color: #e0d5ff; }
+
+.update-entry.global-entry .uc-body {
+  background: linear-gradient(180deg, rgba(20,10,36,.6) 0%, transparent 100%);
+  color: #cbb8ff;
+}
+
+.global-tag {
+  display: inline-block;
+  font-family: var(--font-mono); font-size: .56rem; letter-spacing: .1em;
+  text-transform: uppercase; padding: 1px 7px; border-radius: 20px;
+  border: 1px solid rgba(167,139,250,.3); color: #a78bfa;
+  background: rgba(124,58,237,.1); margin-left: 4px;
+}
+
+/* Sidebar buttons for global entries */
+.ver-btn.global-ver {
+  border-color: rgba(167,139,250,.2);
+}
+.ver-btn.global-ver .vb-num { color: #a78bfa; }
+.ver-btn.global-ver .vb-dot { background: rgba(167,139,250,.4); }
+.ver-btn.global-ver.active  {
+  background: rgba(124,58,237,.12); border-color: #a78bfa;
+}
+.ver-btn.global-ver.active .vb-dot {
+  background: #a78bfa; box-shadow: 0 0 6px #a78bfa;
+}
+.ver-btn.global-ver:hover { background: rgba(124,58,237,.08); border-color: rgba(167,139,250,.35); }
+
   /* Card body */
   .uc-body {
     padding: 20px; font-family: var(--font-ui); font-size: .88rem;
@@ -458,63 +558,102 @@
 
   // ── Build entry ───────────────────────────────────────────
   function makeEntry(u, isLatest) {
-    const entry = document.createElement("div");
-    entry.className = "update-entry";
-    entry.id = `entry-${u.id}`;
+  const isGlobal = u.source === "global";
+  const entry = document.createElement("div");
+  entry.className = "update-entry" + (isGlobal ? " global-entry" : "");
+  entry.id = `entry-${u.id}`;
 
-    entry.innerHTML = `
-      <div class="tl-node">
-        <div class="tl-dot"><div class="tl-dot-inner"></div></div>
+  // Tags row (global only)
+  const tagsHtml = isGlobal && u.tags?.length
+    ? u.tags.map(t => `<span class="global-tag">${escHtml(t)}</span>`).join("")
+    : "";
+
+  // Latest badge
+  const latestBadge = isLatest
+    ? `<span style="font-family:var(--font-mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:20px;background:rgba(57,217,138,.12);color:var(--green);border:1px solid var(--green);">Latest</span>`
+    : "";
+
+  // Version badge
+  const versionBadge = isGlobal
+    ? `<span class="global-badge">✦ v${escHtml(u.version)}</span>`
+    : `<span class="version-badge">v${escHtml(u.version)}</span>`;
+
+  // Source pill (global only)
+  const sourcePill = isGlobal
+    ? `<span class="global-source-pill">⬡ Official</span>`
+    : "";
+
+  // Dev buttons (local only — global updates are not editable from the UI)
+  const devBtns = IS_DEV && !isGlobal
+    ? `<div class="uc-dev-btns visible">
+        <button class="uc-icon-btn edit" title="Edit"   onclick="openEditForm('${u.id}')">✏</button>
+        <button class="uc-icon-btn del"  title="Delete" onclick="deleteUpdate('${u.id}')">🗑</button>
+      </div>`
+    : "";
+
+  // Author display
+  const authorColor = isGlobal ? "#f59e0b" : "var(--amber)";
+  const authorIcon  = isGlobal ? "✦" : "👑";
+
+  // Edit form (local only)
+  const editForm = !isGlobal ? `
+    <div class="uc-edit-form" id="edit-form-${u.id}">
+      <div class="uc-edit-row">
+        <input type="text" id="ef-ver-${u.id}"   value="${escHtml(u.version)}" placeholder="Version"  maxlength="20" />
+        <input type="text" id="ef-title-${u.id}" value="${escHtml(u.title)}"   placeholder="Title"    maxlength="120" style="flex:2" />
       </div>
-      <div class="update-card" id="card-${u.id}">
-        <div class="uc-header">
-          <span class="version-badge">v${escHtml(u.version)}</span>
-          ${isLatest ? `<span style="font-family:var(--font-mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:20px;background:rgba(57,217,138,.12);color:var(--green);border:1px solid var(--green);">Latest</span>` : ""}
-          <span class="uc-title">${escHtml(u.title)}</span>
-          <div class="uc-meta">
-            <span class="uc-by">👑 ${escHtml(u.created_by)}</span>
-            <span>${escHtml(u.date_str)}</span>
-            <span style="opacity:.5">${escHtml(u.time_str)}</span>
-          </div>
-          <div class="uc-dev-btns ${IS_DEV ? 'visible' : ''}">
-            <button class="uc-icon-btn edit" title="Edit" onclick="openEditForm(${u.id})">✏</button>
-            <button class="uc-icon-btn del"  title="Delete" onclick="deleteUpdate(${u.id})">🗑</button>
-          </div>
-        </div>
-        <div class="uc-body" id="body-${u.id}">${escHtml(u.description)}</div>
-        <div class="uc-edit-form" id="edit-form-${u.id}">
-          <div class="uc-edit-row">
-            <input type="text" id="ef-ver-${u.id}"   value="${escHtml(u.version)}" placeholder="Version"  maxlength="20" />
-            <input type="text" id="ef-title-${u.id}" value="${escHtml(u.title)}"   placeholder="Title"    maxlength="120" style="flex:2" />
-          </div>
-          <textarea id="ef-desc-${u.id}" placeholder="Description…">${escHtml(u.description)}</textarea>
-          <div class="uc-edit-row" style="align-items:center">
-            <button class="uc-save-btn"   onclick="saveEdit(${u.id})">Save</button>
-            <button class="uc-cancel-btn" onclick="closeEditForm(${u.id})">Cancel</button>
-            <span class="uc-edit-err" id="ef-err-${u.id}"></span>
-          </div>
-        </div>
+      <textarea id="ef-desc-${u.id}" placeholder="Description…">${escHtml(u.description)}</textarea>
+      <div class="uc-edit-row" style="align-items:center">
+        <button class="uc-save-btn"   onclick="saveEdit('${u.id}')">Save</button>
+        <button class="uc-cancel-btn" onclick="closeEditForm('${u.id}')">Cancel</button>
+        <span class="uc-edit-err" id="ef-err-${u.id}"></span>
       </div>
-    `;
-    return entry;
-  }
+    </div>` : "";
+
+  entry.innerHTML = `
+    <div class="tl-node">
+      <div class="tl-dot"><div class="tl-dot-inner"></div></div>
+    </div>
+    <div class="update-card" id="card-${u.id}">
+      <div class="uc-header">
+        ${versionBadge}
+        ${latestBadge}
+        ${sourcePill}
+        <span class="uc-title">${escHtml(u.title)}</span>
+        ${tagsHtml}
+        <div class="uc-meta">
+          <span style="color:${authorColor}">${authorIcon} ${escHtml(u.created_by)}</span>
+          <span>${escHtml(u.date_str)}</span>
+          <span style="opacity:.5">${escHtml(u.time_str)}</span>
+        </div>
+        ${devBtns}
+      </div>
+      <div class="uc-body" id="body-${u.id}">${escHtml(u.description)}</div>
+      ${editForm}
+    </div>
+  `;
+  return entry;
+}
 
   function makeVerBtn(u, isLatest) {
-    const btn = document.createElement("button");
-    btn.className = "ver-btn" + (isLatest ? " active" : "");
-    btn.id = `vbtn-${u.id}`;
-    btn.innerHTML = `
-      <span class="vb-dot"></span>
-      <span class="vb-num">v${escHtml(u.version)}</span>
-      <span class="vb-title">${escHtml(u.title)}</span>
-    `;
-    btn.onclick = () => {
-      document.querySelectorAll(".ver-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      document.getElementById(`entry-${u.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    };
-    return btn;
-  }
+  const isGlobal = u.source === "global";
+  const btn = document.createElement("button");
+  btn.className = "ver-btn" +
+    (isGlobal ? " global-ver" : "") +
+    (isLatest ? " active" : "");
+  btn.id = `vbtn-${u.id}`;
+  btn.innerHTML = `
+    <span class="vb-dot"></span>
+    <span class="vb-num">${isGlobal ? "✦ " : ""}v${escHtml(u.version)}</span>
+    <span class="vb-title">${escHtml(u.title)}</span>
+  `;
+  btn.onclick = () => {
+    document.querySelectorAll(".ver-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(`entry-${u.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  return btn;
+}
 
   // ── Create ────────────────────────────────────────────────
   function openCreatePanel() {

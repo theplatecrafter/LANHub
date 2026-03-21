@@ -2836,7 +2836,7 @@ socket.on('geo_game_over', data => {
   [1, 0, 2].forEach(idx => {
     if (!data.scores[idx]) return;
     const s = data.scores[idx], isMe = s.sid === mySid;
-    const labels = ['🥇','🥈','🥉'], classes = ['second','first','third'];
+    const labels = ['🥇','🥈','🥉'], classes = ['first','second','third'];
     const step = document.createElement('div');
     step.className = 'go-step ' + (classes[idx] || '');
     step.innerHTML = `

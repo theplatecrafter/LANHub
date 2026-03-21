@@ -1064,7 +1064,7 @@ function handleSquareClick(sqName, data) {
     return;
   }
 
-  const {row, col} = parseSquareName(sqName, data.player_color === 'black');
+  const {row, col} = parseSquareName(sqName);
   const piece = data.board[row][col];
   if (!piece) { selectedSq = null; legalDests = []; renderBoard(data); return; }
 
@@ -1101,13 +1101,12 @@ function sendMove(from, to, promo) {
   socket.emit('chess_move', {game_id: currentGameId, from, to, promotion: promo || 'q'});
 }
 
-function parseSquareName(sqName, flipped) {
+function parseSquareName(sqName) {
   const file = sqName.charCodeAt(0) - 97;
   const rank = parseInt(sqName[1]) - 1;
-  const row = flipped ? rank : 7 - rank;
-  const col = flipped ? 7 - file : file;
-  return {row, col};
+  return { row: 7 - rank, col: file };
 }
+
 
 // ── Promotion ─────────────────────────────────────────────────
 function showPromoDialog(color) {
@@ -1171,7 +1170,10 @@ function offerDraw() {
   showToast('Draw offered.', 'info');
 }
 function claimDraw() { socket.emit('chess_claim_draw', {game_id: currentGameId}); }
-function respondDraw(accept) { socket.emit('chess_draw_response', {game_id: currentGameId, accept}); }
+function respondDraw(accept) {
+  socket.emit('chess_draw_response', {game_id: currentGameId, accept});
+  document.getElementById('draw-bar').classList.remove('open');  // ← add
+}
 
 socket.on('chess_draw_offered',  () => { document.getElementById('draw-bar').classList.add('open'); });
 socket.on('chess_draw_declined', () => { showToast('Draw declined.', 'err'); document.getElementById('draw-bar').classList.remove('open'); });

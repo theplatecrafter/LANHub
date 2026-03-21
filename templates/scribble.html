@@ -650,6 +650,10 @@ function hide(id){document.getElementById(id).style.display='none';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 const sn=localStorage.getItem('scr-name')||'';
 if(sn)document.getElementById('l-name').value=sn;
+
+// ── Notify server when navigating away ───────────────────────
+window.addEventListener('pagehide',     () => socket.emit('scribble_leave_route'));
+window.addEventListener('beforeunload', () => socket.emit('scribble_leave_route'));
 </script>
 </body>
 </html>

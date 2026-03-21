@@ -1,0 +1,14 @@
+{
+  "updates": [
+    {
+      "id": "1",
+      "version": "1",
+      "title": "Main Init",
+      "description": "LANHub is a self-hosted LAN gaming and social platform built for local networks. \nRun it on any machine on your network and everyone connects through their browser \n— no accounts, no internet required, no installs.\n\nGames included in this release:\n\n  UNO — Full multiplayer UNO with four game modes:\n    · Classic UNO (standard rules)\n    · Show 'Em No Mercy (brutal stacking, mercy knockout at 25 cards,\n      hand swaps, rotations, and devastating wilds)\n    · UNO Attack! (launcher-based drawing — press and hope it doesn't fire)\n    · UNO Flip (two-sided deck, Light Side vs the punishing Dark Side)\n    · UNO All Wild (every card is a Wild, no matching needed)\n  Bots are supported in all modes with Easy / Medium / Hard difficulty.\n\n  GeoGuesser — A Street View guessing game for your LAN.\n    · Solo Explorer: guess at your own pace, no timer\n    · World Tour: multiplayer rounds with a live leaderboard\n    · Draw custom regions on a map, or pick from a preset library\n    · Adaptive quadtree coverage search finds real Street View locations\n      inside your chosen region every time\n    · Preset system: save and share named regions across rooms\n\n  Chess — Full chess with clocks.\n    · Play vs a bot (Easy / Medium / Hard) with your choice of time control\n    · Challenge any player on the LAN directly, or join a random match queue\n    · Full SAN move history, draw offers, resign, and claim draw\n\n  Tetris — Guideline-compliant Tetris.\n    · Solo mode, vs Bot, and 1v1 multiplayer with garbage lines\n    · SRS rotation, 7-bag randomiser, hold, ghost piece, DAS/ARR tuning\n    · Fully rebindable keys and a mobile on-screen control layout\n    · Bot uses Dellacherie heuristic with adjustable think speed\n\n  Scribble — A draw-and-guess party game (Skribbl-style).\n    · One shared room, automatic game loop with word selection\n    · Real-time canvas sync with undo, flood fill, and brush controls\n    · Hint system, close-guess detection, and per-round scoring\n\nOther platform features:\n  · Theme switcher (dark / light and more)\n  · Updates page (this page) — global release notes from the developer\n    alongside local announcements from your server's admin team\n  · Admin panel for server moderators and DEVs\n  · Profanity filtering on all user-facing text inputs\n  · Fully LAN-local — nothing leaves your network",
+      "tags": [
+        "INIT"
+      ],
+      "timestamp": 1774080274
+    }
+  ]
+}
