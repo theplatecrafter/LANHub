@@ -21,6 +21,15 @@ def update_stats():
     socketio.emit("server_stats", full_stats)
 
 def _redirector_update_url(full_url: str) -> bool:
+    import re, datetime, os
+    import functions as f
+    import config as _config
+
+    # Get current LAN IP to embed in the redirector
+    stats  = f.get_network_stats()
+    lan_ip = stats.get("ip_address", "")
+    port   = int(getattr(_config, "PORT", 5000))
+    lan_url = f"http://{lan_ip}:{port}" if lan_ip else ""
     """Push a full URL (e.g. https://xyz.trycloudflare.com) to the redirector."""
     try:
         from git import Repo
@@ -66,14 +75,35 @@ def _redirector_update_url(full_url: str) -> bool:
         </div>
     </div>
     <script>
-        const target = "{full_url}";
-        fetch(target + "/static/pixel.png", {{ mode: 'no-cors', signal: AbortSignal.timeout(4000) }})
-            .then(() => window.location.replace(target + "?t=" + Date.now()))
-            .catch(() => {{
-                document.getElementById("checking").style.display = "none";
-                document.getElementById("error-msg").style.display = "block";
-            }});
-    </script>
+    const tunnelUrl = "{full_url}";
+    const lanUrl    = "{lan_url}";
+
+    function goTunnel() {{
+        window.location.replace(tunnelUrl);
+    }}
+
+    if (lanUrl) {{
+        // Probe the LAN IP first — short timeout
+        const controller = new AbortController();
+        const timer = setTimeout(() => {{ controller.abort(); goTunnel(); }}, 2000);
+
+        fetch(lanUrl + "/static/pixel.png", {{
+            mode: "no-cors",
+            signal: controller.signal
+        }})
+        .then(() => {{
+            clearTimeout(timer);
+            window.location.replace(lanUrl);
+        }})
+        .catch(() => {{
+            clearTimeout(timer);
+            goTunnel();
+        }});
+    }} else {{
+        goTunnel();
+    }}
+</script>
+
 </body>
 </html>"""
 
