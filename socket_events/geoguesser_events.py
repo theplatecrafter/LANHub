@@ -56,15 +56,23 @@ def _region_hash(polygons: list) -> str | None:
     blob = _json.dumps(rounded, sort_keys=True, separators=(',', ':')).encode()
     return hashlib.md5(blob).hexdigest()
 
+def _poly_hash(poly: list) -> str:
+    """Stable hash for a single polygon, used as an enclosure-level cache key."""
+    rounded = [[round(c, 5) for c in pt] for pt in poly]
+    blob = _json.dumps(rounded, sort_keys=True, separators=(',', ':')).encode()
+    return hashlib.md5(blob).hexdigest()
 
 def _cache_ensure(region_key: str) -> dict:
-    """Return (and lazily create) the cache entry for a region."""
     if region_key not in _region_coverage_cache:
         _region_coverage_cache[region_key] = {
             'cells': set(), 'dead_cells': set(),
             'used_panos': set(), 'exhausted_cells': set(),
+            'enclosure_coverage': {},   # poly_hash -> bool
         }
-    return _region_coverage_cache[region_key]
+    entry = _region_coverage_cache[region_key]
+    if 'enclosure_coverage' not in entry:   # backwards-compat for existing entries
+        entry['enclosure_coverage'] = {}
+    return entry
 
 
 def _cache_add(region_key: str, cell: tuple) -> None:
@@ -330,6 +338,99 @@ def _subdivide_cell(lat_min: float, lat_max: float,
 
 # ── Adaptive quadtree region search ──────────────────────────────────────────
 
+def _depth_minus_one_scan(
+    polygons: list, region_key: str, api_key: str, status_cb=None
+) -> list:
+    """
+    Depth -1: for each polygon in a multi-enclosure region, probe whether it
+    contains any Street View coverage.
+
+    Strategy per enclosure:
+      1. Probe the bounding-box centre with a radius that circumscribes the
+         entire enclosure.  If the returned pano is inside the polygon → done.
+      2. If the returned pano is outside (the circle bleeds past the boundary),
+         fall back to up to 4 random interior points with a tighter radius.
+      3. If nothing is found at all → enclosure is dead.
+
+    Results are cached under region_key['enclosure_coverage'] so subsequent
+    calls cost zero API calls.
+
+    Returns a list of indices (into polygons) whose enclosures have confirmed SV.
+    """
+    def _status(msg):
+        if status_cb:
+            try: status_cb(msg)
+            except Exception: pass
+
+    entry   = _cache_ensure(region_key)
+    cov_map = entry['enclosure_coverage']   # poly_hash -> bool
+    covered = []
+
+    uncached = sum(1 for p in polygons if _poly_hash(p) not in cov_map)
+    if uncached:
+        _status(f"Pre-scanning {uncached} new enclosure(s) for Street View coverage…")
+
+    for idx, poly in enumerate(polygons):
+        if not isinstance(poly, list) or len(poly) < 3:
+            continue
+
+        key = _poly_hash(poly)
+
+        # ── Cache hit — free ──────────────────────────────────────────────────
+        if key in cov_map:
+            app_log.debug(f"[geo depth-1] enclosure {idx}: cache hit → {cov_map[key]}")
+            if cov_map[key]:
+                covered.append(idx)
+            continue
+
+        # ── Geometry ──────────────────────────────────────────────────────────
+        lats    = [p[0] for p in poly]
+        lngs    = [p[1] for p in poly]
+        c_lat   = (min(lats) + max(lats)) / 2.0
+        c_lng   = (min(lngs) + max(lngs)) / 2.0
+        diag_km = haversine_km(min(lats), min(lngs), max(lats), max(lngs))
+
+        # Circumscribed radius = half of bounding-box diagonal, capped at 100 km.
+        # This guarantees the circle covers the entire enclosure.
+        outer_r = max(1_000, min(int(diag_km * 500), 100_000))
+
+        _status(
+            f"Scanning enclosure {idx + 1}/{len(polygons)} "
+            f"(~{round(diag_km)} km diagonal)…"
+        )
+
+        has_coverage = False
+
+        # ── Primary probe: centre + circumscribed radius ──────────────────────
+        result = _sv_metadata_check(c_lat, c_lng, outer_r, api_key)
+        if result:
+            _, pano_lat, pano_lng = result
+            if _point_in_polygon(pano_lat, pano_lng, poly):
+                has_coverage = True
+            else:
+                # Pano found but sits outside the polygon boundary —
+                # the circumscribed circle captured something beyond the drawn edge.
+                # Try a handful of random interior points with a tighter radius.
+                inner_r = max(1_000, min(int(diag_km * 100), 50_000))
+                for _ in range(4):
+                    pt = _random_polygon_point(poly)
+                    if pt is None:
+                        break
+                    probe = _sv_metadata_check(pt[0], pt[1], inner_r, api_key)
+                    if probe and _point_in_polygon(probe[1], probe[2], poly):
+                        has_coverage = True
+                        break
+
+        cov_map[key] = has_coverage
+        app_log.info(
+            f"[geo depth-1] enclosure {idx} ({key[:8]}): "
+            f"diag={diag_km:.0f} km, outer_r={outer_r} m → covered={has_coverage}"
+        )
+        if has_coverage:
+            covered.append(idx)
+
+    return covered
+
 def _find_pano_region(polygons: list, region_key: str,
                       api_key: str, on_timeout=None, status_cb=None):
     """
@@ -378,6 +479,41 @@ def _find_pano_region(polygons: list, region_key: str,
         f"{len(known_cells)} covered, {len(dead_cells_snap)} dead, "
         f"{len(exhausted_snap)} exhausted, {len(used_panos)} used panos"
     )
+    
+    # ── Depth -1: multi-enclosure pre-scan ────────────────────────────────────
+    # When the region contains more than one drawn polygon, the combined bounding
+    # box can span enormous dead areas (e.g. France + Japan spans all of Eurasia).
+    # Depth -1 identifies which individual enclosures actually have SV coverage,
+    # then narrows the entire quadtree to just one of them so that:
+    #   • the bounding box is sized to that enclosure alone, and
+    #   • no API calls are wasted on the empty space between enclosures.
+    if len(polygons) > 1:
+        _status(f"Region has {len(polygons)} enclosures — pre-scanning for coverage…")
+        covered_idx = _depth_minus_one_scan(
+            polygons, region_key, api_key, status_cb=_status
+        )
+
+        if not covered_idx:
+            app_log.warning("[geo] Depth -1: no covered enclosures found.")
+            return None
+
+        # TODO: prefer enclosures that are not yet fully exhausted.
+        chosen = random.choice(covered_idx)
+        app_log.info(
+            f"[geo] Depth -1: {len(covered_idx)}/{len(polygons)} enclosures have "
+            f"coverage. Selected enclosure {chosen}."
+        )
+        _status(
+            f"Enclosure {chosen + 1}/{len(polygons)} selected "
+            f"— starting quadtree search…"
+        )
+
+        # Narrow to the single chosen enclosure.
+        # Every downstream step — bounding box, cell overlap, pano validation —
+        # now operates on this one polygon only.  The cell-level cache sets
+        # (cells, dead_cells, etc.) are still valid: cell coordinates are globally
+        # unique so entries from other enclosures are simply never re-visited.
+        polygons = [polygons[chosen]]
 
     # ── Core helper: probe a random point inside a cell ───────────────────────
     def _try_cell(cell):
