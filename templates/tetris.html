@@ -1061,6 +1061,7 @@ function getKicks(type, fromState, toState) {
 }
 
 function showDisarmed(who) {
+  TetSFX.play('disarmed');
   const isPlayer = (who === 'player');
   const warnEl   = document.getElementById(isPlayer ? 'garbage-warning' : 'opp-garbage-warning');
   const toastMsg = isPlayer ? '🛡 DISARMED!' : '🛡 BLOCKED!';
@@ -1254,12 +1255,14 @@ class TetrisGame {
 
     const tSpin = this._detectTSpin();
     const cleared = this._clearLines();
+    if (cleared === 0 && !tSpin) TetSFX.play('lock');
     this._applyScore(cleared, tSpin);
     this._applyGarbage(cleared);
 
     // Add pending garbage (after clearing, so player can survive with a clear)
     if (this.garbageQueue > 0 && cleared === 0) {
       this._addGarbageLines(this.garbageQueue);
+      TetSFX.play('garbageLand');
       this.garbageQueue = 0;
       if (this.opts.onClearGarbage) this.opts.onClearGarbage(false); // false = landed
     } else if (cleared > 0) {
@@ -1308,6 +1311,16 @@ class TetrisGame {
     const isB2B  = this.b2b && (cleared === 4 || tSpin);
     const b2bMul = isB2B ? 1.5 : 1;
 
+    // ── Sound ────────────────────────────────────────────────
+    if (tSpin)           TetSFX.play('tSpin');
+    if (cleared === 4)   TetSFX.play('clearTetris');
+    else if (cleared === 3) TetSFX.play('clearTriple');
+    else if (cleared === 2) TetSFX.play('clearDouble');
+    else if (cleared === 1) TetSFX.play('clearSingle');
+    if (isB2B)           TetSFX.play('b2b');
+    if (this.combo >= 2) TetSFX.play('combo', this.combo);
+    // ─────────────────────────────────────────────────────────
+
     const BASE = {
       0: tSpin ? 400 : 0,
       1: tSpin ? 800 : 100,
@@ -1319,9 +1332,12 @@ class TetrisGame {
     if (this.combo > 0) pts += 50 * this.combo * this.level;
     this.score += Math.floor(pts);
 
+    const prevLevel = this.level;                       
     this.lines += cleared;
     this.level  = Math.floor(this.lines / 10) + 1;
+    if (this.level > prevLevel) TetSFX.play('levelUp');  
     this.b2b    = (cleared === 4 || tSpin);
+
 
     if (this.opts.onScore) this.opts.onScore(this.score, this.level, this.lines, cleared, tSpin, this.combo);
 
@@ -1867,6 +1883,7 @@ function playerDied() {
 function showResult(won, sub) {
   if (gameEnded) return;
   gameEnded = true;
+  won ? TetSFX.play('win') : TetSFX.play('gameOver');
   if (playerGame) playerGame.alive = false;
   if (botGame)    botGame.alive    = false;
   document.getElementById('result-title').textContent = won ? '🏆 You Win!' : '💀 Game Over';
@@ -2090,21 +2107,27 @@ document.addEventListener('keydown', e => {
   if (e.code === keyMap.moveLeft && !keys[keyMap.moveLeft]) {
     keys[keyMap.moveLeft] = true;
     playerGame.moveLeft();
+    TetSFX.play('move');
     playerGame.dasLeft = playerGame.DAS; playerGame.arrLeft = playerGame.ARR;
   } else if (e.code === keyMap.moveRight && !keys[keyMap.moveRight]) {
     keys[keyMap.moveRight] = true;
     playerGame.moveRight();
+    TetSFX.play('move');
     playerGame.dasRight = playerGame.DAS; playerGame.arrRight = playerGame.ARR;
   } else if (e.code === keyMap.softDrop) {
     playerGame.softDropping = true;
   } else if (e.code === keyMap.rotateCW && !keys[keyMap.rotateCW]) {
     keys[keyMap.rotateCW] = true; playerGame.rotateCW();
+    TetSFX.play('rotate');
   } else if (e.code === keyMap.rotateCCW && !keys[keyMap.rotateCCW]) {
     keys[keyMap.rotateCCW] = true; playerGame.rotateCCW();
+    TetSFX.play('rotate');
   } else if (e.code === keyMap.hardDrop && !keys[keyMap.hardDrop]) {
     keys[keyMap.hardDrop] = true; playerGame.hardDrop();
+    TetSFX.play('hardDrop');
   } else if (e.code === keyMap.hold && !keys[keyMap.hold]) {
     keys[keyMap.hold] = true; playerGame.hold();
+    TetSFX.play('hold');
   } else if (e.code === keyMap.pause || e.code === 'Escape') {
     togglePause();
   }
@@ -2160,6 +2183,7 @@ let garbageClearTimer = null;
 
 function updateGarbageQueue(lines) {
   pendingGarbageLines += lines;
+  TetSFX.play('garbageWarning');
   const container = document.getElementById('player-garbage-queue');
   for (let i = 0; i < lines; i++) {
     const block = document.createElement('div');
@@ -2200,10 +2224,18 @@ function countdown(cb) {
   let n = 3;
   overlay.textContent = n;
   overlay.classList.add('active');
+  TetSFX.play('countdownTick'); // ← add (plays on 3)
   const tick = () => {
     n--;
-    if (n > 0) { overlay.textContent = n; setTimeout(tick, 900); }
-    else { overlay.textContent = 'GO!'; setTimeout(() => { overlay.classList.remove('active'); cb(); }, 700); }
+    if (n > 0) {
+      overlay.textContent = n;
+      TetSFX.play('countdownTick'); // ← add
+      setTimeout(tick, 900);
+    } else {
+      overlay.textContent = 'GO!';
+      TetSFX.play('countdownGo');   // ← add
+      setTimeout(() => { overlay.classList.remove('active'); cb(); }, 700);
+    }
   };
   setTimeout(tick, 900);
 }
@@ -2265,5 +2297,239 @@ window.mbStopRepeat = mbStopRepeat;
 
 }); // end DOMContentLoaded
 </script>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   TETRIS Sound Effects — Web Audio API (no external files)
+   ═══════════════════════════════════════════════════════ */
+const TetSFX = (() => {
+  let ctx = null;
+
+  function _ctx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  /* ── Primitives ──────────────────────────────────────── */
+  function _osc(type, freq, start, dur, g0, g1, c = _ctx()) {
+    const g = c.createGain(), osc = c.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(g0, start);
+    g.gain.linearRampToValueAtTime(g1, start + dur);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(start); osc.stop(start + dur + 0.01);
+  }
+
+  function _oscRamp(type, f0, f1, start, dur, g0, g1, c = _ctx()) {
+    const g = c.createGain(), osc = c.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f0, start);
+    osc.frequency.exponentialRampToValueAtTime(f1, start + dur);
+    g.gain.setValueAtTime(g0, start);
+    g.gain.linearRampToValueAtTime(g1, start + dur);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(start); osc.stop(start + dur + 0.01);
+  }
+
+  function _noise(start, dur, g0, g1, c = _ctx()) {
+    const buf  = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf;
+    g.gain.setValueAtTime(g0, start);
+    g.gain.linearRampToValueAtTime(g1, start + dur);
+    src.connect(g); g.connect(c.destination);
+    src.start(start); src.stop(start + dur + 0.01);
+  }
+
+  /* ── Sound recipes ───────────────────────────────────── */
+  const sounds = {
+
+    // Piece moved left or right — tiny tick
+    move() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 180, t, 0.025, 0.07, 0.0, c);
+    },
+
+    // Piece rotated — slightly higher tick
+    rotate() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 280, t, 0.03, 0.09, 0.0, c);
+    },
+
+    // Soft drop — low rapid taps (called every gravity step when softDropping)
+    softDrop() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 120, t, 0.018, 0.05, 0.0, c);
+    },
+
+    // Hard drop — heavy thud + noise burst
+    hardDrop() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.06, 0.30, 0.0, c);
+      _oscRamp('sawtooth', 300, 60, t, 0.12, 0.28, 0.0, c);
+    },
+
+    // Piece locked — softer thud
+    lock() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.035, 0.18, 0.0, c);
+      _osc('sine', 90, t, 0.06, 0.14, 0.0, c);
+    },
+
+    // Hold piece — short whoosh
+    hold() {
+      const c = _ctx(), t = c.currentTime;
+      _oscRamp('sine', 400, 220, t, 0.10, 0.14, 0.0, c);
+    },
+
+    // Single line clear — sharp click + tone
+    clearSingle() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t,        0.04, 0.22, 0.0, c);
+      _osc('sine', 440, t,        0.12, 0.18, 0.0, c);
+      _osc('sine', 660, t + 0.06, 0.10, 0.14, 0.0, c);
+    },
+
+    // Double line clear — brighter
+    clearDouble() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.05, 0.25, 0.0, c);
+      [440, 554, 659].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.055, 0.14, 0.16, 0.0, c)
+      );
+    },
+
+    // Triple line clear — sweeping chord
+    clearTriple() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.06, 0.28, 0.0, c);
+      [440, 554, 659, 880].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.05, 0.18, 0.18, 0.0, c)
+      );
+    },
+
+    // TETRIS (4-line clear) — full neon fanfare
+    clearTetris() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.10, 0.32, 0.0, c);
+      [261, 330, 392, 523, 659, 784, 1047].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.045, 0.20, 0.22, 0.0, c)
+      );
+      // Sub-bass boom
+      _oscRamp('sine', 80, 40, t, 0.30, 0.22, 0.0, c);
+    },
+
+    // T-Spin — warped swoosh
+    tSpin() {
+      const c = _ctx(), t = c.currentTime;
+      _oscRamp('sawtooth', 200, 600, t,        0.10, 0.22, 0.0, c);
+      _oscRamp('sawtooth', 600, 200, t + 0.10, 0.14, 0.20, 0.0, c);
+      _noise(t, 0.06, 0.10, 0.0, c);
+    },
+
+    // Back-to-back bonus sting — plays on top of clear sound
+    b2b() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 1400, t + 0.18, 0.06, 0.16, 0.0, c);
+      _osc('square', 1760, t + 0.26, 0.08, 0.14, 0.0, c);
+    },
+
+    // Combo — short ascending blip, pitch rises with combo count
+    combo(count) {
+      const c   = _ctx(), t = c.currentTime;
+      const base = 440;
+      const freq  = Math.min(base * Math.pow(1.12, count), 2000);
+      _oscRamp('square', freq, freq * 1.25, t, 0.08, 0.16, 0.0, c);
+    },
+
+    // Level up — triumphant rising sweep
+    levelUp() {
+      const c = _ctx(), t = c.currentTime;
+      _oscRamp('sine', 330, 1320, t, 0.28, 0.20, 0.0, c);
+      [523, 659, 784, 1047].forEach((f, i) =>
+        _osc('sine', f, t + 0.10 + i * 0.09, 0.18, 0.18, 0.0, c)
+      );
+    },
+
+    // Garbage incoming warning — low ominous pulse
+    garbageWarning() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sawtooth', 80,  t,        0.14, 0.24, 0.0, c);
+      _osc('sawtooth', 100, t + 0.16, 0.12, 0.18, 0.0, c);
+    },
+
+    // Garbage lands on your board — heavy thud
+    garbageLand() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.10, 0.35, 0.0, c);
+      _oscRamp('sine', 120, 40, t, 0.18, 0.28, 0.0, c);
+    },
+
+    // Disarmed / garbage cancelled — bright shield ping
+    disarmed() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sine', 880,  t,        0.08, 0.20, 0.0, c);
+      _osc('sine', 1320, t + 0.07, 0.10, 0.18, 0.0, c);
+      _osc('sine', 1760, t + 0.14, 0.08, 0.14, 0.0, c);
+    },
+
+    // Countdown tick (3, 2, 1)
+    countdownTick() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 660, t, 0.10, 0.22, 0.0, c);
+    },
+
+    // "GO!" — short laser burst
+    countdownGo() {
+      const c = _ctx(), t = c.currentTime;
+      _oscRamp('sawtooth', 220, 880, t, 0.18, 0.26, 0.0, c);
+      _noise(t, 0.06, 0.14, 0.0, c);
+    },
+
+    // Game over — descending doom chord
+    gameOver() {
+      const c = _ctx(), t = c.currentTime;
+      [330, 277, 220, 165].forEach((f, i) =>
+        _osc('sawtooth', f, t + i * 0.14, 0.26, 0.0, c)
+      );
+      _noise(t, 0.55, 0.12, 0.0, c);
+    },
+
+    // Win — full victory fanfare
+    win() {
+      const c = _ctx(), t = c.currentTime;
+      [523, 659, 784, 1047, 1319, 1568].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.09, 0.22, 0.22, 0.0, c)
+      );
+      _noise(t, 0.08, 0.14, 0.0, c);
+      // Echo
+      [523, 784, 1047].forEach((f, i) =>
+        _osc('sine', f, t + 0.55 + i * 0.07, 0.18, 0.12, 0.0, c)
+      );
+    },
+
+  };
+
+  // Unlock on first gesture
+  const _unlock = () => { _ctx(); document.removeEventListener('click', _unlock); };
+  document.addEventListener('click', _unlock);
+
+  let _muted = false;
+
+  return {
+    play(name, ...args) {
+      if (_muted) return;
+      try { sounds[name]?.(...args); } catch(e) { /* non-fatal */ }
+    },
+    toggle() { _muted = !_muted; return _muted; },
+    muted()  { return _muted; },
+  };
+})();
+</script>
+
 </body>
 </html>
