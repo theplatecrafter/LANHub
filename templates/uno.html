@@ -1577,9 +1577,17 @@ socket.on('uno_game_state', data => {
   gameState = data;
   window._stackableValues    = new Set(data.stackable_values || []);
   window._drawValues         = data.draw_values || {};
-  window._cardDescriptions   = data.card_descriptions || {};  // ← add
+  window._cardDescriptions   = data.card_descriptions || {};
   window._lastLaunchSeq = window._lastLaunchSeq || 0;
   _syncInGameRulesBtn();
+
+  // Deal sound — fires once when hand goes from empty to full at round start
+  const myP2       = data.players?.find(p => p.sid === mySid);
+  const newHand    = myP2?.hand_count || 0;
+  const prevHand   = window._prevHandSize || 0;
+  if (newHand > 0 && prevHand === 0) SFX.play('deal', newHand);
+  window._prevHandSize = newHand;
+
   renderGame(data);
 });
 
@@ -1633,13 +1641,16 @@ function _syncColorPicker(dark) {
     `<button class="color-pick-btn ${cl}" onclick="chooseColor('${c}')">${e}</button>`
   ).join('');
 }
-
+let _wasMyturn = false;
 function renderGame(state){
   if(!state)return;
   const myP      = state.players.find(p=>p.sid===mySid);
   const isMyTurn = state.current_sid===mySid&&!amSpectator;
   const topCard  = state.top_card;
   const pending  = state.pending_draw;
+  const cardKey  = topCard
+    ? `${topCard.color}_${topCard.value}_${topCard.chosen_color||''}`
+    : null;
   const myIdx    = state.players.findIndex(p=>p.sid===mySid);
   const pendingAction = state.pending_action;
   // Flip: must draw until colour (Wild Draw Color targeted this player)
@@ -1662,6 +1673,8 @@ function renderGame(state){
   }else if(isMyTurn){
     turnEl.textContent=state.waiting_for_color?'✦ Choose a color!':'✦ YOUR TURN';
     turnEl.className='my-turn';
+    if (isMyTurn && !_wasMyturn) SFX.play('myTurn');
+    _wasMyturn = isMyTurn;
     atmo.className='my-turn';
     myArea.classList.add('my-turn');
     handLbl.className='hand-label my-turn-label';
@@ -1685,7 +1698,6 @@ function renderGame(state){
   if(topCard){
     const color=topCard.chosen_color||topCard.color;
     const label=cLabel(topCard.value);
-    const cardKey=`${topCard.color}_${topCard.value}_${topCard.chosen_color||''}`;
     if(!prevTopCard||cardKey!==(prevTopCard)){
       discardEl.className=`uno-card lg ${color} card-flip`;
       discardEl.innerHTML=`<span class="card-corner tl">${label}</span><span class="card-face">${label}</span><span class="card-corner br">${label}</span>`;
@@ -1702,6 +1714,9 @@ function renderGame(state){
   if(pending>0){pdb.textContent=`+${pending}`;pdb.classList.add('visible');}
   else pdb.classList.remove('visible');
 
+  
+
+
   // Draw button
   drawBtn.disabled = !isMyTurn
                 || state.waiting_for_color
@@ -1716,6 +1731,9 @@ function renderGame(state){
   // UNO badge
   const unoBadge=document.getElementById('uno-self-badge');
   if(myP&&myP.has_uno&&!amSpectator)unoBadge.classList.add('visible');
+  if (myP?.has_uno && !amSpectator && !document.getElementById('uno-self-badge').classList.contains('visible')) {
+    SFX.play('uno');
+  }
   else unoBadge.classList.remove('visible');
 
   // Color picker
@@ -1818,6 +1836,7 @@ function renderGame(state){
     const resultEl = document.getElementById('launcher-result');
     const bodyEl   = document.getElementById('launcher-body');
     if (ll.fired) {
+      SFX.play('launchFire');
       const burst = document.createElement('div');
       burst.className = 'launcher-fire-burst';
       burst.textContent = `+${ll.count}🃏`;
@@ -1826,6 +1845,7 @@ function renderGame(state){
       resultEl.textContent = `${ll.username}: +${ll.count} cards!`;
       resultEl.className   = 'launcher-result fired';
     } else {
+      SFX.play('launchSafe');
       bodyEl.classList.add('launcher-click-anim');
       setTimeout(() => bodyEl.classList.remove('launcher-click-anim'), 300);
       resultEl.textContent = `${ll.username}: safe!`;
@@ -1869,6 +1889,18 @@ function renderGame(state){
   } else {
     awTdraw2Overlay?.classList.remove('open');
     awFswapOverlay ?.classList.remove('open');
+  }
+
+  if (cardKey && prevTopCard && cardKey !== prevTopCard) {
+    const v = topCard?.value;
+    if (['skip','skip_everyone','w_skip','w_dskip'].includes(v))          SFX.play('skip');
+    else if (['draw2','draw4','draw5','draw6','draw10',
+              'w_draw2','w_draw4','wild4'].includes(v))                   SFX.play('penalty');
+    else if (v === 'flip')                                                 SFX.play('deckFlip');
+    else if (v === 'wild' || v === 'wild4' ||
+            v === 'wild_draw2' || v === 'wild_draw_color' ||
+            v === 'wild_all_hit' || v === 'wild_hit_fire')               SFX.play('wild');
+    else                                                                   SFX.play('flip');
   }
 }
 
@@ -2035,10 +2067,12 @@ function renderSpectatorHands(state){
 
 // ── Game actions ───────────────────────────────────────
 function playCard(idx, card) {
+  SFX.play("flip")
   if (card.color === 'wild' && gameState?.game_type !== 'all_wild') {
     window._pendingWildIdx = idx;
     document.getElementById('color-overlay').classList.add('open');
   } else {
+    if (card.color === 'wild') SFX.play('wild');
     socket.emit('uno_play_card', {card_idx: idx});
   }
 }
@@ -2055,9 +2089,13 @@ function chooseColor(color){
 function drawCard(){
   const state=gameState;
   if(!state||state.current_sid!==mySid)return;
+  SFX.play('draw');
   socket.emit('uno_draw_card');
 }
-socket.on('uno_error',data=>{showToast(data.message,'err');});
+socket.on('uno_error', data => {
+  SFX.play('error');
+  showToast(data.message, 'err');
+});
 
 // ── Game over ──────────────────────────────────────────
 function _showGameOver(data){
@@ -2105,6 +2143,8 @@ function _showGameOver(data){
 socket.on('uno_game_over', data => {
   isCreator = data.is_creator === true;
   _showGameOver(data);
+  SFX.play('win');
+
 });
 
 // Server transferred creator role to us mid-post-game
@@ -2175,6 +2215,178 @@ socket.on('disconnect',()=>{showToast('Disconnected from server.','err');});
 socket.on('connect',()=>{if(myUsername)socket.emit('uno_set_username',{username:myUsername});});
 
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+<script>
+/* ═══════════════════════════════════════════════════════
+   UNO Sound Effects — Web Audio API (no external files)
+   ═══════════════════════════════════════════════════════ */
+const SFX = (() => {
+  let ctx = null;
+
+  function _ctx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  /* ── Primitive builders ──────────────────────────────── */
+
+  function _osc(type, freq, startTime, duration, gainStart, gainEnd, c = _ctx()) {
+    const g   = c.createGain();
+    const osc = c.createOscillator();
+    osc.type      = type;
+    osc.frequency.setValueAtTime(freq, startTime);
+    g.gain.setValueAtTime(gainStart, startTime);
+    g.gain.linearRampToValueAtTime(gainEnd, startTime + duration);
+    osc.connect(g);
+    g.connect(c.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.01);
+  }
+
+  function _noise(startTime, duration, gainStart, gainEnd, c = _ctx()) {
+    const bufSize = c.sampleRate * duration;
+    const buf     = c.createBuffer(1, bufSize, c.sampleRate);
+    const data    = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const g = c.createGain();
+    g.gain.setValueAtTime(gainStart, startTime);
+    g.gain.linearRampToValueAtTime(gainEnd, startTime + duration);
+    src.connect(g);
+    g.connect(c.destination);
+    src.start(startTime);
+    src.stop(startTime + duration + 0.01);
+  }
+
+  /* ── Individual sound recipes ────────────────────────── */
+
+  const sounds = {
+
+    // Card laid on the discard pile — short crisp whoosh + thud
+    flip() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t,       0.04, 0.18, 0.0, c);            // whoosh
+      _osc('sine',  140, t + 0.03, 0.08, 0.25, 0.0, c); // soft thud
+    },
+
+    // Drawing a card from the deck — light papery slide
+    draw() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t,       0.06, 0.10, 0.0, c);
+      _osc('sine',  220, t,       0.05, 0.12, 0.0, c);
+    },
+
+    // Your turn — gentle ascending chime
+    myTurn() {
+      const c = _ctx(), t = c.currentTime;
+      [523, 659, 784].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.10, 0.18, 0.18, 0.0, c)
+      );
+    },
+
+    // UNO called (1 card left) — punchy alert
+    uno() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 880, t,        0.06, 0.28, 0.0, c);
+      _osc('square', 660, t + 0.07, 0.10, 0.22, 0.0, c);
+    },
+
+    // Skip / Reverse — quick descending blip
+    skip() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sawtooth', 440, t,        0.06, 0.15, 0.0, c);
+      _osc('sawtooth', 330, t + 0.06, 0.08, 0.12, 0.0, c);
+    },
+
+    // Draw +2 / +4 penalty — low buzzy sting
+    penalty() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sawtooth', 180, t,        0.12, 0.30, 0.0, c);
+      _osc('sawtooth', 120, t + 0.08, 0.14, 0.22, 0.0, c);
+    },
+
+    // Wild card played — shimmery sweep
+    wild() {
+      const c = _ctx(), t = c.currentTime;
+      const osc = c.createOscillator();
+      const g   = c.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, t);
+      osc.frequency.exponentialRampToValueAtTime(900, t + 0.25);
+      g.gain.setValueAtTime(0.22, t);
+      g.gain.linearRampToValueAtTime(0.0, t + 0.28);
+      osc.connect(g); g.connect(c.destination);
+      osc.start(t); osc.stop(t + 0.30);
+    },
+
+    // Win / game over — triumphant little fanfare
+    win() {
+      const c = _ctx(), t = c.currentTime;
+      [523, 659, 784, 1047].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.12, 0.22, 0.22, 0.0, c)
+      );
+    },
+
+    // Error / illegal move — low dull thunk
+    error() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 100, t, 0.14, 0.20, 0.0, c);
+      _noise(t, 0.10, 0.08, 0.0, c);
+    },
+
+    // Card dealt at round start — rapid-fire little ticks
+    deal(count = 7) {
+      const c = _ctx(), t = c.currentTime;
+      for (let i = 0; i < count; i++) {
+        _noise(t + i * 0.06, 0.04, 0.12, 0.0, c);
+        _osc('sine', 300, t + i * 0.06, 0.04, 0.10, 0.0, c);
+      }
+    },
+
+    // Launcher fire (UNO Attack) — springy mechanical POP
+    launchFire() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.05, 0.35, 0.0, c);
+      const osc = c.createOscillator();
+      const g   = c.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(400, t);
+      osc.frequency.exponentialRampToValueAtTime(80, t + 0.18);
+      g.gain.setValueAtTime(0.30, t);
+      g.gain.linearRampToValueAtTime(0.0, t + 0.20);
+      osc.connect(g); g.connect(c.destination);
+      osc.start(t); osc.stop(t + 0.22);
+    },
+
+    // Launcher click (safe, nothing fires) — dry click
+    launchSafe() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.025, 0.18, 0.0, c);
+      _osc('sine', 600, t, 0.03, 0.10, 0.0, c);
+    },
+
+    // Flip card (UNO Flip) — distinct mechanical flip
+    deckFlip() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t,       0.06, 0.20, 0.0, c);
+      _osc('sine',  400, t,        0.04, 0.18, 0.0, c);
+      _osc('sine',  200, t + 0.05, 0.08, 0.14, 0.0, c);
+    },
+
+  };
+
+  // Unlock audio on first user gesture (required by all browsers)
+  const _unlock = () => { _ctx(); document.removeEventListener('click', _unlock); };
+  document.addEventListener('click', _unlock);
+
+  return {
+    play(name, ...args) {
+      try { sounds[name]?.(...args); } catch(e) { /* audio errors are non-fatal */ }
+    }
+  };
+})();
 </script>
 </body>
 </html>
