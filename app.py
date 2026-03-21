@@ -40,6 +40,8 @@ from blueprints.slither import slither_bp
 from blueprints.scribble import scribble_bp
 from blueprints.geoguesser import geoguesser_bp
 from blueprints.access import access_bp, check_site_access
+from blueprints.backup import backup_bp
+
 
 
 
@@ -79,6 +81,7 @@ app.register_blueprint(slither_bp)
 app.register_blueprint(scribble_bp)
 app.register_blueprint(geoguesser_bp)
 app.register_blueprint(access_bp)
+app.register_blueprint(backup_bp)
 
 
 
