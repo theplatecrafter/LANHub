@@ -215,7 +215,7 @@
 </div>
 
 <!-- ── Confirmation modal ── -->
-<div class="modal fade" id="confirmModal" tabindex="-1">
+<div class="modal fade" id="confirmModal" tabindex="-1" style="display:none">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-dark border-danger">
             <div class="modal-header border-danger">
@@ -270,6 +270,7 @@
 }
 </style>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
 <script>
 // ── Import form ───────────────────────────────────────────────────────────────
 document.getElementById("importForm").addEventListener("submit", async e => {
@@ -299,8 +300,17 @@ document.getElementById("importForm").addEventListener("submit", async e => {
 
 // ── Confirmation flow ─────────────────────────────────────────────────────────
 let _action, _steps, _step, _phrase;
-const modal        = new bootstrap.Modal(document.getElementById("confirmModal"));
+let _modal = null;
+
+function getModal() {
+    if (!_modal) {
+        _modal = new bootstrap.Modal(document.getElementById("confirmModal"));
+    }
+    return _modal;
+}
+
 const modalTitle   = document.getElementById("modalTitle");
+
 const modalDesc    = document.getElementById("modalDesc");
 const modalStep    = document.getElementById("modalStep");
 const modalTotal   = document.getElementById("modalTotal");
@@ -325,7 +335,8 @@ function confirmAction(action, steps, title, desc, phrase) {
     phraseWrap.style.display = "none";
     phraseInput.value        = "";
 
-    modal.show();
+    getModal().show();
+
 }
 
 function nukeFlow() {
@@ -340,6 +351,11 @@ function nukeFlow() {
 }
 
 modalConfirm.addEventListener("click", async () => {
+    if (!_action) {
+        getModal().hide();
+        return;
+    }
+
     // Last step with phrase — validate first
     if (_phrase && _step === _steps) {
         if (phraseInput.value.trim() !== _phrase) {
@@ -353,11 +369,9 @@ modalConfirm.addEventListener("click", async () => {
     _step++;
 
     if (_step <= _steps) {
-        // Not done yet — advance progress
         modalStep.textContent = _step;
         modalBar.style.width  = ((_step) / _steps * 100) + "%";
 
-        // Show phrase input on the last step if required
         if (_phrase && _step === _steps) {
             phraseWrap.style.display = "block";
             phraseLabel.textContent  = _phrase;
@@ -368,8 +382,18 @@ modalConfirm.addEventListener("click", async () => {
     }
 
     // All confirmations passed — execute
-    modal.hide();
-    await executeAction(_action);
+    const actionToRun = _action;
+    _action = null;  // clear immediately so accidental double-clicks do nothing
+    getModal().hide();
+    await executeAction(actionToRun);
+});
+
+document.getElementById("confirmModal").addEventListener("hidden.bs.modal", () => {
+    _action = null;
+    _step   = 0;
+    phraseWrap.style.display = "none";
+    phraseInput.value        = "";
+    phraseInput.classList.remove("is-invalid");
 });
 
 async function executeAction(action) {
