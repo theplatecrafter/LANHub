@@ -187,17 +187,7 @@
       dos:          "DOS",
     };
 
-    socket.on("server_shutdown", (data) => {
-        // Show a dismissible banner at the top of the page
-        const banner = document.createElement("div");
-        banner.style.cssText = `
-            position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
-            background: #f87171; color: #1a1d27; padding: .75rem 1rem;
-            text-align: center; font-weight: 600; font-size: .95rem;
-        `;
-        banner.textContent = "⚠️ " + (data.message || "Server is shutting down.");
-        document.body.prepend(banner);
-    });
+    
 
     function setTheme(theme) {
       document.getElementById("theme-stylesheet").href = "/static/themes/" + theme + ".css";
@@ -276,6 +266,17 @@
       _socket.emit("page_open", { path: window.location.pathname });
     });
     if (_socket.connected) _socket.emit("page_open", { path: window.location.pathname });
+
+    _socket.on("server_shutdown", (data) => {
+        const banner = document.createElement("div");
+        banner.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+            background: #f87171; color: #1a1d27; padding: .75rem 1rem;
+            text-align: center; font-weight: 600; font-size: .95rem;
+        `;
+        banner.textContent = "⚠️ " + (data.message || "Server is shutting down.");
+        document.body.prepend(banner);
+    });
 
     _socket.on("connect", () => {
       document.getElementById("srv-dot").classList.remove("warn", "error");
