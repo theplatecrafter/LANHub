@@ -7,9 +7,18 @@ cd "$SCRIPT_DIR"
 
 CF_LOG="/tmp/cloudflared_lanhub.log"
 
+PORT=$(python3 -c "
+import json
+try:
+    with open('configvars.json') as f:
+        print(json.load(f).get('general', {}).get('PORT', 5000))
+except:
+    print(5000)
+")
+
 echo "🚀 Starting Cloudflare tunnel..."
 rm -f "$CF_LOG"
-cloudflared tunnel --url http://localhost:5000 --logfile "$CF_LOG" &
+cloudflared tunnel --url http://localhost:$PORT --logfile "$CF_LOG" &
 CF_PID=$!
 
 # Wait up to 15 seconds for the tunnel URL to appear in the log
