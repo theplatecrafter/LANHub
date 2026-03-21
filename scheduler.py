@@ -35,6 +35,9 @@ def _redirector_update_url(full_url: str) -> bool:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>LANHub Redirector</title>
     <style>
         body {{ font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f9; }}
@@ -65,7 +68,7 @@ def _redirector_update_url(full_url: str) -> bool:
     <script>
         const target = "{full_url}";
         fetch(target + "/static/pixel.png", {{ mode: 'no-cors', signal: AbortSignal.timeout(4000) }})
-            .then(() => window.location.replace(target))
+            .then(() => window.location.replace(target + "?t=" + Date.now()))
             .catch(() => {{
                 document.getElementById("checking").style.display = "none";
                 document.getElementById("error-msg").style.display = "block";
@@ -106,7 +109,10 @@ def push_offline_page():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LANHub — Offline</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>LANHub - Offline</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
                background: #0f1117; color: #e2e8f0; display: flex;
