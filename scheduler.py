@@ -1,6 +1,5 @@
 # scheduler.py
 from glob_vars import *
-
 from apscheduler.schedulers.background import BackgroundScheduler
 import functions as f
 from socketio_instance import socketio
