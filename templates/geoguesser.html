@@ -1799,7 +1799,8 @@ function loadSV(panoId) {
   if (!GEO_MAPS_KEY) { geoToast('⚠ No Google Maps API key configured', 8000); return; }
   document.getElementById('sv-iframe').src =
     `https://www.google.com/maps/embed/v1/streetview?key=${GEO_MAPS_KEY}&pano=${panoId}&heading=0&pitch=0&fov=90`;
-}
+    setTimeout(() => GeoSFX.play('svLoaded'), 600);
+  }
 function clearSV() { document.getElementById('sv-iframe').src = 'about:blank'; }
  
 /* ── Region preview modal ─────────────────────────────── */
@@ -2247,6 +2248,7 @@ function resetRegionState() {
  
 /* ── Confirm region ───────────────────────────────────── */
 function confirmRegion() {
+  GeoSFX.play('confirm');
   const region = getRegionForSubmit();
   currentRegionInfo = {label: region.label, creators: region.creators};
   regionExplicitlySet = true;
@@ -2369,6 +2371,7 @@ function _startSpGame(panoId) {
 function spConfirmGuess() {
   if (!currentGuess || guessLocked) return;
   guessLocked = true;
+  GeoSFX.play('lockIn');
   socket.emit('geo_sp_submit_guess', {
     lat:         currentGuess.lat,
     lng:         currentGuess.lng,
@@ -2571,7 +2574,10 @@ socket.on('geo_you_are_creator', () => {
   document.getElementById('waiting-hint').textContent = 'You are now the room creator.';
   if (currentRoomPrivacy === 'private') document.getElementById('invite-panel').classList.add('visible');
 });
-socket.on('geo_player_joined', data => geoToast(`${data.username} joined`));
+socket.on('geo_player_joined', data => {
+  GeoSFX.play('playerJoined');      // ← add
+  geoToast(`${data.username} joined`);
+});
  
 socket.on('geo_invite_candidates', data => {
   const list     = document.getElementById('invite-candidate-list');
@@ -2590,6 +2596,7 @@ socket.on('geo_invite_candidates', data => {
 });
 function sendInvite(username, btn) { btn.disabled = true; btn.textContent = 'Sent ✓'; socket.emit('geo_invite_user', {username}); }
 socket.on('geo_invited', data => {
+  GeoSFX.play('inviteReceived');
   pendingInviteRoomId = data.room_id;
   document.getElementById('ib-from-label').textContent = `📨 Invite from ${data.from_username}`;
   document.getElementById('ib-room-label').textContent = `Join "${data.room_title}"?`;
@@ -2634,6 +2641,7 @@ socket.on('geo_fetch_error', data => {
  
 /* ── Round start ──────────────────────────────────────── */
 function _applyRoundStart(data) {
+  GeoSFX.play('roundStart');
   guessLocked = false; currentGuess = null;
   if (guessMarker && guessMapInst) { guessMapInst.removeLayer(guessMarker); guessMarker = null; }
   // Hide transition timer
@@ -2682,10 +2690,20 @@ function _startRoundTimer(totalSecs) {
   const _upd = () => {
     bigVal.textContent = fmtTime(remaining);
     bigTimer.classList.toggle('urgent', remaining <= 10);
+
+    // ── Sound hooks ──────────────────────────────────────
+    if (remaining === 0)       GeoSFX.play('timesUp');
+    else if (remaining <= 5)   GeoSFX.play('timerUrgent');
+    else if (remaining <= 10)  GeoSFX.play('timerTick');
+    // ─────────────────────────────────────────────────────
+
     if (remaining <= 0) _cleanupRoundTimer();
   };
   _upd();
   roundTimerInterval = setInterval(() => { remaining--; _upd(); }, 1000);
+
+  
+
 }
 function _cleanupRoundTimer() {
   if (roundTimerInterval) { clearInterval(roundTimerInterval); roundTimerInterval = null; }
@@ -2696,18 +2714,30 @@ function _cleanupRoundTimer() {
 function lockGuess() {
   if (!currentGuess || guessLocked) return;
   guessLocked = true;
+  GeoSFX.play('lockIn');
   const lb = document.getElementById('lock-btn');
   lb.textContent = '✓ Locked In'; lb.classList.add('locked-in');
   socket.emit('geo_submit_guess', {lat: currentGuess.lat, lng: currentGuess.lng, locked: true});
 }
  
 socket.on('geo_guess_locked', data => {
+  if (data.username !== myUsername) GeoSFX.play('playerLocked');
   document.getElementById('hud-locked-label').textContent = `${data.locked_count}/${data.total} locked in`;
   geoToast(`${data.username} locked in`);
 });
  
 /* ── Round end ────────────────────────────────────────── */
 socket.on('geo_round_end', data => {
+  GeoSFX.play('resultsReveal');     // ← add
+
+  // Play a quality sound based on your own score
+  const myResult = data.results.find(r => r.sid === mySid);
+  if (myResult) {
+    if      (myResult.round_score >= 4500) GeoSFX.play('excellent');
+    else if (myResult.round_score >= 2000) GeoSFX.play('good');
+    else                                   GeoSFX.play('poor');
+  }
+
   roundEndActive    = true;
   pendingRoundStart = null;
   _cleanupRoundTimer();
@@ -2793,6 +2823,7 @@ function _renderResultsTable(results) {
  
 /* ── Game over ────────────────────────────────────────── */
 socket.on('geo_game_over', data => {
+  GeoSFX.play('gameOver');
   if (roundAdvanceInterval) { clearInterval(roundAdvanceInterval); roundAdvanceInterval = null; }
   roundEndActive    = false;
   pendingRoundStart = null;
@@ -2901,6 +2932,7 @@ function initGuessMap() {
   L.control.zoom({position: 'topright'}).addTo(guessMapInst);
   guessMapInst.on('click', e => {
     if (guessLocked) return;
+    GeoSFX.play('pinDrop');
     currentGuess = {lat: e.latlng.lat, lng: e.latlng.lng};
     if (guessMarker) guessMapInst.removeLayer(guessMarker);
     guessMarker = L.marker([e.latlng.lat, e.latlng.lng],
@@ -2914,4 +2946,200 @@ function initGuessMap() {
   wrap.addEventListener('transitionend', () => { if (guessMapInst) guessMapInst.invalidateSize(); });
 }
 </script>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   GeoGuesser Sound Effects — Web Audio API
+   ═══════════════════════════════════════════════════════ */
+const GeoSFX = (() => {
+  let ctx = null;
+
+  function _ctx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  /* ── Primitives ──────────────────────────────────────── */
+
+  function _osc(type, freq, start, dur, g0, g1, c = _ctx()) {
+    const g   = c.createGain();
+    const osc = c.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(g0, start);
+    g.gain.linearRampToValueAtTime(g1, start + dur);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(start); osc.stop(start + dur + 0.01);
+  }
+
+  function _oscFreqRamp(type, f0, f1, start, dur, g0, g1, c = _ctx()) {
+    const g   = c.createGain();
+    const osc = c.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f0, start);
+    osc.frequency.exponentialRampToValueAtTime(f1, start + dur);
+    g.gain.setValueAtTime(g0, start);
+    g.gain.linearRampToValueAtTime(g1, start + dur);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(start); osc.stop(start + dur + 0.01);
+  }
+
+  function _noise(start, dur, g0, g1, c = _ctx()) {
+    const buf  = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const g = c.createGain();
+    g.gain.setValueAtTime(g0, start);
+    g.gain.linearRampToValueAtTime(g1, start + dur);
+    src.connect(g); g.connect(c.destination);
+    src.start(start); src.stop(start + dur + 0.01);
+  }
+
+  /* ── Sound recipes ───────────────────────────────────── */
+
+  const sounds = {
+
+    // Map pin dropped — soft satisfying thud
+    pinDrop() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sine', 320, t,        0.04, 0.22, 0.0, c);
+      _osc('sine', 160, t + 0.03, 0.10, 0.18, 0.0, c);
+      _noise(t, 0.03, 0.08, 0.0, c);
+    },
+
+    // Guess locked in — confident "confirmed" double-beep
+    lockIn() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sine', 523, t,        0.10, 0.20, 0.0, c);
+      _osc('sine', 784, t + 0.12, 0.14, 0.20, 0.0, c);
+    },
+
+    // Someone else locked in — soft notification tick
+    playerLocked() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sine', 660, t, 0.06, 0.10, 0.0, c);
+    },
+
+    // Round start — short rising "go!" sweep
+    roundStart() {
+      const c = _ctx(), t = c.currentTime;
+      _oscFreqRamp('sine', 300, 600, t, 0.20, 0.0, 0.22, c);
+      _oscFreqRamp('sine', 300, 600, t + 0.04, 0.20, 0.0, 0.18, c);
+    },
+
+    // Results revealed — whoosh + gentle chime cascade
+    resultsReveal() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.12, 0.12, 0.0, c);
+      [440, 554, 659, 880].forEach((f, i) =>
+        _osc('sine', f, t + 0.08 + i * 0.08, 0.18, 0.16, 0.0, c)
+      );
+    },
+
+    // Score ticking up — light rapid ticks (call repeatedly while counting)
+    scoreTick() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 1200, t, 0.022, 0.06, 0.0, c);
+    },
+
+    // Excellent guess (very close) — triumphant sparkle
+    excellent() {
+      const c = _ctx(), t = c.currentTime;
+      [523, 659, 784, 1047, 1318].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.07, 0.16, 0.18, 0.0, c)
+      );
+    },
+
+    // Good guess — warm two-note ding
+    good() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sine', 523, t,        0.14, 0.18, 0.0, c);
+      _osc('sine', 659, t + 0.10, 0.16, 0.16, 0.0, c);
+    },
+
+    // Poor guess (far away) — low disappointed wah
+    poor() {
+      const c = _ctx(), t = c.currentTime;
+      _oscFreqRamp('sawtooth', 400, 200, t, 0.22, 0.20, 0.0, c);
+    },
+
+    // Round countdown tick (last 10s) — sharp metronome click
+    timerTick() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.018, 0.22, 0.0, c);
+      _osc('square', 1000, t, 0.018, 0.12, 0.0, c);
+    },
+
+    // Timer urgent pulse (last 5s) — higher pitched, more intense
+    timerUrgent() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.022, 0.28, 0.0, c);
+      _osc('square', 1400, t, 0.022, 0.18, 0.0, c);
+    },
+
+    // Time's up — harsh buzzer
+    timesUp() {
+      const c = _ctx(), t = c.currentTime;
+      _oscFreqRamp('sawtooth', 300, 150, t,        0.18, 0.30, 0.0, c);
+      _oscFreqRamp('sawtooth', 300, 150, t + 0.20, 0.18, 0.25, 0.0, c);
+    },
+
+    // Game over / final scores — full fanfare
+    gameOver() {
+      const c = _ctx(), t = c.currentTime;
+      [392, 523, 659, 784, 1047].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.13, 0.24, 0.20, 0.0, c)
+      );
+      _noise(t, 0.06, 0.08, 0.0, c);
+    },
+
+    // Player joined waiting room — soft pop
+    playerJoined() {
+      const c = _ctx(), t = c.currentTime;
+      _oscFreqRamp('sine', 400, 600, t, 0.12, 0.14, 0.0, c);
+    },
+
+    // Invite received — two-tone ding-dong
+    inviteReceived() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sine', 880, t,        0.14, 0.18, 0.0, c);
+      _osc('sine', 660, t + 0.16, 0.18, 0.16, 0.0, c);
+    },
+
+    // Street view loaded — soft ambient whoosh
+    svLoaded() {
+      const c = _ctx(), t = c.currentTime;
+      _oscFreqRamp('sine', 80, 200, t, 0.28, 0.08, 0.0, c);
+      _noise(t, 0.28, 0.05, 0.0, c);
+    },
+
+    // Region confirmed — crisp confirmation click
+    confirm() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sine', 880, t,        0.06, 0.16, 0.0, c);
+      _osc('sine', 1100, t + 0.06, 0.08, 0.12, 0.0, c);
+    },
+
+  };
+
+  // Unlock on first gesture
+  const _unlock = () => { _ctx(); document.removeEventListener('click', _unlock); };
+  document.addEventListener('click', _unlock);
+
+  let _muted = false;
+
+  return {
+    play(name, ...args) {
+      if (_muted) return;
+      try { sounds[name]?.(...args); } catch(e) { /* non-fatal */ }
+    },
+    mute(v)  { _muted = v; },
+    toggle() { _muted = !_muted; return _muted; },
+  };
+})();
+</script>
+
 {% endblock %}
