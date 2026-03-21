@@ -842,15 +842,31 @@ def get_network_stats(flask_port=5000):
         s.close()
 
     net_io = psutil.net_io_counters()
+    public_ip = get_public_ip()
 
     return {
         "ssid": get_wifi_ssid(),
         "ip_address": ip_address,
+        "public_ip":  public_ip,
         "flask_url": f"http://{ip_address}:{flask_port}",
         "bytes_sent": net_io.bytes_sent,
         "bytes_recv": net_io.bytes_recv
     }
 
+def get_public_ip() -> str:
+    """Fetches the server's public-facing IP via external lookup services."""
+    import urllib.request as _ureq
+    for url in [
+        "https://api.ipify.org",
+        "https://checkip.amazonaws.com",
+        "https://icanhazip.com",
+    ]:
+        try:
+            with _ureq.urlopen(url, timeout=5) as r:
+                return r.read().decode().strip()
+        except Exception:
+            continue
+    return ""
 
 # Module-level: store last net reading for speed calculation
 _last_net_io = None

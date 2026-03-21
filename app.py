@@ -34,7 +34,7 @@ from blueprints.server_config import server_config_bp
 from blueprints.slither import slither_bp
 from blueprints.scribble import scribble_bp
 from blueprints.geoguesser import geoguesser_bp
-
+from blueprints.access import access_bp, check_site_access
 
 
 
@@ -60,6 +60,7 @@ app.register_blueprint(logs_bp)
 app.register_blueprint(devices_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(dropzone_bp)
+app.before_request(check_site_access)
 app.before_request(check_ban)
 app.register_blueprint(channels_bp)
 app.register_blueprint(feedback_bp)
@@ -72,6 +73,7 @@ app.register_blueprint(server_config_bp)
 app.register_blueprint(slither_bp)
 app.register_blueprint(scribble_bp)
 app.register_blueprint(geoguesser_bp)
+app.register_blueprint(access_bp)
 
 
 ###########################################

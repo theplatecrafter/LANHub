@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4" style="max-width:640px">
+    <h2 class="mb-4">🌐 Access &amp; Visibility Settings</h2>
+
+    <!-- Current mode banner -->
+    <div class="alert
+        {% if current_mode == 'lan_only' %}alert-secondary
+        {% elif current_mode == 'public_password' %}alert-warning
+        {% else %}alert-info{% endif %} mb-4">
+        <strong>Current mode:</strong>
+        {% if current_mode == 'lan_only' %}🏠 LAN Only
+        {% elif current_mode == 'public_password' %}🔑 Public with Password
+        {% else %}🔑 LAN Free + Public with Password{% endif %}
+    </div>
+
+    <form id="accessForm">
+        <!-- Mode selector -->
+        <div class="mb-4">
+            <label class="form-label fw-semibold">Visibility Mode</label>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="mode"
+                       id="m_lan" value="lan_only"
+                       {% if current_mode == 'lan_only' %}checked{% endif %}>
+                <label class="form-check-label" for="m_lan">
+                    <strong>🏠 LAN Only</strong><br>
+                    <small class="text-muted">Only devices on the same network can connect.
+                    Public connections are blocked entirely.</small>
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="mode"
+                       id="m_pub" value="public_password"
+                       {% if current_mode == 'public_password' %}checked{% endif %}>
+                <label class="form-check-label" for="m_pub">
+                    <strong>🔑 Public with Password</strong><br>
+                    <small class="text-muted">Everyone — LAN and public — must enter the password.</small>
+                </label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="mode"
+                       id="m_both" value="both_password"
+                       {% if current_mode == 'both_password' %}checked{% endif %}>
+                <label class="form-check-label" for="m_both">
+                    <strong>🔑 LAN Free + Public with Password</strong><br>
+                    <small class="text-muted">LAN devices connect freely.
+                    Public/tunnel connections require the password.</small>
+                </label>
+            </div>
+        </div>
+
+        <!-- Password field -->
+        <div class="mb-3">
+            <label for="sitePassword" class="form-label fw-semibold">
+                Access Password
+                <small class="text-muted fw-normal">(leave blank to disable gate)</small>
+            </label>
+            <input type="text" class="form-control" id="sitePassword"
+                   name="password" value="{{ current_password }}"
+                   placeholder="Enter shared password for friends">
+            <div class="form-text">
+                Changing the password instantly invalidates all existing friend sessions —
+                they will need to re-enter it.
+            </div>
+        </div>
+
+        <!-- Cookie duration -->
+        <div class="mb-4">
+            <label for="cookieDays" class="form-label fw-semibold">Remember-me Duration (days)</label>
+            <input type="number" class="form-control" id="cookieDays"
+                   name="cookie_days" value="{{ cookie_days }}" min="1" max="365" style="max-width:140px">
+        </div>
+
+        <!-- Tunnel URL -->
+        <div class="mb-4">
+            <label for="tunnelUrl" class="form-label fw-semibold">
+                Tunnel URL
+                <small class="text-muted fw-normal">(auto-filled by start.sh)</small>
+            </label>
+            <input type="text" class="form-control" id="tunnelUrl"
+                   name="tunnel_url" value="{{ tunnel_url }}"
+                   placeholder="https://xyz.trycloudflare.com">
+            <div class="form-text">
+                Set by the startup script automatically. You can also paste it manually here.
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+    </form>
+
+    <div id="saveMsg" class="mt-3" style="display:none"></div>
+</div>
+
+<script>
+document.getElementById("accessForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const form = e.target;
+    const body = new FormData(form);
+    const r    = await fetch("/admin/access/save", { method: "POST", body });
+    const data = await r.json();
+    const msg  = document.getElementById("saveMsg");
+    msg.style.display = "block";
+    msg.className = data.ok ? "alert alert-success" : "alert alert-danger";
+    msg.textContent = data.ok ? "✓ Settings saved." : (data.error || "Error saving.");
+});
+</script>
+{% endblock %}

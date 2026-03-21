@@ -90,6 +90,12 @@
       "GEO_CACHE_MAX_CELLS": 500,
       "GEO_CACHE_MAX_REGIONS": 40
   },
+  "access": {
+      "SITE_MODE": "lan_only",
+      "SITE_PASSWORD": "",
+      "SITE_ACCESS_COOKIE_DAYS": 30,
+      "TUNNEL_URL": ""
+  },
   "admin": {
     "INITIAL_DEV_USERNAME": "dev",
     "INITIAL_DEV_PASSWORD": "password",

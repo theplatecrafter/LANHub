@@ -8,6 +8,7 @@ import subprocess, os, time
 import functions as f
 from glob_vars import app_log, error_log, access_log, BASE_DIR
 import sys
+import config
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -496,3 +497,50 @@ def is_dev_session():
     """Public endpoint — returns whether the current session is DEV. Used by feedback page."""
     from flask import jsonify
     return jsonify({"is_dev": _role() == "DEV"})
+
+
+
+# ── Access / Visibility settings (DEV+) ──────────────────────────────────────
+@admin_bp.route("/access")
+@require_role("DEV")
+def access():
+    return render_template(
+        "admin_access.html",
+        current_mode     = getattr(config, "SITE_MODE",                 "lan_only"),
+        current_password = getattr(config, "SITE_PASSWORD",             ""),
+        cookie_days      = int(getattr(config, "SITE_ACCESS_COOKIE_DAYS", 30)),
+        tunnel_url       = getattr(config, "TUNNEL_URL",                 ""),
+    )
+
+
+@admin_bp.route("/access/save", methods=["POST"])
+@require_role("DEV")
+def access_settings_save():
+    import config as _config
+
+    mode       = request.form.get("mode",       "lan_only").strip()
+    password   = request.form.get("password",   "").strip()
+    tunnel_url = request.form.get("tunnel_url", "").strip()
+    try:
+        cookie_days = max(1, min(365, int(request.form.get("cookie_days", 30))))
+    except ValueError:
+        cookie_days = 30
+
+    if mode not in ("lan_only", "public_password", "both_password"):
+        return jsonify({"ok": False, "error": "Invalid mode."}), 400
+
+    data = _config.load_json()
+    data.setdefault("access", {})
+    data["access"]["SITE_MODE"]                = mode
+    data["access"]["SITE_PASSWORD"]            = password
+    data["access"]["SITE_ACCESS_COOKIE_DAYS"]  = cookie_days
+    data["access"]["TUNNEL_URL"]               = tunnel_url
+    _config.save_json(data)
+    _config.reload()
+
+    app_log.info(
+        f"[admin] {_name()!r} updated access settings: "
+        f"mode={mode!r} password={'(set)' if password else '(none)'} "
+        f"tunnel={tunnel_url!r}"
+    )
+    return jsonify({"ok": True})
