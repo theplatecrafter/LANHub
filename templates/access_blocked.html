@@ -8,146 +8,47 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: #0f1117; color: #e2e8f0;
-            display: flex; align-items: center; justify-content: center;
+            background: #0f1117;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             min-height: 100vh;
         }
         .card {
-            background: #1a1d27; border: 1px solid #2d3148;
-            border-radius: 14px; padding: 2.5rem 2rem;
-            width: 100%; max-width: 420px; text-align: center;
+            background: #1a1d27;
+            border: 1px solid #2d3148;
+            border-radius: 14px;
+            padding: 2.5rem 2rem;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
         }
         .icon { font-size: 2.5rem; margin-bottom: .6rem; }
-        h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: .4rem; }
-        p  { color: #94a3b8; font-size: .9rem; line-height: 1.6; }
-
-        /* Checking state */
-        #state-checking h1 { color: #6366f1; }
-        .spinner {
-            border: 3px solid #2d3148; border-top: 3px solid #6366f1;
-            border-radius: 50%; width: 32px; height: 32px;
-            animation: spin 0.9s linear infinite;
-            margin: 1rem auto;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Blocked state */
-        #state-blocked { display: none; }
-        #state-blocked h1 { color: #f87171; }
-
-        /* Redirecting state */
-        #state-redirecting { display: none; }
-        #state-redirecting h1 { color: #34d399; }
-        .progress-bar-wrap {
-            background: #2d3148; border-radius: 99px;
-            height: 6px; margin-top: 1.2rem; overflow: hidden;
-        }
-        .progress-bar {
-            height: 100%; background: #34d399; border-radius: 99px;
-            width: 0%; transition: width 0.1s linear;
-        }
+        h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: .4rem; color: #f87171; }
+        p { color: #94a3b8; font-size: .9rem; line-height: 1.6; }
     </style>
 </head>
 <body>
-<div class="card">
-
-    <!-- State 1: checking -->
-    <div id="state-checking">
-        <div class="icon">🛰️</div>
-        <h1>Checking your connection…</h1>
-        <div class="spinner"></div>
-        <p>Detecting whether you are on the local network.</p>
-    </div>
-
-    <!-- State 2: blocked (not on LAN) -->
-    <div id="state-blocked">
+    <div class="card">
         <div class="icon">🔒</div>
         <h1>LAN Only</h1>
         <p>This server is restricted to local network access only.<br>
            You must be connected to the same Wi-Fi or network as the server.</p>
         {% if lan_ip %}
-        <p style="margin-top:1rem; font-size:.8rem; color:#64748b;">
-            Direct address: <code style="color:#94a3b8;">http://{{ lan_ip }}:{{ port }}</code>
+        <p style="margin-top:1.5rem; font-size:.9rem; color:#94a3b8;">
+            If you are on the same network, click below:
+        </p>
+        <a href="http://{{ lan_ip }}:{{ port }}"
+           style="display:inline-block; margin-top:.8rem; padding:.75rem 1.5rem;
+                  background:#6366f1; color:white; border-radius:8px;
+                  font-weight:600; text-decoration:none; font-size:1rem;">
+            Connect via LAN →
+        </a>
+        <p style="margin-top:1rem; font-size:.75rem; color:#64748b;">
+            If the button above doesn't load, you are not on the correct network.
         </p>
         {% endif %}
     </div>
-
-    <!-- State 3: found on LAN, redirecting -->
-    <div id="state-redirecting">
-        <div class="icon">✅</div>
-        <h1>LAN detected — redirecting…</h1>
-        <p>You are on the local network. Taking you there now.</p>
-        <div class="progress-bar-wrap">
-            <div class="progress-bar" id="progress-bar"></div>
-        </div>
-    </div>
-
-</div>
-
-{% if lan_ip %}
-<script>
-(function () {
-    const LAN_URL    = "http://{{ lan_ip }}:{{ port }}";
-    const DEST       = LAN_URL + window.location.pathname + window.location.search;
-    const PROBE_URL  = LAN_URL + "/static/pixel.png";
-    const TIMEOUT_MS = 3000;
-    const REDIRECT_MS = 1500;
-
-    const sChecking    = document.getElementById("state-checking");
-    const sBlocked     = document.getElementById("state-blocked");
-    const sRedirecting = document.getElementById("state-redirecting");
-    const progressBar  = document.getElementById("progress-bar");
-
-    function showBlocked() {
-        sChecking.style.display    = "none";
-        sBlocked.style.display     = "block";
-        sRedirecting.style.display = "none";
-    }
-
-    function showRedirecting() {
-        sChecking.style.display    = "none";
-        sBlocked.style.display     = "none";
-        sRedirecting.style.display = "block";
-
-        // Animate the progress bar over REDIRECT_MS, then redirect
-        let start = null;
-        function step(ts) {
-            if (!start) start = ts;
-            const pct = Math.min(100, ((ts - start) / REDIRECT_MS) * 100);
-            progressBar.style.width = pct + "%";
-            if (pct < 100) {
-                requestAnimationFrame(step);
-            } else {
-                window.location.replace(DEST);
-            }
-        }
-        requestAnimationFrame(step);
-    }
-
-    // Probe the LAN IP with a short timeout
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    fetch(PROBE_URL, { mode: "no-cors", signal: controller.signal })
-        .then(() => {
-            clearTimeout(timer);
-            // no-cors fetch succeeds (even opaque response) → server reachable
-            showRedirecting();
-        })
-        .catch(() => {
-            clearTimeout(timer);
-            // Fetch failed or timed out → not on LAN
-            showBlocked();
-        });
-})();
-</script>
-{% else %}
-<script>
-    // No LAN IP available — go straight to blocked state
-    document.getElementById("state-checking").style.display = "none";
-    document.getElementById("state-blocked").style.display  = "block";
-</script>
-{% endif %}
-
 </body>
 </html>
