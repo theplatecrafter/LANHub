@@ -106,11 +106,12 @@ def access_page():
     if is_access_granted():
         return redirect(request.args.get("next") or url_for("index"))
 
+    mode = getattr(config, "SITE_MODE", "lan_only").strip()
+
     error = None
     if request.method == "POST":
         entered  = request.form.get("password", "").strip()
         expected = getattr(config, "SITE_PASSWORD", "").strip()
-
         if entered and entered == expected:
             days  = int(getattr(config, "SITE_ACCESS_COOKIE_DAYS", 30))
             token = _make_token(entered)
@@ -125,7 +126,13 @@ def access_page():
             return resp
         error = "Incorrect password."
 
-    return render_template("access.html", error=error)
+    return render_template(
+        "access.html",
+        error   = error,
+        mode    = mode,
+        lan_ip  = current_app.config.get("LAN_IP", ""),
+        port    = current_app.config.get("LAN_PORT", 5000),
+    )
 
 
 @access_bp.route("/access/logout", methods=["POST"])
