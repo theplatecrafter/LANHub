@@ -12,6 +12,7 @@ import signal
 import datetime
 import re as _re
 import config as _config
+import threading
 
 app = Flask(__name__)
 app.secret_key = _config.SECRET_KEY
@@ -86,6 +87,10 @@ app.config["MAX_CONTENT_LENGTH"] = _config.DROPZONE_MAX_FILE_BYTES
 ###########################################
 # Other Handlers
 ###########################################
+
+@socketio.on("connect")
+def _track_connect():
+    pass
 
 @app.template_filter("timestamp_fmt")
 def timestamp_fmt(ts):
@@ -162,17 +167,83 @@ def about():
 # Graceful Shutdown Handler
 ##########################################
 def graceful_shutdown(signum, frame):
-    app_log.info(f"Received signal {signum}. Cleaning up...")
-    
-    if sch.scheduler.running:
-        sch.scheduler.shutdown(wait=True)
-        app_log.info("Scheduler shut down.")
+    app_log.info(f"[shutdown] Signal {signum} received — starting graceful shutdown...")
 
-    app_log.info("Server shutting down gracefully.")
-    
-    
+    # ── 1. Warn all connected clients ─────────────────────────────────────────
+    try:
+        socketio.emit("server_shutdown", {
+            "message": "The server is shutting down. See you soon!"
+        })
+        app_log.info("[shutdown] Shutdown notice sent to all connected clients.")
+    except Exception as e:
+        app_log.warning(f"[shutdown] Could not notify clients: {e}")
 
-    app_log.info("Cleanup complete. Exiting.")
+    # ── 2. Stop the scheduler (no new jobs) ───────────────────────────────────
+    try:
+        if sch.scheduler.running:
+            sch.scheduler.shutdown(wait=False)
+            app_log.info("[shutdown] Scheduler stopped.")
+    except Exception as e:
+        app_log.warning(f"[shutdown] Scheduler shutdown error: {e}")
+
+    # ── 3. Push offline page to GitHub redirector ─────────────────────────────
+    try:
+        app_log.info("[shutdown] Pushing offline page to GitHub redirector...")
+        ok = sch.push_offline_page()
+        if not ok:
+            app_log.warning("[shutdown] Offline page push failed — friends may see a stale redirect.")
+    except Exception as e:
+        app_log.warning(f"[shutdown] Redirector offline push error: {e}")
+
+    # ── 4. Kill cloudflared tunnel process ────────────────────────────────────
+    CF_PID_FILE = "/tmp/lanhub_cf.pid"
+    try:
+        if os.path.exists(CF_PID_FILE):
+            with open(CF_PID_FILE) as f:
+                cf_pid = int(f.read().strip())
+            os.kill(cf_pid, signal.SIGTERM)
+            os.remove(CF_PID_FILE)
+            app_log.info(f"[shutdown] cloudflared (pid={cf_pid}) terminated.")
+    except ProcessLookupError:
+        app_log.info("[shutdown] cloudflared process already gone.")
+    except Exception as e:
+        app_log.warning(f"[shutdown] Could not stop cloudflared: {e}")
+
+    # ── 5. Close active game/chess/uno sessions ───────────────────────────────
+    try:
+        from socket_events.chess_events import active_games
+        for gid, game in list(active_games.items()):
+            if game.get("status") == "active":
+                game["status"] = "ended"
+                game["result"] = "1/2-1/2"
+                game["result_reason"] = "Server shutdown"
+        app_log.info(f"[shutdown] Closed {len(active_games)} active chess game(s).")
+    except Exception as e:
+        app_log.warning(f"[shutdown] Chess cleanup error: {e}")
+
+    try:
+        from socket_events.uno_events import rooms
+        for rid, room in list(rooms.items()):
+            if room.get("status") == "playing":
+                room["status"] = "ended"
+        app_log.info(f"[shutdown] Closed {len(rooms)} active UNO room(s).")
+    except Exception as e:
+        app_log.warning(f"[shutdown] UNO cleanup error: {e}")
+
+    # ── 6. Flush all log handlers ─────────────────────────────────────────────
+    try:
+        for logger in [app_log, access_log, git_log, error_log]:
+            for handler in logger.handlers:
+                handler.flush()
+        app_log.info("[shutdown] Log handlers flushed.")
+    except Exception as e:
+        pass  # best effort
+
+    # ── 7. Brief pause to let socket messages and log writes finish ───────────
+    import time
+    time.sleep(1.5)
+
+    app_log.info("[shutdown] Shutdown complete. Goodbye.")
     sys.exit(0)
 
 

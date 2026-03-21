@@ -9,6 +9,7 @@ import functions as f
 from glob_vars import app_log, error_log, access_log, BASE_DIR
 import sys
 import config
+import threading
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -517,6 +518,7 @@ def access():
 @require_role("DEV")
 def access_settings_save():
     import config as _config
+    import scheduler as sch
 
     mode       = request.form.get("mode",       "lan_only").strip()
     password   = request.form.get("password",   "").strip()
@@ -543,4 +545,23 @@ def access_settings_save():
         f"mode={mode!r} password={'(set)' if password else '(none)'} "
         f"tunnel={tunnel_url!r}"
     )
-    return jsonify({"ok": True})
+    # ── Immediately push updated URL to GitHub redirector ─────────────────────
+    redirector_msg  = None
+    redirector_ok   = True
+    try:
+        # Run in a background thread so the HTTP response returns immediately
+        # — the push can take a few seconds
+        def _push():
+            sch.sch_redirector_update()
+        threading.Thread(target=_push, daemon=True).start()
+        redirector_msg = "Redirector update triggered — GitHub Pages will update in ~30 seconds."
+    except Exception as e:
+        redirector_ok  = False
+        redirector_msg = f"Settings saved but redirector update failed: {e}"
+        error_log.error(f"[admin] Redirector push on access save failed: {e}")
+
+    return jsonify({
+        "ok":             True,
+        "redirector_ok":  redirector_ok,
+        "redirector_msg": redirector_msg,
+    })

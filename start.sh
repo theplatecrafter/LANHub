@@ -22,6 +22,8 @@ for i in $(seq 1 30); do
     fi
 done
 
+echo "$CF_PID" > /tmp/lanhub_cf.pid
+
 if [ -n "$TUNNEL_URL" ]; then
     echo "✅ Tunnel URL: $TUNNEL_URL"
     # Patch configvars.json with the new tunnel URL

@@ -97,14 +97,19 @@
 <script>
 document.getElementById("accessForm").addEventListener("submit", async e => {
     e.preventDefault();
-    const form = e.target;
-    const body = new FormData(form);
+    const body = new FormData(e.target);
     const r    = await fetch("/admin/access/save", { method: "POST", body });
     const data = await r.json();
     const msg  = document.getElementById("saveMsg");
     msg.style.display = "block";
-    msg.className = data.ok ? "alert alert-success" : "alert alert-danger";
-    msg.textContent = data.ok ? "✓ Settings saved." : (data.error || "Error saving.");
+    if (data.ok) {
+        msg.className   = "alert alert-success";
+        msg.textContent = "✓ Settings saved."
+            + (data.redirector_msg ? " " + data.redirector_msg : "");
+    } else {
+        msg.className   = "alert alert-danger";
+        msg.textContent = data.error || "Error saving.";
+    }
 });
 </script>
 {% endblock %}
