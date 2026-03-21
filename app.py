@@ -16,6 +16,10 @@ import threading
 
 app = Flask(__name__)
 app.secret_key = _config.SECRET_KEY
+import functions as _fns
+_startup_stats = _fns.get_network_stats()
+app.config["LAN_IP"]   = _startup_stats.get("ip_address", "")
+app.config["LAN_PORT"] = int(_config.PORT)
 
 # Blueprints
 from blueprints.chat import chat_bp
@@ -75,6 +79,8 @@ app.register_blueprint(slither_bp)
 app.register_blueprint(scribble_bp)
 app.register_blueprint(geoguesser_bp)
 app.register_blueprint(access_bp)
+
+
 
 
 ###########################################

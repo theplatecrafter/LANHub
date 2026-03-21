@@ -11,6 +11,8 @@ Three modes (set via SITE_MODE in configvars.json or admin panel):
 import hmac
 import hashlib
 import ipaddress
+from flask import current_app
+
 
 from flask import (
     Blueprint, render_template, request,
@@ -61,7 +63,6 @@ def check_site_access():
     before_request hook.
     Returns None to allow the request, or a Response to block/redirect it.
     """
-    # Always allow static files, the access page itself, admin, and socket.io
     skip = ("/static", "/access", "/admin", "/socket.io")
     if any(request.path.startswith(p) for p in skip):
         return None
@@ -72,28 +73,30 @@ def check_site_access():
 
     if mode == "lan_only":
         if not lan:
-            return render_template("access_blocked.html"), 403
+            return render_template(
+                "access_blocked.html",
+                lan_ip = current_app.config.get("LAN_IP", ""),
+                port   = current_app.config.get("LAN_PORT", 5000),
+            ), 403
         return None
 
     elif mode == "public_password":
         if not password:
-            return None  # no password configured → open
+            return None
         if not is_access_granted():
-            return redirect(url_for("access.access_page",
-                                    next=request.path))
+            return redirect(url_for("access.access_page", next=request.path))
         return None
 
     elif mode == "both_password":
         if lan:
-            return None  # LAN users always free
+            return None
         if not password:
             return None
         if not is_access_granted():
-            return redirect(url_for("access.access_page",
-                                    next=request.path))
+            return redirect(url_for("access.access_page", next=request.path))
         return None
 
-    return None   # unknown mode → allow
+    return None
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
