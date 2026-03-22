@@ -80,6 +80,8 @@ The installer will generate an SSH key and display it. You will need to paste it
 
 SSH is required so the server can push redirector updates to GitHub without storing credentials.
 
+If you want to focus on developing, then this is optional as the installer will skip this once you've selected to install LANHub as a developer.
+
 ---
 
 ### Step 2 — Run the installer
