@@ -595,6 +595,7 @@ def _find_pano_region(polygons: list, region_key: str,
         cur_known     = entry_now.get("cells",           set())
         cur_dead      = entry_now.get("dead_cells",      set())
         cur_exhausted = entry_now.get("exhausted_cells", set())
+        API_MAX_RADIUS_KM = 50.0
 
         for cell in live_cells:
             lat_min, lat_max, lng_min, lng_max = cell
@@ -606,12 +607,22 @@ def _find_pano_region(polygons: list, region_key: str,
             if cell in cur_dead:
                 continue
 
-            c_lat, c_lng = _cell_center(*cell)
-            diag     = _cell_diagonal_km(*cell)
-            radius_m = _cell_search_radius_m(diag)
+            diag = _cell_diagonal_km(*cell)
+
+            # Cell is larger than what the API can meaningfully probe —
+            # assume coverage and let subdivision find the real distribution.
+            if diag > API_MAX_RADIUS_KM * 2:
+                newly_covered.append(cell)
+                continue
+
+            # Probe a random interior point rather than the cell center,
+            # so we don't accidentally land in the ocean or a dead zone.
+            probe_lat = random.uniform(lat_min, lat_max)
+            probe_lng = random.uniform(lng_min, lng_max)
+            radius_m  = _cell_search_radius_m(diag)
 
             _check_timeout()
-            result = _sv_metadata_check(c_lat, c_lng, radius_m, api_key)
+            result = _sv_metadata_check(probe_lat, probe_lng, radius_m, api_key)
             if not result:
                 _cache_add_dead(region_key, cell)
                 continue
@@ -620,6 +631,7 @@ def _find_pano_region(polygons: list, region_key: str,
             if _point_in_any_polygon(pano_lat, pano_lng, polygons):
                 newly_covered.append(cell)
                 _cache_add(region_key, cell)
+
 
         app_log.info(
             f"[geo] Depth {depth}: {len(newly_covered)}/{len(live_cells)} cells covered"
