@@ -1,0 +1,836 @@
+{% extends "base.html" %}
+{% block title %}LANHub — チャット{% endblock %}
+
+{% block head %}
+<style>
+
+  .action-btn.report:hover { color: var(--yellow, #f59e0b); border-color: var(--yellow, #f59e0b); }
+  /* jump-to-bottom button */
+  #chat-shell { position: relative; }
+
+  #jump-bottom {
+    position: absolute;
+    right: 20px;
+    bottom: 96px;
+    z-index: 60;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    color: var(--text-dim);
+    display: none;
+    align-items: center; justify-content: center;
+    font-size: 1.05rem; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    transition: transform 0.15s ease, color 0.15s ease;
+  }
+  #jump-bottom:hover { transform: translateY(-2px); color: var(--text-bright); }
+  #jump-bottom.visible { display: flex; }
+
+  .page-wrap {
+    padding: 0 !important;
+    height: calc(100vh - 56px - 33px);
+    display: flex; flex-direction: column; min-width: 0;
+  }
+  .container {
+    max-width: 100% !important; width: 100%; padding: 0 !important;
+    flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0;
+  }
+
+  #chat-shell {
+    display: flex; flex-direction: column;
+    flex: 1; min-height: 0; min-width: 0; background: var(--bg);
+  }
+  #disconnected-banner {
+    display: none; text-align: center; padding: 7px;
+    background: var(--red-dim); color: var(--red);
+    font-family: var(--font-mono); font-size: 0.75rem;
+    border-bottom: 1px solid var(--red); flex-shrink: 0;
+  }
+
+  /* Header */
+  #chat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 24px; background: var(--bg-panel);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .room-name {
+    font-family: var(--font-ui); font-weight: 700; font-size: 0.95rem;
+    color: var(--text-bright); display: flex; align-items: center; gap: 8px;
+  }
+  .room-name::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 6px var(--green);
+  }
+  #online-count {
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim);
+    display: flex; align-items: center; gap: 6px;
+  }
+  #online-count::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--cyan); box-shadow: 0 0 5px var(--cyan); display: none;
+  }
+  #online-count.has-users::before { display: inline-block; }
+
+  /* Load-older */
+  #history-start {
+    display: none; text-align: center; padding: 10px 0 4px;
+    font-family: var(--font-mono); font-size: 0.65rem;
+    color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; flex-shrink: 0;
+  }
+  #history-start.visible { display: block; }
+  #load-older-indicator {
+    display: none; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px; flex-shrink: 0;
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim);
+  }
+  #load-older-indicator.visible { display: flex; }
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--border); border-top-color: var(--cyan);
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Messages */
+  #messages {
+    flex: 1; overflow-y: auto; padding: 20px 24px;
+    display: flex; flex-direction: column; gap: 4px;
+    min-height: 0; min-width: 0;
+    scroll-behavior: auto;
+  }
+
+  .msg-system {
+    text-align: center; font-family: var(--font-mono); font-size: 0.68rem;
+    color: var(--text-dim); padding: 2px 0; font-style: italic; user-select: none;
+  }
+
+  /* Rows */
+  .msg-row {
+    display: flex; flex-direction: column;
+    max-width: min(720px, 70%); width: fit-content;
+    gap: 2px; position: relative;
+  }
+  .msg-row.self  { align-self: flex-end;   align-items: flex-end; }
+  .msg-row.other { align-self: flex-start; align-items: flex-start; }
+  .msg-row.group-start { margin-top: 12px; }
+  .msg-row.consecutive { margin-top: 2px; }
+
+  .sender-name {
+    font-family: var(--font-mono); font-size: 0.65rem;
+    color: var(--text-dim); padding: 0 12px; margin-bottom: 2px; width: 100%;
+  }
+  .msg-row.self .sender-name { color: var(--cyan); text-align: right; }
+  .msg-row.consecutive .sender-name { display: none; }
+
+  .bubble-wrap {
+    position: relative; display: flex; align-items: flex-end; gap: 6px; width: 100%;
+  }
+  .msg-row.self  .bubble-wrap { flex-direction: row; justify-content: flex-end; }
+  .msg-row.other .bubble-wrap { flex-direction: row;         justify-content: flex-start; }
+
+  .msg-actions {
+    display: flex; align-items: center; gap: 2px;
+    opacity: 0; transition: opacity 0.12s ease;
+    flex-shrink: 0; align-self: flex-end;
+  }
+  .bubble-wrap:hover .msg-actions,
+  .bubble-wrap:hover .bubble-time { opacity: 1; }
+
+  .action-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--bg-panel);
+    color: var(--text-dim); font-size: 0.8rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s ease; flex-shrink: 0; line-height: 1;
+  }
+  .action-btn:hover { background: var(--bg-hover); color: var(--text-bright); border-color: var(--border-hi); }
+  .action-btn.delete:hover { color: var(--red); border-color: var(--red); background: var(--red-dim); }
+
+  .bubble {
+    display: inline-block; padding: 9px 14px; border-radius: 18px;
+    font-family: var(--font-ui); font-size: 0.9rem; line-height: 1.5;
+    word-break: break-word; max-width: 100%; width: fit-content; position: relative;
+  }
+  .msg-row.self .bubble {
+    background: var(--cyan); color: var(--bg); border-bottom-right-radius: 4px;
+  }
+  .msg-row.other .bubble {
+    background: var(--bg-card); color: var(--text-bright);
+    border: 1px solid var(--border); border-bottom-left-radius: 4px;
+  }
+  .msg-row.self.consecutive  .bubble { border-top-right-radius: 4px;  border-bottom-right-radius: 18px; }
+  .msg-row.other.consecutive .bubble { border-top-left-radius:  4px;  border-bottom-left-radius:  18px; }
+  .bubble.deleted {
+    background: transparent !important; border: 1px dashed var(--border) !important;
+    color: var(--text-dim) !important; font-style: italic; font-size: 0.8rem;
+  }
+
+  .bubble-body { white-space: pre-wrap; }
+
+  .reply-quote {
+    display: block; margin-bottom: 8px; padding: 6px 10px; border-radius: 10px;
+    border-left: 3px solid rgba(0,0,0,0.25); background: rgba(0,0,0,0.12);
+    cursor: pointer; transition: background 0.1s ease;
+  }
+  .msg-row.other .reply-quote { border-left-color: var(--cyan); background: var(--cyan-dim); }
+  .reply-quote:hover { background: rgba(0,0,0,0.22); }
+  .reply-quote-author { display: block; font-size: 0.7rem; font-weight: 700; margin-bottom: 2px; opacity: 0.85; }
+  .reply-quote-text {
+    display: block; font-size: 0.78rem; opacity: 0.75;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;
+  }
+  .edited-label { font-size: 0.62rem; opacity: 0.55; margin-left: 6px; font-style: italic; font-family: var(--font-mono); }
+
+  .bubble-time {
+    font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-dim);
+    white-space: nowrap; opacity: 0; transition: opacity 0.15s ease;
+    padding-bottom: 2px; flex-shrink: 0; align-self: flex-end;
+  }
+  .bubble.highlight { animation: msg-highlight 1.2s ease; }
+  @keyframes msg-highlight { 0%,100% { filter: brightness(1); } 30% { filter: brightness(1.5); } }
+
+  /* Reply / edit bars */
+  #reply-bar { display: none; align-items: center; gap: 10px; padding: 8px 20px 0; flex-shrink: 0; }
+  #reply-bar.active { display: flex; }
+  .reply-bar-inner {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 7px 12px; border-left: 3px solid var(--cyan);
+  }
+  .reply-bar-info { flex: 1; overflow: hidden; }
+  .reply-bar-author { font-family: var(--font-mono); font-size: 0.68rem; color: var(--cyan); margin-bottom: 2px; }
+  .reply-bar-text   { font-family: var(--font-ui); font-size: 0.8rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .reply-cancel, .edit-cancel {
+    background: none; border: none; color: var(--text-dim); cursor: pointer;
+    font-size: 1rem; padding: 0 4px; transition: color 0.1s ease; flex-shrink: 0;
+  }
+  .reply-cancel:hover, .edit-cancel:hover { color: var(--red); }
+
+  #edit-bar { display: none; align-items: center; gap: 10px; padding: 8px 20px 0; flex-shrink: 0; }
+  #edit-bar.active { display: flex; }
+  .edit-bar-inner {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    background: var(--bg-card); border: 1px solid var(--amber);
+    border-radius: 10px; padding: 7px 12px; border-left: 3px solid var(--amber);
+  }
+  .edit-bar-label { font-family: var(--font-mono); font-size: 0.72rem; color: var(--amber); flex: 1; }
+
+  /* Error toast */
+  #error-toast {
+    display: none; margin: 0 20px 8px; padding: 8px 14px; border-radius: 8px;
+    font-family: var(--font-mono); font-size: 0.78rem;
+    background: var(--red-dim); color: var(--red); border: 1px solid var(--red); flex-shrink: 0;
+  }
+
+  /* Input area */
+  #input-area {
+    display: flex; align-items: flex-end; gap: 10px;
+    padding: 12px 20px 14px; background: var(--bg-panel);
+    border-top: 1px solid var(--border); flex-shrink: 0; min-width: 0;
+  }
+  #msg-input {
+    flex: 1; min-width: 0; resize: none; border-radius: 22px !important;
+    padding: 10px 16px !important; font-family: var(--font-ui) !important;
+    font-size: 0.9rem; line-height: 1.5; min-height: 42px; max-height: 160px;
+    overflow-y: auto; background: var(--bg-card) !important;
+    border: 1px solid var(--border-hi) !important; color: var(--text-bright) !important;
+    outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  #msg-input:focus { border-color: var(--cyan) !important; box-shadow: 0 0 0 3px var(--cyan-dim) !important; }
+  #send-btn {
+    width: 42px; height: 42px; border-radius: 50%; border: none;
+    background: var(--cyan); color: var(--bg); font-size: 1.1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s ease; line-height: 1;
+  }
+  #send-btn:hover  { opacity: 0.85; transform: scale(1.08); }
+  #send-btn:active { transform: scale(0.95); }
+  #send-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+  #char-counter {
+    font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim);
+    white-space: nowrap; align-self: center; min-width: 52px; text-align: right;
+  }
+  #char-counter.warn { color: var(--amber); }
+  #char-counter.over { color: var(--red); }
+
+  /* Modal */
+  #modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; z-index: 200;
+  }
+  #modal {
+    background: var(--bg-panel); border: 1px solid var(--border-hi);
+    border-radius: var(--radius-lg); padding: 2rem;
+    width: 360px; max-width: 90vw; box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    animation: modal-in 0.2s ease;
+  }
+  @keyframes modal-in {
+    from { opacity:0; transform:translateY(12px) scale(0.97); }
+    to   { opacity:1; transform:translateY(0) scale(1); }
+  }
+  #modal h2 { font-size: 1.1rem; margin-bottom: 6px; }
+  #modal p  { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 18px; }
+  #modal-input { margin-bottom: 10px !important; border-radius: var(--radius) !important; }
+  #modal-error { color: var(--red); font-family: var(--font-mono); font-size: 0.78rem; min-height: 1.2em; margin-bottom: 14px; }
+  #modal-btn {
+    width: 100%; padding: 10px; border-radius: var(--radius); border: none;
+    background: var(--cyan); color: var(--bg); font-family: var(--font-mono);
+    font-size: 0.82rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; cursor: pointer; transition: opacity 0.15s ease;
+  }
+  #modal-btn:hover:not(:disabled) { opacity: 0.85; }
+  #modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="modal-bg">
+  <div id="modal">
+    <h2>💬 チャットに参加</h2>
+    <p>セッションで使用するユーザー名を選択してください。ブラウザを閉じると消えます。</p>
+    <input id="modal-input" type="text" maxlength="24" placeholder="ユーザー名…" />
+    <div id="modal-error"></div>
+    <button id="modal-btn" type="button">参加 →</button>
+  </div>
+</div>
+
+<!-- Report modal -->
+<div id="rep-modal-bg" class="modal-bg" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+  <div class="modal-box" style="min-width:300px; max-width:420px; width:90%;">
+    <h3>🚩 メッセージを通報</h3>
+    <p id="rep-msg-preview" style="font-size:0.82rem; color:var(--text-dim); border-left:2px solid var(--border-hi); padding-left:8px; margin:10px 0; word-break:break-word;"></p>
+    <textarea id="rep-reason" placeholder="理由（任意）…"
+      style="width:100%; resize:vertical; min-height:64px; background:var(--bg); border:1px solid var(--border-hi); border-radius:var(--radius); color:var(--text-bright); font-family:var(--font-mono); font-size:0.8rem; padding:8px; outline:none; box-sizing:border-box;"></textarea>
+    <p id="rep-error" style="color:var(--red); font-size:0.78rem; margin-top:6px; min-height:16px;"></p>
+    <div style="display:flex; gap:8px; margin-top:12px; justify-content:flex-end;">
+      <button class="modal-btn" onclick="closeRepModal()">キャンセル</button>
+      <button class="modal-btn primary" onclick="submitChatReport()">送信</button>
+    </div>
+  </div>
+</div>
+
+<div id="chat-shell">
+  <div id="disconnected-banner">⚠ 接続が切断されました — メッセージが送信されていない可能性があります</div>
+
+  <div id="chat-header">
+    <div class="room-name">LAN チャット</div>
+    <div id="online-count"></div>
+  </div>
+
+  <div id="history-start">— チャット履歴の最初 —</div>
+  <div id="load-older-indicator"><div class="spinner"></div> 古いメッセージを読み込み中…</div>
+
+  <div id="messages"></div>
+
+  <div id="error-toast"></div>
+
+  <div id="reply-bar">
+    <div class="reply-bar-inner">
+      <div class="reply-bar-info">
+        <div class="reply-bar-author" id="reply-bar-author"></div>
+        <div class="reply-bar-text"   id="reply-bar-text"></div>
+      </div>
+      <button class="reply-cancel" type="button" title="返信をキャンセル">✕</button>
+    </div>
+  </div>
+
+  <div id="edit-bar">
+    <div class="edit-bar-inner">
+      <div class="edit-bar-label">✏ メッセージを編集中</div>
+      <button class="edit-cancel" type="button" title="編集をキャンセル">✕</button>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <textarea id="msg-input" rows="1" maxlength="{{ MAX_CHARS }}"
+              placeholder="メッセージ… (Shift+Enter で改行)" disabled></textarea>
+    <span id="char-counter">0 / {{ MAX_CHARS }}</span>
+    <button id="send-btn" type="button" disabled>➤</button>
+  </div>
+
+  <button id="jump-bottom" type="button" title="最新メッセージへ移動" aria-label="最新メッセージへ移動">⤓</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{# Socket.IO loaded by base.html — do NOT load again #}
+<script src="{{ url_for('static', filename='js/commands.js') }}"></script>
+<script>
+  const MAX_CHARS  = {{ MAX_CHARS }};
+  const socket     = _socket;
+
+  let myUsername   = null;
+  let cmdBar = null;
+  let lastSender   = null;
+  let myMsgIds     = new Set();
+
+  let replyState   = null;
+  let editState    = null;
+
+  let oldestLoadedId = null;
+  let isLoadingOlder = false;
+  let noMoreHistory  = false;
+
+  const msgInput   = document.getElementById("msg-input");
+  const messagesEl = document.getElementById("messages");
+  const jumpBtn    = document.getElementById("jump-bottom");
+
+  // ── Report modal ──────────────────────────────────────────
+  let repPendingId = null, repPendingUsername = null, repPendingMsg = null;
+
+  function openRepModal(id, username, message) {
+    repPendingId = id; repPendingUsername = username; repPendingMsg = message;
+    const preview = message.length > 100 ? message.substring(0, 100) + "…" : message;
+    document.getElementById("rep-msg-preview").textContent = `"${preview}"`;
+    document.getElementById("rep-reason").value = "";
+    document.getElementById("rep-error").textContent = "";
+    const bg = document.getElementById("rep-modal-bg");
+    bg.style.display = "flex";
+    setTimeout(() => document.getElementById("rep-reason").focus(), 100);
+  }
+
+  function closeRepModal() {
+    document.getElementById("rep-modal-bg").style.display = "none";
+    repPendingId = repPendingUsername = repPendingMsg = null;
+  }
+
+  function submitChatReport() {
+    const reason = document.getElementById("rep-reason").value.trim();
+    socket.emit("report_message", {
+      id: repPendingId, username: repPendingUsername,
+      message: repPendingMsg, reason
+    });
+    closeRepModal();
+    showError("✓ 通報を送信しました。");
+  }
+
+  document.getElementById("rep-reason").addEventListener("keydown", e => {
+    if (e.key === "Escape") closeRepModal();
+  });
+
+  // ── Jump-to-bottom button ─────────────────────────────────
+  const NEAR_BOTTOM_PX = 120;
+
+  function isNearBottom() {
+    return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < NEAR_BOTTOM_PX;
+  }
+
+  function showOrHideJump() {
+    jumpBtn.classList.toggle("visible", !isNearBottom());
+  }
+
+  jumpBtn.addEventListener("click", () => {
+    messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: "smooth" });
+    jumpBtn.classList.remove("visible");
+  });
+
+  // ── Textarea auto-resize ──────────────────────────────────
+  msgInput.addEventListener("input", () => {
+    msgInput.style.height = "auto";
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 160) + "px";
+    updateCharCounter(msgInput.value.length);
+  });
+
+  msgInput.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Escape") { cancelReply(); cancelEdit(); }
+  });
+
+  function updateCharCounter(len) {
+    const el = document.getElementById("char-counter");
+    el.textContent = len + " / " + MAX_CHARS;
+    el.className = len >= MAX_CHARS ? "over" : len > MAX_CHARS * 0.9 ? "warn" : "";
+  }
+
+  // ── Scroll listener ───────────────────────────────────────
+  messagesEl.addEventListener("scroll", () => {
+    showOrHideJump();
+    if (messagesEl.scrollTop < 80 && !isLoadingOlder && !noMoreHistory && oldestLoadedId !== null)
+      loadOlderMessages();
+  });
+
+  function loadOlderMessages() {
+    isLoadingOlder = true;
+    document.getElementById("load-older-indicator").classList.add("visible");
+    socket.emit("load_older", { before_id: oldestLoadedId });
+  }
+
+  socket.on("older_messages", data => {
+    isLoadingOlder = false;
+    document.getElementById("load-older-indicator").classList.remove("visible");
+    if (!data.messages.length) {
+      noMoreHistory = true;
+      document.getElementById("history-start").classList.add("visible");
+      return;
+    }
+    const prevScrollHeight = messagesEl.scrollHeight;
+    prependMessages(data.messages);
+    messagesEl.scrollTop = messagesEl.scrollHeight - prevScrollHeight;
+    if (!data.has_more) {
+      noMoreHistory = true;
+      document.getElementById("history-start").classList.add("visible");
+    }
+  });
+
+  // ── Online count ──────────────────────────────────────────
+  function setOnlineCount(n) {
+    const el = document.getElementById("online-count");
+    if (n > 0) {
+      el.textContent = n + " 人在席中";
+      el.classList.add("has-users");
+    } else {
+      el.textContent = "";
+      el.classList.remove("has-users");
+    }
+  }
+
+  // ── Username modal ────────────────────────────────────────
+  document.getElementById("modal-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") submitUsername();
+  });
+  document.getElementById("modal-btn").addEventListener("click", submitUsername);
+
+  function submitUsername() {
+    const username = document.getElementById("modal-input").value.trim();
+    if (!username) {
+      document.getElementById("modal-error").textContent = "ユーザー名を入力してください。";
+      return;
+    }
+    document.getElementById("modal-btn").disabled = true;
+    document.getElementById("modal-error").textContent = "";
+    socket.emit("join_chat", { username });
+  }
+
+  socket.on("join_ack", data => {
+    document.getElementById("modal-btn").disabled = false;
+    if (data.success) {
+      myUsername = data.username;
+      document.getElementById("modal-bg").style.display = "none";
+      msgInput.disabled = false;
+      cmdBar = initCommandBar(msgInput, document.getElementById("input-area"), {
+      send: (text, msgType) => {
+        socket.emit("send_message", {
+          message:     text,
+          msg_type:    msgType,
+          reply_to_id: replyState ? replyState.id : null,
+        });
+        cancelReply();
+      },
+      showError,
+      showInfo:      (msg) => showError(msg),
+      clearMessages: () => { messagesEl.innerHTML = ""; lastSender = null; },
+      getOnlineText: () => document.getElementById("online-count")?.textContent || "?",
+      getSocket:     () => socket,
+      openReport:    (args) => {
+        const parts = args.trim().split(/\s+/);
+        const uname = parts[0] || "";
+        if (!uname) { showError("使用方法: /report <ユーザー名> [理由]"); return; }
+        openRepModal(null, uname, "");
+        const reason = parts.slice(1).join(" ");
+        if (reason) document.getElementById("rep-reason").value = reason;
+      },
+    });
+      document.getElementById("send-btn").disabled = false;
+      msgInput.focus();
+      setOnlineCount(data.online_count);
+    } else {
+      document.getElementById("modal-error").textContent = data.error;
+      document.getElementById("modal-input").select();
+    }
+  });
+
+  // ── Send / edit dispatch ──────────────────────────────────
+  document.getElementById("send-btn").addEventListener("click", handleSend);
+
+  function handleSend() {
+    const text = msgInput.value.trim();
+    if (!text || text.length > MAX_CHARS) return;
+
+    if (editState) {
+      socket.emit("edit_message", { id: editState.id, new_text: text });
+      cancelEdit();
+      msgInput.value = ""; msgInput.style.height = "auto"; updateCharCounter(0);
+      return;
+    }
+
+    // Command intercept
+    if (cmdBar && cmdBar.tryDispatch(text)) {
+      msgInput.value = ""; msgInput.style.height = "auto"; updateCharCounter(0);
+      return;
+    }
+
+    socket.emit("send_message", {
+      message:     text,
+      msg_type:    "text",
+      reply_to_id: replyState ? replyState.id : null,
+    });
+    cancelReply();
+    msgInput.value = ""; msgInput.style.height = "auto"; updateCharCounter(0);
+  }
+
+  // ── Reply ─────────────────────────────────────────────────
+  document.querySelector(".reply-cancel").addEventListener("click", cancelReply);
+  function startReply(id, username, message) {
+    cancelEdit();
+    replyState = { id, username, message };
+    document.getElementById("reply-bar-author").textContent = username;
+    document.getElementById("reply-bar-text").textContent   = message;
+    document.getElementById("reply-bar").classList.add("active");
+    msgInput.focus();
+  }
+  function cancelReply() {
+    replyState = null;
+    document.getElementById("reply-bar").classList.remove("active");
+  }
+
+  // ── Edit ──────────────────────────────────────────────────
+  document.querySelector(".edit-cancel").addEventListener("click", cancelEdit);
+  function startEdit(id, currentText) {
+    cancelReply();
+    editState = { id };
+    msgInput.value = currentText;
+    msgInput.style.height = "auto";
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 160) + "px";
+    updateCharCounter(currentText.length);
+    document.getElementById("edit-bar").classList.add("active");
+    msgInput.focus();
+    msgInput.selectionStart = msgInput.selectionEnd = currentText.length;
+  }
+  function cancelEdit() {
+    editState = null;
+    document.getElementById("edit-bar").classList.remove("active");
+  }
+
+  // ── Socket events ─────────────────────────────────────────
+  socket.on("chat_history", data => {
+    data.messages.forEach(m => {
+      if (m.username === myUsername) myMsgIds.add(m.id);
+      appendBubble(m, false);
+      trackOldest(m.id);
+    });
+    setTimeout(() => { messagesEl.scrollTop = messagesEl.scrollHeight; }, 0);
+
+    // Double rAF: first tick commits paint, second fires after full layout
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      });
+    });
+  });
+
+
+  socket.on("new_message", data => {
+    if (data.username === myUsername) myMsgIds.add(data.id);
+    const wasNear = isNearBottom();
+    appendBubble(data, true);
+    trackOldest(data.id);
+    if (wasNear) {
+      setTimeout(() => { messagesEl.scrollTop = messagesEl.scrollHeight; }, 0);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        });
+      });
+    } else {
+      showOrHideJump();
+    }
+  });
+
+
+  socket.on("message_edited", data => {
+    const row = document.querySelector(`[data-msg-id="${data.id}"]`);
+    if (!row) return;
+    const bubble = row.querySelector(".bubble");
+    if (!bubble || bubble.classList.contains("deleted")) return;
+    bubble.querySelector(".bubble-body").textContent = data.new_text;
+    let lbl = bubble.querySelector(".edited-label");
+    if (!lbl) {
+      lbl = document.createElement("span");
+      lbl.className = "edited-label"; lbl.textContent = "(編集済み)";
+      bubble.querySelector(".bubble-body").after(lbl);
+    }
+  });
+
+  socket.on("message_deleted", data => {
+    const row = document.querySelector(`[data-msg-id="${data.id}"]`);
+    if (!row) return;
+    const bubble = row.querySelector(".bubble");
+    bubble.classList.add("deleted");
+    bubble.innerHTML = "🗑 削除されたメッセージ";
+    row.querySelector(".msg-actions")?.remove();
+  });
+
+  socket.on("user_joined", data => {
+    appendSystem("⟶ " + data.username + " が参加しました");
+    setOnlineCount(data.online_count);
+    lastSender = null;
+  });
+  socket.on("user_left", data => {
+    appendSystem("⟵ " + data.username + " が退出しました");
+    setOnlineCount(data.online_count);
+    lastSender = null;
+  });
+  socket.on("error",      data => showError(data.message));
+  socket.on("disconnect", ()   => { document.getElementById("disconnected-banner").style.display = "block"; });
+  socket.on("connect",    ()   => { document.getElementById("disconnected-banner").style.display = "none"; });
+
+  // ── Prepend older messages ────────────────────────────────
+  function prependMessages(messages) {
+    if (!messages.length) return;
+    const fragment = document.createDocumentFragment();
+    messages.forEach(m => {
+      fragment.appendChild(makeBubbleEl(m));
+      if (m.id < (oldestLoadedId || Infinity)) oldestLoadedId = m.id;
+    });
+    messagesEl.insertBefore(fragment, messagesEl.firstChild);
+  }
+
+  // ── Build bubble element ──────────────────────────────────
+  function makeBubbleEl(msg) {
+    const isSelf = (msg.username === myUsername);
+    const row    = document.createElement("div");
+    row.className     = "msg-row " + (isSelf ? "self" : "other") + " group-start";
+    row.dataset.msgId = msg.id;
+    row.dataset.ts    = msg.timestamp;
+
+    const name = document.createElement("div");
+    name.className = "sender-name"; name.textContent = msg.username;
+    row.appendChild(name);
+
+    const wrap = document.createElement("div");
+    wrap.className = "bubble-wrap";
+
+    // ── Build bubble FIRST so allowEdit is known ──────────
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+
+    if (msg.reply_to_id && msg.reply_username) {
+      const quote = document.createElement("div");
+      quote.className = "reply-quote";
+      quote.innerHTML =
+        `<span class="reply-quote-author">${escHtml(msg.reply_username)}</span>` +
+        `<span class="reply-quote-text">${escHtml(msg.reply_message || "")}</span>`;
+      quote.addEventListener("click", () => scrollToMsg(msg.reply_to_id));
+      bubble.appendChild(quote);
+    }
+
+    const allowEdit = renderMsgContent(bubble, msg);  // ← declare here
+
+    if (msg.edited) {
+      const lbl = document.createElement("span");
+      lbl.className = "edited-label"; lbl.textContent = "(編集済み)";
+      bubble.appendChild(lbl);
+    }
+
+    // ── Now build actions (allowEdit is available) ────────
+    const actions = document.createElement("div");
+    actions.className = "msg-actions";
+    actions.appendChild(makeActionBtn("↩", "返信", () => startReply(msg.id, msg.username, msg.message)));
+    if (!isSelf) {
+      const rep = makeActionBtn("🚩", "通報", () => openRepModal(msg.id, msg.username, msg.message));
+      rep.classList.add("report");
+      actions.appendChild(rep);
+    }
+    if (isSelf || myMsgIds.has(msg.id)) {
+      if (allowEdit) {
+        actions.appendChild(makeActionBtn("✏", "編集", () => {
+          startEdit(msg.id, row.querySelector(".bubble-body")?.textContent || msg.message);
+        }));
+      }
+      const del = makeActionBtn("🗑", "削除", () => {
+        if (confirm("このメッセージを削除しますか？")) socket.emit("delete_message", { id: msg.id });
+      });
+      del.classList.add("delete");
+      actions.appendChild(del);
+    }
+
+    const time = document.createElement("span");
+    time.className = "bubble-time"; time.textContent = fmtTime(msg.timestamp);
+
+    if (isSelf) { wrap.appendChild(actions); wrap.appendChild(time); wrap.appendChild(bubble); }
+    else        { wrap.appendChild(bubble);  wrap.appendChild(time); wrap.appendChild(actions); }
+
+    row.appendChild(wrap);
+    return row;
+  }
+
+  // ── Append live bubble ────────────────────────────────────
+  function appendBubble(msg, animate) {
+    const isSelf        = (msg.username === myUsername);
+    const isConsecutive = (msg.username === lastSender);
+    lastSender          = msg.username;
+
+    const row = makeBubbleEl(msg);
+    row.className = "msg-row " + (isSelf ? "self" : "other") +
+                    (isConsecutive ? " consecutive" : " group-start");
+
+    if (isConsecutive) {
+      row.querySelector(".sender-name")?.remove();
+      const b = row.querySelector(".bubble");
+      if (b) {
+        if (isSelf)  { b.style.borderTopRightRadius = "4px";  b.style.borderBottomRightRadius = "18px"; }
+        else         { b.style.borderTopLeftRadius  = "4px";  b.style.borderBottomLeftRadius  = "18px"; }
+      }
+    }
+
+    if (animate) {
+      row.style.opacity    = "0";
+      row.style.transform  = "translateY(8px)";
+      row.style.transition = "opacity 0.18s ease, transform 0.18s ease";
+      requestAnimationFrame(() => { row.style.opacity = "1"; row.style.transform = "translateY(0)"; });
+    }
+
+    messagesEl.appendChild(row);
+  }
+
+  // ── Helpers ───────────────────────────────────────────────
+  function trackOldest(id) {
+    if (oldestLoadedId === null || id < oldestLoadedId) oldestLoadedId = id;
+  }
+
+  function makeActionBtn(icon, title, onClick) {
+    const btn = document.createElement("button");
+    btn.className = "action-btn"; btn.type = "button";
+    btn.textContent = icon; btn.title = title;
+    btn.addEventListener("click", onClick);
+    return btn;
+  }
+
+  function appendSystem(text) {
+    lastSender = null;
+    const div = document.createElement("div");
+    div.className = "msg-system"; div.textContent = text;
+    messagesEl.appendChild(div);
+  }
+
+  function scrollToMsg(id) {
+    const row = document.querySelector(`[data-msg-id="${id}"]`);
+    if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    const b = row.querySelector(".bubble");
+    if (b) { b.classList.remove("highlight"); void b.offsetWidth; b.classList.add("highlight"); }
+  }
+
+  let errorTimer;
+  function showError(msg) {
+    const el = document.getElementById("error-toast");
+    el.textContent = msg; el.style.display = "block";
+    clearTimeout(errorTimer);
+    errorTimer = setTimeout(() => { el.style.display = "none"; }, 4000);
+  }
+
+  function fmtTime(ts) {
+    return new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  window.addEventListener('pagehide', () => socket.emit('leave_chat'));
+  window.addEventListener('beforeunload', () => socket.emit('leave_chat'));
+</script>
+{% endblock %}

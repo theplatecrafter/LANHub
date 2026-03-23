@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}LANHub — 管理者ログイン{% endblock %}
+
+{% block head %}
+<style>
+  .page-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 56px - 33px);
+    padding: 24px;
+  }
+
+  .login-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    width: 400px;
+    max-width: 100%;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    animation: modal-in 0.25s ease;
+  }
+
+  @keyframes modal-in {
+    from { opacity:0; transform: translateY(16px) scale(0.97); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+  }
+
+  .login-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    display: block;
+    text-align: center;
+  }
+
+  .login-card h2 {
+    text-align: center;
+    font-size: 1.2rem;
+    margin-bottom: 6px;
+  }
+
+  .login-card .subtitle {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-bottom: 28px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .form-group select {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius);
+    color: var(--text-bright);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a7080' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .form-group select:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 3px var(--cyan-dim);
+  }
+
+  .form-group select option {
+    background: var(--bg-panel);
+    color: var(--text-bright);
+  }
+
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+  }
+  .role-badge.mod { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber); }
+  .role-badge.dev { background: var(--red-dim);   color: var(--red);   border: 1px solid var(--red); }
+  .role-badge::before { content: '●'; font-size: 0.5rem; }
+
+  .role-desc {
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    line-height: 1.5;
+    min-height: 2.4em;
+  }
+
+  .error-box {
+    background: var(--red-dim);
+    border: 1px solid var(--red);
+    border-radius: var(--radius);
+    color: var(--red);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    padding: 9px 12px;
+    margin-bottom: 16px;
+  }
+
+  .login-btn {
+    width: 100%;
+    padding: 11px;
+    border-radius: var(--radius);
+    border: none;
+    background: var(--cyan);
+    color: var(--bg);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+    margin-top: 8px;
+  }
+  .login-btn:hover  { opacity: 0.88; }
+  .login-btn:active { transform: scale(0.98); }
+
+  .back-link {
+    display: block;
+    text-align: center;
+    margin-top: 18px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .back-link:hover { color: var(--text-bright); }
+
+  /* Divider */
+  .divider-line {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-card">
+  <span class="login-icon">🔐</span>
+  <h2>管理者アクセス</h2>
+  <p class="subtitle">DEV / MOD 認証</p>
+
+  {% if error %}
+  <div class="error-box">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('admin.login') }}">
+    <input type="hidden" name="next" value="{{ next }}" />
+
+    <div class="form-group">
+      <label for="role">ロール（権限）</label>
+      <select id="role" name="role" onchange="updateRoleInfo(this.value)">
+        <option value="MOD" {% if selected_role == 'MOD' %}selected{% endif %}>MOD — モデレーター</option>
+        <option value="DEV" {% if selected_role == 'DEV' %}selected{% endif %}>DEV — 開発者</option>
+      </select>
+    </div>
+
+    <div id="role-info-wrap">
+      <span class="role-badge mod" id="role-badge">MOD</span>
+      <p class="role-desc" id="role-desc">IPBANの確認と通報キューの管理が可能です。</p>
+    </div>
+
+    <div class="divider-line"></div>
+
+    <div class="form-group">
+      <label for="username">管理者名</label>
+      <input type="text" id="username" name="username"
+             placeholder="管理者名を入力" autocomplete="off" required />
+    </div>
+
+    <div class="form-group">
+      <label for="password">パスワード</label>
+      <input type="password" id="password" name="password"
+             placeholder="パスワードを入力" required />
+    </div>
+
+    <button type="submit" class="login-btn">ログイン →</button>
+  </form>
+
+  <a href="/" class="back-link">← ホームに戻る</a>
+</div>
+
+<script>
+  const ROLE_INFO = {
+    MOD: {
+      label: "MOD",
+      cls:   "mod",
+      desc:  "IPBANの確認と通報キューの管理が可能です。",
+    },
+    DEV: {
+      label: "DEV",
+      cls:   "dev",
+      desc:  "フルアクセス — すべてのMOD機能に加え、再起動/更新、DBインスペクター、管理者権限の制御が可能です。",
+    },
+  };
+
+  function updateRoleInfo(role) {
+    const info  = ROLE_INFO[role] || ROLE_INFO.MOD;
+    const badge = document.getElementById("role-badge");
+    const desc  = document.getElementById("role-desc");
+    badge.textContent = info.label;
+    badge.className   = "role-badge " + info.cls;
+    desc.textContent  = info.desc;
+  }
+
+  // Set initial state
+  updateRoleInfo(document.getElementById("role").value);
+</script>
+{% endblock %}

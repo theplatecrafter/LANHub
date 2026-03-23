@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4" style="max-width:640px">
+    <h2 class="mb-4">🌐 アクセスおよび公開設定</h2>
+
+    <!-- Current mode banner -->
+    <div class="alert
+        {% if current_mode == 'lan_only' %}alert-secondary
+        {% elif current_mode == 'public_password' %}alert-warning
+        {% else %}alert-info{% endif %} mb-4">
+        <strong>現在のモード:</strong>
+        {% if current_mode == 'lan_only' %}🏠 LANのみ
+        {% elif current_mode == 'public_password' %}🔑 パスワード付きパブリック
+        {% else %}🔑 LAN内フリー + パスワード付きパブリック{% endif %}
+    </div>
+
+    <form id="accessForm">
+        <!-- Mode selector -->
+        <div class="mb-4">
+            <label class="form-label fw-semibold">公開モード</label>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="mode"
+                       id="m_lan" value="lan_only"
+                       {% if current_mode == 'lan_only' %}checked{% endif %}>
+                <label class="form-check-label" for="m_lan">
+                    <strong>🏠 LANのみ</strong><br>
+                    <small class="text-muted">同じネットワーク上のデバイスのみが接続できます。パブリック接続は完全にブロックされます。</small>
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="mode"
+                       id="m_pub" value="public_password"
+                       {% if current_mode == 'public_password' %}checked{% endif %}>
+                <label class="form-check-label" for="m_pub">
+                    <strong>🔑 パスワード付きパブリック</strong><br>
+                    <small class="text-muted">LAN内やパブリックを問わず、全員がパスワードを入力する必要があります。</small>
+                </label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="mode"
+                       id="m_both" value="both_password"
+                       {% if current_mode == 'both_password' %}checked{% endif %}>
+                <label class="form-check-label" for="m_both">
+                    <strong>🔑 LAN内フリー + パスワード付きパブリック</strong><br>
+                    <small class="text-muted">LAN内のデバイスは自由に接続できます。パブリック/トンネル接続にはパスワードが必要です。</small>
+                </label>
+            </div>
+        </div>
+
+        <!-- Password field -->
+        <div class="mb-3">
+            <label for="sitePassword" class="form-label fw-semibold">
+                アクセスパスワード
+                <small class="text-muted fw-normal">(無効にする場合は空白のままにしてください)</small>
+            </label>
+            <input type="text" class="form-control" id="sitePassword"
+                   name="password" value="{{ current_password }}"
+                   placeholder="友人用共有パスワードを入力">
+            <div class="form-text">
+                パスワードを変更すると、既存の友人セッションは即座に無効になります（再入力が必要になります）。
+            </div>
+        </div>
+
+        <!-- Cookie duration -->
+        <div class="mb-4">
+            <label for="cookieDays" class="form-label fw-semibold">ログイン状態の保持期間（日数）</label>
+            <input type="number" class="form-control" id="cookieDays"
+                   name="cookie_days" value="{{ cookie_days }}" min="1" max="365" style="max-width:140px">
+        </div>
+
+        <!-- Tunnel URL -->
+        <div class="mb-4">
+            <label for="tunnelUrl" class="form-label fw-semibold">
+                トンネルURL
+                <small class="text-muted fw-normal">(start.sh によって自動入力)</small>
+            </label>
+            <input type="text" class="form-control" id="tunnelUrl"
+                   name="tunnel_url" value="{{ tunnel_url }}"
+                   placeholder="https://xyz.trycloudflare.com">
+            <div class="form-text">
+                起動スクリプトによって自動的に設定されます。ここに手動で貼り付けることも可能です。
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">設定を保存</button>
+    </form>
+
+    <div id="saveMsg" class="mt-3" style="display:none"></div>
+</div>
+
+<script>
+document.getElementById("accessForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const body = new FormData(e.target);
+    const r    = await fetch("/admin/access/save", { method: "POST", body });
+    const data = await r.json();
+    const msg  = document.getElementById("saveMsg");
+    msg.style.display = "block";
+    if (data.ok) {
+        msg.className   = "alert alert-success";
+        msg.textContent = "✓ 設定を保存しました。"
+            + (data.redirector_msg ? " " + data.redirector_msg : "");
+    } else {
+        msg.className   = "alert alert-danger";
+        msg.textContent = data.error || "保存中にエラーが発生しました。";
+    }
+});
+</script>
+{% endblock %}

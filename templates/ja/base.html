@@ -129,19 +129,19 @@
     <a href="/" class="brand">LANHub</a>
 
     <ul class="nav-links">
-      <li><a href="/"      class="{{ 'active' if request.path == '/' }}">Home</a></li>
-      <li><a href="/chat"  class="{{ 'active' if request.path == '/chat' }}">Chat</a></li>
-      <li><a href="/stats" class="{{ 'active' if request.path == '/stats' }}">Stats</a></li>
-      <li><a href="/admin/login" class="{{ 'active' if '/admin' in request.path }}">Admin</a></li>
+      <li><a href="/"      class="{{ 'active' if request.path == '/' }}">ホーム</a></li>
+      <li><a href="/chat"  class="{{ 'active' if request.path == '/chat' }}">チャット</a></li>
+      <li><a href="/stats" class="{{ 'active' if request.path == '/stats' }}">統計</a></li>
+      <li><a href="/admin/login" class="{{ 'active' if '/admin' in request.path }}">管理</a></li>
     </ul>
 
     {% if share_url %}
-    <button id="share-btn" onclick="copyShareLink()" title="Copy shareable link: {{ share_url }}">
+    <button id="share-btn" onclick="copyShareLink()" title="共有リンクをコピー: {{ share_url }}">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
       </svg>
-      <span>Copy link to share</span>
+      <span>共有リンクをコピー</span>
     </button>
     {% endif %}
 
@@ -149,7 +149,7 @@
     {% if available_langs | length > 1 %}
     <div class="lang-picker" id="langPicker">
       <button class="lang-btn" id="langBtn"
-              onclick="toggleLangPicker()" aria-label="Switch language">
+              onclick="toggleLangPicker()" aria-label="言語を切り替え">
         <span class="globe">🌐</span>
         <span id="langLabel">{{ available_langs[current_lang] }}</span>
         <em class="chevron">▼</em>
@@ -168,25 +168,25 @@
 
     <!-- Theme picker -->
     <div class="theme-picker" id="themePicker">
-      <button class="theme-btn" id="themeBtn" onclick="toggleThemePicker()" aria-label="Switch theme">
+      <button class="theme-btn" id="themeBtn" onclick="toggleThemePicker()" aria-label="テーマを切り替え">
         <span class="swatch"></span>
-        <span id="themeLabel">Mission Control</span>
+        <span id="themeLabel">ミッションコントロール</span>
         <em class="chevron">▼</em>
       </button>
       <div class="theme-dropdown" id="themeDropdown">
-        <button class="theme-option" data-value="dark"       onclick="setTheme('dark')">       <span class="dot"></span> Mission Control </button>
-        <button class="theme-option" data-value="mech"       onclick="setTheme('mech')">       <span class="dot"></span> Mech            </button>
-        <button class="theme-option" data-value="kawaii"     onclick="setTheme('kawaii')">     <span class="dot"></span> Kawaii          </button>
-        <button class="theme-option" data-value="paper"      onclick="setTheme('paper')">      <span class="dot"></span> Paper           </button>
-        <button class="theme-option" data-value="matrix"     onclick="setTheme('matrix')">     <span class="dot"></span> Matrix          </button>
-        <button class="theme-option" data-value="vaporwave"  onclick="setTheme('vaporwave')">  <span class="dot"></span> Vaporwave       </button>
-        <button class="theme-option" data-value="blueprint"  onclick="setTheme('blueprint')">  <span class="dot"></span> Blueprint       </button>
-        <button class="theme-option" data-value="neon-tokyo" onclick="setTheme('neon-tokyo')"> <span class="dot"></span> Neon Tokyo      </button>
-        <button class="theme-option" data-value="outrun"     onclick="setTheme('outrun')">     <span class="dot"></span> Outrun          </button>
+        <button class="theme-option" data-value="dark"       onclick="setTheme('dark')">       <span class="dot"></span> ミッションコントロール </button>
+        <button class="theme-option" data-value="mech"       onclick="setTheme('mech')">       <span class="dot"></span> メカ            </button>
+        <button class="theme-option" data-value="kawaii"     onclick="setTheme('kawaii')">     <span class="dot"></span> カワイイ          </button>
+        <button class="theme-option" data-value="paper"      onclick="setTheme('paper')">      <span class="dot"></span> ペーパー          </button>
+        <button class="theme-option" data-value="matrix"     onclick="setTheme('matrix')">     <span class="dot"></span> マトリックス        </button>
+        <button class="theme-option" data-value="vaporwave"  onclick="setTheme('vaporwave')">  <span class="dot"></span> ヴェイパーウェイヴ    </button>
+        <button class="theme-option" data-value="blueprint"  onclick="setTheme('blueprint')">  <span class="dot"></span> ブループリント      </button>
+        <button class="theme-option" data-value="neon-tokyo" onclick="setTheme('neon-tokyo')"> <span class="dot"></span> ネオン東京         </button>
+        <button class="theme-option" data-value="outrun"     onclick="setTheme('outrun')">     <span class="dot"></span> アウトラン          </button>
         <button class="theme-option" data-value="windows95"  onclick="setTheme('windows95')">  <span class="dot"></span> Windows 95      </button>
-        <button class="theme-option" data-value="underwater" onclick="setTheme('underwater')"> <span class="dot"></span> Underwater      </button>
-        <button class="theme-option" data-value="noir"       onclick="setTheme('noir')">       <span class="dot"></span> Noir            </button>
-        <button class="theme-option" data-value="gameboy"    onclick="setTheme('gameboy')">    <span class="dot"></span> Game Boy        </button>
+        <button class="theme-option" data-value="underwater" onclick="setTheme('underwater')"> <span class="dot"></span> アンダーウォーター    </button>
+        <button class="theme-option" data-value="noir"       onclick="setTheme('noir')">       <span class="dot"></span> ノワール          </button>
+        <button class="theme-option" data-value="gameboy"    onclick="setTheme('gameboy')">    <span class="dot"></span> ゲームボーイ        </button>
         <button class="theme-option" data-value="dos"        onclick="setTheme('dos')">        <span class="dot"></span> DOS             </button>
       </div>
     </div>
@@ -196,10 +196,10 @@
   <div id="afk-overlay">
     <div id="afk-box">
       <div class="afk-icon">💤</div>
-      <h2>Are you still there?</h2>
-      <p>You've been idle for a while. You'll be sent back to the home screen in:</p>
+      <h2>まだいますか？</h2>
+      <p>しばらく操作がありませんでした。ホーム画面に戻るまで：</p>
       <div id="afk-countdown">60</div>
-      <button id="afk-still-here" onclick="afkReset()">I'm here!</button>
+      <button id="afk-still-here" onclick="afkReset()">ここにいます！</button>
     </div>
   </div>
 
@@ -207,8 +207,8 @@
   <div class="status-bar">
     <div class="status-item">
       <span class="dot" id="srv-dot"></span>
-      <span>Server</span>
-      <span id="srv-status">connecting…</span>
+      <span>サーバー</span>
+      <span id="srv-status">接続中…</span>
     </div>
     <div class="status-item">
       <span>CPU</span>
@@ -231,19 +231,19 @@
   <script>
     /* ── Theme switcher ──────────────────────────────────────── */
     const THEMES = {
-      dark:         "Mission Control",
-      mech:         "Mech",
-      kawaii:       "Kawaii",
-      paper:        "Paper",
-      matrix:       "Matrix",
-      vaporwave:    "Vaporwave",
-      blueprint:    "Blueprint",
-      "neon-tokyo": "Neon Tokyo",
-      outrun:       "Outrun",
+      dark:         "ミッションコントロール",
+      mech:         "メカ",
+      kawaii:       "カワイイ",
+      paper:        "ペーパー",
+      matrix:       "マトリックス",
+      vaporwave:    "ヴェイパーウェイヴ",
+      blueprint:    "ブループリント",
+      "neon-tokyo": "ネオン東京",
+      outrun:       "アウトラン",
       windows95:    "Windows 95",
-      underwater:   "Underwater",
-      noir:         "Noir",
-      gameboy:      "Game Boy",
+      underwater:   "アンダーウォーター",
+      noir:         "ノワール",
+      gameboy:      "ゲームボーイ",
       dos:          "DOS",
     };
 
@@ -324,7 +324,7 @@
       const browserLangs = navigator.languages || [navigator.language || "en"];
       let best = null;
       for (const bl of browserLangs) {
-        const code = bl.toLowerCase().split(/[-_]/)[0]; // "fr-FR" → "fr"
+        const code = bl.toLowerCase().split(/[-_]/); // "fr-FR" → "fr"
         if (Object.prototype.hasOwnProperty.call(AVAILABLE_LANGS, code)) {
           best = code;
           break;
@@ -355,17 +355,17 @@
 
       function onCopied() {
         btn.classList.add('copied');
-        if (lbl) lbl.textContent = 'Copied!';
+        if (lbl) lbl.textContent = 'コピーしました！';
         clearTimeout(_copyTimer);
         _copyTimer = setTimeout(() => {
           btn.classList.remove('copied');
-          if (lbl) lbl.textContent = 'Copy link to share';
+          if (lbl) lbl.textContent = '共有リンクをコピー';
         }, 2000);
       }
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(SHARE_URL).then(onCopied).catch(() => {
-          prompt("Copy this link:", SHARE_URL);
+          prompt("このリンクをコピーしてください:", SHARE_URL);
         });
       } else {
         try {
@@ -378,7 +378,7 @@
           document.body.removeChild(ta);
           onCopied();
         } catch (_) {
-          prompt("Copy this link:", SHARE_URL);
+          prompt("このリンクをコピーしてください:", SHARE_URL);
         }
       }
     }
@@ -399,18 +399,18 @@
             background: #f87171; color: #1a1d27; padding: .75rem 1rem;
             text-align: center; font-weight: 600; font-size: .95rem;
         `;
-        banner.textContent = "⚠️ " + (data.message || "Server is shutting down.");
+        banner.textContent = "⚠️ " + (data.message || "サーバーはシャットダウンしています。");
         document.body.prepend(banner);
     });
 
     _socket.on("connect", () => {
       document.getElementById("srv-dot").classList.remove("warn", "error");
-      document.getElementById("srv-status").textContent = "online";
+      document.getElementById("srv-status").textContent = "オンライン";
     });
 
     _socket.on("disconnect", () => {
       document.getElementById("srv-dot").classList.add("warn");
-      document.getElementById("srv-status").textContent = "disconnected";
+      document.getElementById("srv-status").textContent = "切断されました";
     });
 
     _socket.on("server_stats", data => {

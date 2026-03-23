@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -10,12 +10,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════════════
-   UNO — FULL SCREEN STANDALONE
+   UNO — フルスクリーン スタンドアロン
    ═══════════════════════════════════════════════════════ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans-serif;color:#eaf2ff}
 
-/* ── Launcher visual ──────────────────────────────── */
+/* ── ランチャー表示 ──────────────────────────────── */
 #launcher-wrap {
   display: none;
   flex-direction: column;
@@ -66,7 +66,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 .launcher-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #881100; }
 
-/* Fire animation */
+/* 発射アニメーション */
 @keyframes launcher-fire {
   0%   { transform: translateY(0) scale(1);   opacity: 1; }
   40%  { transform: translateY(-24px) scale(1.2); opacity: 1; }
@@ -79,7 +79,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   animation: launcher-fire .45s cubic-bezier(.34,1.1,.64,1) both;
 }
 
-/* No-fire animation (nothing happens) */
+/* 発射なしアニメーション (何も起こらない) */
 @keyframes launcher-click {
   0%,100% { transform: translateX(0); }
   25%      { transform: translateX(-3px); }
@@ -102,7 +102,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   letter-spacing: .14em; color: rgba(255,100,50,.6);
 }
 
-/* ── Attack action overlays ───────────────────────── */
+/* ── 攻撃アクションオーバーレイ ───────────────────────── */
 #trade-overlay,
 #all-hit-overlay,
 #hit-fire-overlay {
@@ -133,7 +133,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   transform: translateY(-2px);
 }
 
-/* ── CSS vars ─────────────────────────────────────────── */
+/* ── CSS 変数 ─────────────────────────────────────────── */
 .opp-card.is-me {
   border-color: rgba(0,255,180,.3);
   background: rgba(0,255,180,.04);
@@ -154,7 +154,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   --trans:.22s cubic-bezier(.34,1.1,.64,1);
 }
 
-/* ── Rules modal ──────────────────────────────────── */
+/* ── ルールモーダル ──────────────────────────────────── */
 #rules-overlay{
   display:none;position:fixed;inset:0;background:rgba(0,0,0,.84);
   backdrop-filter:blur(16px);z-index:600;
@@ -207,7 +207,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 .rules-close-btn:hover{border-color:#ffd700;color:#ffd700;}
 
-/* ── Rules button ─────────────────────────────────── */
+/* ── ルールボタン ─────────────────────────────────── */
 .rules-btn{
   padding:5px 14px;background:transparent;
   border:1px solid rgba(255,215,0,.25);border-radius:20px;
@@ -216,7 +216,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 .rules-btn:hover{border-color:#ffd700;color:#ffd700;background:rgba(255,215,0,.06);}
 
-/* ── Card tooltip ─────────────────────────────────── */
+/* ── カードツールチップ ─────────────────────────────────── */
 #card-tooltip{
   position:fixed;z-index:500;pointer-events:none;
   background:rgba(8,6,18,.97);border:1px solid rgba(255,255,255,.14);
@@ -228,7 +228,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 #card-tooltip.visible{opacity:1;}
 
-/* ── Direction arrow ──────────────────────────────── */
+/* ── 方向矢印 ──────────────────────────────── */
 #direction-arrow-row{
   position:relative;z-index:2;
   display:flex;align-items:center;justify-content:center;
@@ -276,7 +276,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   background:radial-gradient(ellipse at 50% 110%,#1e1060 0%,#0a0812 60%);
 }
 
-/* ── Animated suit-colour ambient (CSS only, not canvas — no slither bleed) */
+/* ── アニメーションカラーアンビエント (CSSのみ) ─────────────────────────────────────── */
 #uno-root::before{
   content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
   background:
@@ -344,7 +344,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 .uno-view.active{display:flex;flex-direction:column;}
 
 /* ═══════════════════════════════════════════════════════
-   USERNAME OVERLAY
+   ユーザー名オーバーレイ
    ═══════════════════════════════════════════════════════ */
 #un-overlay{
   position:fixed;inset:0;z-index:800;
@@ -387,7 +387,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 .un-err{color:#ff6b6b;font-family:'Share Tech Mono',monospace;font-size:.72rem;min-height:18px;margin-top:6px;}
 
 /* ═══════════════════════════════════════════════════════
-   LOBBY VIEW
+   ロビー画面
    ═══════════════════════════════════════════════════════ */
 #view-lobby{overflow-y:auto;align-items:center;justify-content:flex-start;background:transparent;}
 .lobby-inner{
@@ -408,7 +408,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 .lobby-hero h1{font-size:2rem;font-weight:900;letter-spacing:.05em;}
 .lobby-hero p{font-family:'Share Tech Mono',monospace;font-size:.72rem;color:rgba(255,255,255,.35);margin-top:4px;}
 
-/* Tabs */
+/* タブ */
 .l-tabs{display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,.08);}
 .l-tab{
   padding:10px 22px;font-family:'Share Tech Mono',monospace;font-size:.72rem;
@@ -422,7 +422,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 .l-pane{display:none;padding:20px 0;}
 .l-pane.active{display:block;}
 
-/* Create form */
+/* 作成フォーム */
 .create-form{display:flex;flex-direction:column;gap:14px;max-width:500px;}
 .cf-fg{display:flex;flex-direction:column;gap:6px;}
 .cf-fg label{font-family:'Share Tech Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.35);}
@@ -455,7 +455,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 .create-btn-main:hover{box-shadow:0 0 32px rgba(255,180,0,.5);transform:translateY(-1px);}
 
-/* Find rooms */
+/* ルーム検索 */
 .find-header{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
 #room-search{
   flex:1;min-width:160px;padding:9px 13px;background:rgba(255,255,255,.06);
@@ -490,7 +490,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 .no-rooms{font-family:'Share Tech Mono',monospace;font-size:.8rem;color:rgba(255,255,255,.25);text-align:center;padding:30px 0;}
 
 /* ═══════════════════════════════════════════════════════
-   ROOM VIEW
+   ルーム画面
    ═══════════════════════════════════════════════════════ */
 #view-room{overflow-y:auto;align-items:center;justify-content:flex-start;background:transparent;}
 .room-inner{width:100%;max-width:700px;padding:28px 24px;display:flex;flex-direction:column;gap:18px;margin:0 auto;}
@@ -572,13 +572,13 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 
 /* ═══════════════════════════════════════════════════════
-   GAME VIEW
+   ゲーム画面
    ═══════════════════════════════════════════════════════ */
 #view-game{
   background:transparent;
 }
 
-/* Turn atmosphere — full-screen tint */
+/* ターン雰囲気 — 全画面色調 */
 #turn-atmosphere{
   position:absolute;inset:0;pointer-events:none;z-index:0;
   transition:background 0.6s ease;
@@ -587,7 +587,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   background:radial-gradient(ellipse at 50% 110%,rgba(0,255,180,.08) 0%,transparent 60%);
 }
 
-/* Opponents row */
+/* 対戦相手列 */
 #opponents-row{
   position:relative;z-index:2;
   display:flex;align-items:flex-start;justify-content:center;flex-wrap:wrap;
@@ -634,7 +634,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 @keyframes uno-badge-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
-/* ── CENTER ───────────────────────────────────────────── */
+/* ── 中央 ───────────────────────────────────────────── */
 #game-center{
   position:relative;z-index:2;
   display:flex;align-items:center;justify-content:center;
@@ -646,7 +646,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.3);
 }
 
-/* ── PENDING DRAW BADGE ───────────────────────────────── */
+/* ── 保留ドロップバッジ ───────────────────────────────── */
 #pending-draw-badge{
   background:linear-gradient(135deg,#ff4d4d,#cc0000);color:#fff;
   font-family:'Share Tech Mono',monospace;font-size:.85rem;font-weight:900;
@@ -658,7 +658,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 @keyframes badge-pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
 
 /* ═══════════════════════════════════════════════════════
-   UNO CARDS — 3D FLIP SYSTEM
+   UNO カード — 3D フリップシステム
    ═══════════════════════════════════════════════════════ */
 .card-scene{
   perspective:600px;
@@ -676,7 +676,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   position:relative;font-weight:900;flex-shrink:0;
   user-select:none;
   transition:transform var(--trans),box-shadow var(--trans);
-  /* 3D flip */
+  /* 3Dフリップ */
   transform-style:preserve-3d;
   backface-visibility:hidden;
 }
@@ -688,18 +688,18 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 .uno-card.yellow{background:linear-gradient(145deg,#eab308,#713f12);color:#fff;}
 .uno-card.wild  {background:var(--wild-bg);color:#fff;}
 
-/* ── UNO Flip dark-side card colours ─────────────────── */
+/* ── UNO Flip ダークサイドカード色 ─────────────────── */
 .uno-card.pink   {background:linear-gradient(145deg,#ec4899,#9d174d);color:#fff;}
 .uno-card.teal   {background:linear-gradient(145deg,#14b8a6,#134e4a);color:#fff;}
 .uno-card.orange {background:linear-gradient(145deg,#f97316,#7c2d12);color:#fff;}
 .uno-card.purple {background:linear-gradient(145deg,#a855f7,#581c87);color:#fff;}
 
-/* Dark-side wild uses dark palette */
+/* ダークサイドワイルドは暗いパレットを使用 */
 #uno-root.dark-side .uno-card.wild {
   background:conic-gradient(from 225deg,#ec4899 0 90deg,#14b8a6 90deg 180deg,#f97316 180deg 270deg,#a855f7 270deg 360deg);
 }
 
-/* Dark-side ambient glow */
+/* ダークサイド周囲光 */
 #uno-root.dark-side::before {
   background:
     radial-gradient(ellipse at 18% 18%,rgba(168,85,247,.1)  0%,transparent 45%),
@@ -708,7 +708,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
     radial-gradient(ellipse at 20% 82%,rgba(236,72,153,.08) 0%,transparent 45%);
 }
 
-/* Colour-picker buttons for dark side */
+/* ダークサイドのカラーピッカーボタン */
 .cpb-pink  {background:linear-gradient(145deg,#ec4899,#9d174d);}
 .cpb-teal  {background:linear-gradient(145deg,#14b8a6,#134e4a);}
 .cpb-orange{background:linear-gradient(145deg,#f97316,#7c2d12);}
@@ -730,14 +730,14 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 .uno-card.lg.back .back-label{font-size:1rem;}
 
-/* Card oval decoration */
+/* カードの楕円装飾 */
 .uno-card::before{
   content:'';position:absolute;width:75%;height:85%;
   border-radius:50%;border:2px solid rgba(255,255,255,.2);
   pointer-events:none;
 }
 
-/* Playable hover */
+/* プレイ可能なカードのホバー */
 .uno-card.playable{
   outline:2.5px solid rgba(0,255,180,.8);
   outline-offset:2px;cursor:pointer;
@@ -750,14 +750,14 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 .uno-card.not-playable{opacity:.65;cursor:default;}
 
-/* Deal animation */
+/* 配布アニメーション */
 @keyframes deal-in{
   from{transform:translateY(-60px) rotateY(90deg);opacity:0}
   to{transform:none;opacity:1}
 }
 .card-deal{animation:deal-in .35s cubic-bezier(.34,1.2,.64,1) both;}
 
-/* Flip animation */
+/* フリップアニメーション */
 @keyframes flip-in{
   0%  {transform:rotateY(-90deg);opacity:0}
   60% {transform:rotateY(10deg)}
@@ -765,14 +765,14 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 .card-flip{animation:flip-in .4s cubic-bezier(.34,1.1,.64,1) both;}
 
-/* Play from hand */
+/* 手札からカードをプレイするアニメーション */
 @keyframes card-played{
   0%  {transform:translateY(0) scale(1)}
   40% {transform:translateY(-40px) scale(1.15) rotateZ(-5deg)}
   100%{transform:translateY(-80px) scale(.8) rotateZ(10deg);opacity:0}
 }
 
-/* ── MY HAND AREA ─────────────────────────────────────── */
+/* ── 自分の手札エリア ─────────────────────────────────────── */
 #my-area{
   position:relative;z-index:2;
   display:flex;flex-direction:column;align-items:center;
@@ -780,7 +780,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   background:linear-gradient(to top,rgba(0,0,0,.5) 0%,transparent 100%);
 }
 
-/* Turn glow ring around my area */
+/* 自分の手札周りのターングローリング */
 #my-area::before{
   content:'';position:absolute;inset:0;border-radius:var(--radius-lg);
   border:2px solid transparent;transition:border-color .5s,box-shadow .5s;pointer-events:none;
@@ -848,19 +848,19 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 @keyframes draw-btn-pulse{0%,100%{box-shadow:0 0 16px rgba(0,255,180,.2)}50%{box-shadow:0 0 28px rgba(0,255,180,.4)}}
 
-/* ── DECK CARD AREA ───────────────────────────────────── */
+/* ── デッキカードエリア ───────────────────────────────────── */
 #deck-card{cursor:pointer;transition:transform var(--trans),box-shadow var(--trans);}
 #deck-card:hover{transform:translateY(-4px) scale(1.04);box-shadow:0 8px 28px rgba(255,255,255,.2),var(--shadow-card);}
 #deck-count{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:rgba(255,255,255,.3);}
 
-/* ── DISCARD PILE ─────────────────────────────────────── */
+/* ── 捨て札山 ─────────────────────────────────────── */
 #discard-pile{transition:all .25s cubic-bezier(.34,1.2,.64,1);}
 
 /* ═══════════════════════════════════════════════════════
-   OVERLAYS
+   オーバーレイ
    ═══════════════════════════════════════════════════════ */
 
-/* Color picker */
+/* カラーピッカー */
 #color-overlay{
   display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);
   backdrop-filter:blur(14px);z-index:400;align-items:center;justify-content:center;
@@ -887,7 +887,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 .cpb-blue  {background:linear-gradient(145deg,#3b82f6,#1e3a8a);}
 .cpb-yellow{background:linear-gradient(145deg,#eab308,#713f12);}
 
-/* Invite toast */
+/* 招待トースト */
 #invite-toast{
   position:fixed;top:20px;right:20px;z-index:500;
   background:linear-gradient(145deg,#12101e,#1e1a30);
@@ -913,7 +913,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 }
 .it-decline:hover{border-color:#ff4d4d;color:#ff4d4d;}
 
-/* Toast */
+/* トースト */
 #uno-toast{
   position:fixed;bottom:22px;right:22px;z-index:700;pointer-events:none;
   background:rgba(20,18,32,.95);border:1px solid rgba(255,255,255,.12);
@@ -927,7 +927,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 #uno-toast.err{border-color:rgba(255,77,77,.4);color:#ff4d4d;}
 #uno-toast.info{border-color:rgba(255,215,0,.4);color:#ffd700;}
 
-/* Game Over */
+/* ゲーム終了 */
 #view-gameover{
   align-items:center;justify-content:center;background:transparent;overflow-y:auto;
 }
@@ -963,7 +963,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 .go-btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);}
 .go-btn.ghost:hover{border-color:rgba(255,255,255,.4);color:#fff;}
 
-/* ── RESPONSIVE ───────────────────────────────────────── */
+/* ── レスポンシブ ───────────────────────────────────────── */
 @media(max-width:600px){
   #game-center{gap:16px;}
   :root{--cw:48px;--ch:72px;--cw-lg:66px;--ch-lg:100px;}
@@ -974,43 +974,43 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 
 <div id="uno-root">
 
-<!-- ── Topbar ─────────────────────────────────────────── -->
+<!-- ── トップバー ─────────────────────────────────────────── -->
 <nav id="uno-topbar">
   <a href="/" class="topbar-back" id="back-btn">
     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
     LANHub
   </a>
   <span class="topbar-brand">UNO</span>
-  <span id="direction-wrap" title="Direction">↻</span>
+  <span id="direction-wrap" title="進行方向">↻</span>
   <div id="topbar-turn" class="other-turn">—</div>
 </nav>
 
-<!-- ── Username overlay ───────────────────────────────── -->
+<!-- ── ユーザー名オーバーレイ ───────────────────────────────── -->
 <div id="un-overlay">
   <div class="un-box">
     <div class="un-logo">UNO</div>
-    <div class="un-sub">Pick a username for this session</div>
-    <input class="un-input" id="un-input" type="text" maxlength="24" placeholder="Username…" autocomplete="off"/>
+    <div class="un-sub">セッション用のユーザー名を入力してください</div>
+    <input class="un-input" id="un-input" type="text" maxlength="24" placeholder="ユーザー名…" autocomplete="off"/>
     <div class="un-err" id="un-err"></div>
-    <button class="un-btn" id="un-submit">Let's Play →</button>
+    <button class="un-btn" id="un-submit">プレイ開始 →</button>
   </div>
 </div>
 
-<!-- ── Invite toast ───────────────────────────────────── -->
+<!-- ── 招待トースト ───────────────────────────────────── -->
 <div id="invite-toast">
-  <div class="it-eyebrow">🃏 UNO Invitation</div>
+  <div class="it-eyebrow">🃏 UNO 招待</div>
   <div class="it-creator" id="it-creator"></div>
   <div class="it-room"    id="it-room"></div>
   <div class="it-btns">
-    <button class="it-accept"  onclick="respondInvite(true)">Join Room</button>
-    <button class="it-decline" onclick="respondInvite(false)">Decline</button>
+    <button class="it-accept"  onclick="respondInvite(true)">ルームに入る</button>
+    <button class="it-decline" onclick="respondInvite(false)">辞退</button>
   </div>
 </div>
 
-<!-- ── Color picker ───────────────────────────────────── -->
+<!-- ── カラーピッカー ───────────────────────────────────── -->
 <div id="color-overlay">
   <div class="color-box">
-    <p>Choose a color</p>
+    <p>色を選択してください</p>
     <div class="color-btns">
       <button class="color-pick-btn cpb-red"    onclick="chooseColor('red')">🔴</button>
       <button class="color-pick-btn cpb-green"  onclick="chooseColor('green')">🟢</button>
@@ -1020,34 +1020,34 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   </div>
 </div>
 
-<!-- Rules overlay -->
+<!-- ルールオーバーレイ -->
 <div id="rules-overlay">
   <div class="rules-box">
-    <div class="rules-title" id="rules-title">Rules</div>
+    <div class="rules-title" id="rules-title">ルール</div>
     <div class="rules-type-label" id="rules-type-label"></div>
-    <div class="rules-section-label">How to play</div>
+    <div class="rules-section-label">遊び方</div>
     <ul class="rules-list" id="rules-list"></ul>
-    <div class="rules-section-label">Card guide</div>
+    <div class="rules-section-label">カード解説</div>
     <div class="card-desc-grid" id="rules-card-grid"></div>
-    <button class="rules-close-btn" onclick="closeRules()">Close</button>
+    <button class="rules-close-btn" onclick="closeRules()">閉じる</button>
   </div>
 </div>
 
-<!-- Card tooltip -->
+<!-- カードツールチップ -->
 <div id="card-tooltip"></div>
 
-<!-- Swap target overlay (No Mercy — 7 card) -->
+<!-- Swap 対象オーバーレイ (No Mercy — 7カード) -->
 <div id="swap-overlay">
   <div class="color-box" style="max-width:360px">
-    <p>Choose a player to swap hands with</p>
+    <p>手札を交換するプレイヤーを選択してください</p>
     <div id="swap-targets" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
   </div>
 </div>
 
-<!-- Roulette colour overlay (No Mercy — color_roulette card) -->
+<!-- ルーレット色オーバーレイ (No Mercy — color_roulette カード) -->
 <div id="roulette-overlay">
   <div class="color-box">
-    <p>🎰 Pick a colour — you draw until you get it!</p>
+    <p>🎰 色を選んでください — その色が出るまで引き続けます！</p>
     <div class="color-btns">
       <button class="color-pick-btn cpb-red"    onclick="chooseRouletteColor('red')">🔴</button>
       <button class="color-pick-btn cpb-green"  onclick="chooseRouletteColor('green')">🟢</button>
@@ -1057,105 +1057,105 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
   </div>
 </div>
 
-<!-- Trade hands overlay (UNO Attack) -->
+<!-- 手札交換オーバーレイ (UNO Attack) -->
 <div id="trade-overlay">
   <div class="color-box" style="max-width:360px">
-    <p>🤝 Choose a player to trade hands with</p>
+    <p>🤝 手札を交換するプレイヤーを選択してください</p>
     <div id="trade-targets" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
   </div>
 </div>
 
-<!-- All Wild: Targeted Draw 2 target chooser -->
+<!-- All Wild: 対象指定ドロー2 対象選択オーバーレイ -->
 <div id="aw-tdraw2-overlay">
   <div class="color-box" style="max-width:360px">
-    <p>→+2 Choose a player to draw 2 cards</p>
+    <p>→+2 対象プレイヤーに2枚引かせます</p>
     <div id="aw-tdraw2-targets" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
   </div>
 </div>
 
-<!-- All Wild: Forced Swap target chooser -->
+<!-- All Wild: 強制交換 対象選択オーバーレイ -->
 <div id="aw-fswap-overlay">
   <div class="color-box" style="max-width:360px">
-    <p>↔ Choose a player to swap hands with</p>
+    <p>↔ 手札を交換するプレイヤーを選択してください</p>
     <div id="aw-fswap-targets" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
   </div>
 </div>
 
-<!-- Wild All-Hit press overlay (UNO Attack) -->
+<!-- Wild All-Hit プレスオーバーレイ (UNO Attack) -->
 <div id="all-hit-overlay">
   <div class="color-box" style="text-align:center">
-    <p>🚀 Wild All-Hit — press the launcher once!</p>
-    <button class="launch-press-btn" onclick="submitAllHitPress()">PRESS</button>
+    <p>🚀 Wild All-Hit — ランチャーを一度押してください！</p>
+    <button class="launch-press-btn" onclick="submitAllHitPress()">押す</button>
   </div>
 </div>
 
-<!-- Wild Hit-Fire press overlay (UNO Attack) -->
+<!-- Wild Hit-Fire プレスオーバーレイ (UNO Attack) -->
 <div id="hit-fire-overlay">
   <div class="color-box" style="text-align:center">
-    <p>🔥 Wild Hit-Fire — keep pressing until it fires!</p>
-    <button class="launch-press-btn" onclick="submitHitFirePress()">PRESS</button>
+    <p>🔥 Wild Hit-Fire — 発射するまで押し続けてください！</p>
+    <button class="launch-press-btn" onclick="submitHitFirePress()">押す</button>
   </div>
 </div>
 
-<!-- ── Toast ──────────────────────────────────────────── -->
+<!-- ── トースト ──────────────────────────────────────────── -->
 <div id="uno-toast"></div>
 
-<!-- ═══════ LOBBY ═══════════════════════════════════════ -->
+<!-- ═══════ ロビー ═══════════════════════════════════════ -->
 <div id="view-lobby" class="uno-view active">
   <div class="lobby-inner">
     <div class="lobby-hero">
       <div class="lobby-hero-icon">🃏</div>
       <div>
         <h1>UNO</h1>
-        <p>Playing as <strong id="lobby-username" style="color:#ffd700"></strong></p>
+        <p>プレイヤー: <strong id="lobby-username" style="color:#ffd700"></strong></p>
       </div>
     </div>
 
     <div class="l-tabs">
-      <button class="l-tab active" onclick="switchLobbyTab('create',this)">＋ Create Room</button>
-      <button class="l-tab"        onclick="switchLobbyTab('find',this)">🔍 Find Room</button>
+      <button class="l-tab active" onclick="switchLobbyTab('create',this)">＋ ルーム作成</button>
+      <button class="l-tab"        onclick="switchLobbyTab('find',this)">🔍 ルーム検索</button>
     </div>
 
     <div class="l-pane active" id="lpane-create">
       <div class="create-form">
-        <div class="cf-fg"><label>Room Title</label><input type="text" id="room-title-inp" placeholder="My UNO Room" maxlength="40" autocomplete="off"/></div>
+        <div class="cf-fg"><label>ルーム名</label><input type="text" id="room-title-inp" placeholder="私のUNOルーム" maxlength="40" autocomplete="off"/></div>
         <div class="cf-row">
-          <div class="cf-fg"><label>Game Type</label>
+          <div class="cf-fg"><label>ゲームタイプ</label>
             <select id="room-type-sel">
               {% for t in uno_types %}
-              <option value="{{ t.key }}">{{ t.name }} ({{ t.min }}–{{ t.max }} players)</option>
+              <option value="{{ t.key }}">{{ t.name }} ({{ t.min }}–{{ t.max }} 人)</option>
               {% endfor %}
             </select>
           </div>
         </div>
-        <div class="cf-fg"><label>Privacy</label>
+        <div class="cf-fg"><label>公開設定</label>
           <div class="privacy-toggle">
-            <button class="priv-btn active" data-v="public"  onclick="selectPrivacy(this)">🌐 Public</button>
-            <button class="priv-btn"        data-v="private" onclick="selectPrivacy(this)">🔒 Private</button>
+            <button class="priv-btn active" data-v="public"  onclick="selectPrivacy(this)">🌐 公開</button>
+            <button class="priv-btn"        data-v="private" onclick="selectPrivacy(this)">🔒 非公開</button>
           </div>
         </div>
-        <button class="create-btn-main" onclick="createRoom()">Create Room</button>
+        <button class="create-btn-main" onclick="createRoom()">ルームを作成</button>
       </div>
     </div>
 
     <div class="l-pane" id="lpane-find">
       <div class="find-header">
-        <input type="text" id="room-search" placeholder="Search rooms…" oninput="filterRooms()"/>
+        <input type="text" id="room-search" placeholder="ルーム検索…" oninput="filterRooms()"/>
         <div class="type-filter-btns">
-          <button class="tfb active" data-type="" onclick="setTypeFilter(this)">All</button>
+          <button class="tfb active" data-type="" onclick="setTypeFilter(this)">すべて</button>
           {% for t in uno_types %}
           <button class="tfb" data-type="{{ t.key }}" onclick="setTypeFilter(this)">{{ t.name }}</button>
           {% endfor %}
         </div>
       </div>
       <div id="rooms-list">
-        <div class="no-rooms" id="no-rooms-msg">No public rooms. Create one!</div>
+        <div class="no-rooms" id="no-rooms-msg">公開ルームはありません。作成してください！</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════ ROOM ═════════════════════════════════════════ -->
+<!-- ═══════ ルーム ═════════════════════════════════════════ -->
 <div id="view-room" class="uno-view">
   <div class="room-inner">
     <div class="room-header">
@@ -1163,48 +1163,48 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
       <span class="room-badge rb-type" id="room-type-badge"></span>
       <span class="room-badge rb-priv" id="room-priv-badge"></span>
     </div>
-    <div><div class="rs-label">Players (<span id="room-player-count">0</span> / <span id="room-max">10</span>)</div><div id="room-players-list"></div></div>
-    <div id="bots-section" style="display:none"><div class="rs-label">Bots</div><div id="room-bots-list"></div></div>
+    <div><div class="rs-label">プレイヤー (<span id="room-player-count">0</span> / <span id="room-max">10</span>)</div><div id="room-players-list"></div></div>
+    <div id="bots-section" style="display:none"><div class="rs-label">ボット</div><div id="room-bots-list"></div></div>
     <div id="creator-controls" style="display:none">
       <div style="margin-bottom:14px">
-        <div class="rs-label">Add Bot</div>
+        <div class="rs-label">ボットを追加</div>
         <div class="add-bot-row">
           <select class="bot-diff-select" id="bot-diff-sel">
-            <option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option>
+            <option value="easy">かんたん</option><option value="medium" selected>ふつう</option><option value="hard">むずかしい</option>
           </select>
-          <button class="add-bot-btn" onclick="addBot()">＋ Add Bot</button>
+          <button class="add-bot-btn" onclick="addBot()">＋ ボット追加</button>
         </div>
       </div>
       <div id="invite-section" style="display:none">
-        <div class="rs-label">Invite Players</div>
+        <div class="rs-label">プレイヤーを招待</div>
         <div class="avail-list" id="available-players-list"></div>
-        <div id="no-avail-msg" style="font-family:'Share Tech Mono',monospace;font-size:.72rem;color:rgba(255,255,255,.25);padding:8px 0;display:none">No players available to invite.</div>
+        <div id="no-avail-msg" style="font-family:'Share Tech Mono',monospace;font-size:.72rem;color:rgba(255,255,255,.25);padding:8px 0;display:none">招待可能なプレイヤーはいません。</div>
       </div>
     </div>
-    <div class="wait-banner" id="wait-banner" style="display:none">⏳ Waiting for the room creator to start…</div>
+    <div class="wait-banner" id="wait-banner" style="display:none">⏳ ルーム作成者の開始をお待ちください…</div>
     <div class="room-controls">
-      <button class="rc-btn start" id="start-btn" onclick="startGame()" disabled>▶ Start Game</button>
-      <button class="rules-btn" onclick="showRulesForRoom()">📖 Rules</button>
-      <button class="rc-btn leave" onclick="leaveRoom()">← Leave Room</button>
+      <button class="rc-btn start" id="start-btn" onclick="startGame()" disabled>▶ ゲーム開始</button>
+      <button class="rules-btn" onclick="showRulesForRoom()">📖 ルール</button>
+      <button class="rc-btn leave" onclick="leaveRoom()">← ルームを退出</button>
     </div>
     <div style="font-family:'Share Tech Mono',monospace;font-size:.62rem;color:rgba(255,255,255,.25)" id="room-status-hint"></div>
   </div>
 </div>
 
-<!-- ═══════ GAME ══════════════════════════════════════════ -->
+<!-- ═══════ ゲーム ══════════════════════════════════════════ -->
 <div id="view-game" class="uno-view">
   <div id="turn-atmosphere"></div>
 
   <div id="opponents-row"></div>
   <div id="direction-arrow-row">
     <span class="dir-arrow" id="dir-arrow-left">←</span>
-    <span id="dir-arrow-label">direction of play</span>
+    <span id="dir-arrow-label">進行方向</span>
     <span class="dir-arrow" id="dir-arrow-right">→</span>
   </div>
 
   <div id="game-center">
     <div class="gc-item">
-      <div class="gc-label">Deck</div>
+      <div class="gc-label">山札</div>
       <div class="card-scene lg">
         <div class="uno-card back lg" id="deck-card" onclick="drawCard()">
           <span class="back-label">UNO</span>
@@ -1212,12 +1212,12 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
       </div>
       <div id="deck-count"></div>
     </div>
-    <!-- Launcher (UNO Attack only) -->
+    <!-- ランチャー (UNO Attackのみ) -->
     <div id="launcher-wrap">
-      <div class="launcher-label">Launcher</div>
+      <div class="launcher-label">ランチャー</div>
       <div class="launcher-body" id="launcher-body">
         <div class="launcher-slot"><div class="launcher-slot-inner"></div></div>
-        <button class="launcher-btn" onclick="drawCard()">FIRE</button>
+        <button class="launcher-btn" onclick="drawCard()">発射</button>
       </div>
       <div class="launcher-result" id="launcher-result"></div>
     </div>
@@ -1225,7 +1225,7 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
     <div id="pending-draw-badge"></div>
 
     <div class="gc-item">
-      <div class="gc-label">Discard</div>
+      <div class="gc-label">捨て札</div>
       <div class="card-scene lg">
         <div class="uno-card back lg" id="discard-pile"><span class="back-label">UNO</span></div>
       </div>
@@ -1234,46 +1234,46 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 
   <div id="my-area">
     <div class="hand-meta">
-      <span class="hand-label" id="hand-label">Your Hand</span>
+      <span class="hand-label" id="hand-label">あなたの手札</span>
       <span id="uno-self-badge">UNO!</span>
       <button class="rules-btn" id="ingame-rules-btn"
         onclick="showRulesFromSnapshot()" style="margin-left:auto;display:none">
-        📖 Rules
+        📖 ルール
       </button>
-      <span id="spectator-badge">👁 Spectating</span>
+      <span id="spectator-badge">👁 観戦中</span>
     </div>
     <div id="hand-scroll"></div>
     <div class="hand-controls">
-      <button id="draw-btn" disabled onclick="drawCard()">Draw</button>
+      <button id="draw-btn" disabled onclick="drawCard()">ドロー</button>
     </div>
   </div>
 </div>
 
-<!-- ═══════ GAME OVER ════════════════════════════════════ -->
+<!-- ═══════ ゲーム終了 ════════════════════════════════════ -->
 <div id="view-gameover" class="uno-view">
   <div class="go-box">
     <div id="go-icon" style="font-size:3rem">🃏</div>
-    <div class="go-title" id="go-title">Game Over</div>
+    <div class="go-title" id="go-title">ゲーム終了</div>
     <div class="rankings" id="go-rankings"></div>
 
-    <!-- Creator controls -->
+    <!-- 作成者用コントロール -->
     <div id="go-creator-btns" class="go-btns" style="display:none;">
-      <button class="go-btn primary" onclick="continueGame()">▶ Continue</button>
-      <button class="go-btn ghost"   onclick="leavePostGame()">← Leave Room</button>
+      <button class="go-btn primary" onclick="continueGame()">▶ 続行</button>
+      <button class="go-btn ghost"   onclick="leavePostGame()">← ルームを退出</button>
     </div>
 
-    <!-- Non-creator waiting -->
+    <!-- 非作成者用待機表示 -->
     <div id="go-waiting" style="display:none;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:rgba(255,255,255,.35);letter-spacing:.1em;text-align:center;">
-        ⏳ Waiting for the room creator to continue…
+        ⏳ ルーム作成者の続行をお待ちください…
       </div>
-      <button class="go-btn ghost" onclick="leavePostGame()">← Leave Room</button>
+      <button class="go-btn ghost" onclick="leavePostGame()">← ルームを退出</button>
     </div>
 
-    <!-- Fallback (disconnected from room) -->
+    <!-- フォールバック (ルームから切断) -->
     <div id="go-solo-btns" class="go-btns">
-      <button class="go-btn primary" onclick="backToLobby()">Play Again</button>
-      <button class="go-btn ghost"   onclick="backToLobby()">Back to Lobby</button>
+      <button class="go-btn primary" onclick="backToLobby()">もう一度プレイ</button>
+      <button class="go-btn ghost"   onclick="backToLobby()">ロビーに戻る</button>
     </div>
   </div>
 </div>
@@ -1282,14 +1282,14 @@ html,body{height:100%;overflow:hidden;background:#0a0812;font-family:'Syne',sans
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script>
-// ── Bootstrap socket (same as base.html) ──────────────────────────────────
+// ── Bootstrap socket (base.html と同様) ──────────────────────────────────
 const _socket = io();
 _socket.on('connect', () => _socket.emit('page_open', {path: window.location.pathname}));
 window.addEventListener('pagehide',     () => _socket.emit('uno_leave_route'));
 window.addEventListener('beforeunload', () => _socket.emit('uno_leave_route'));
 
 // ═══════════════════════════════════════════════════════
-// GAME STATE
+// ゲーム状態
 // ═══════════════════════════════════════════════════════
 const socket      = _socket;
 let myUsername    = null;
@@ -1303,8 +1303,8 @@ let allRooms        = [];
 let pendingInvite   = null;
 let gameState       = null;
 let amSpectator     = false;
-let prevTopCard     = null;  // for flip detection
-window._lastLaunchSeq = 0;   // ← add this
+let prevTopCard     = null;  // フリップ検出用
+window._lastLaunchSeq = 0;   // ← 追加
 
 
 const CARD_LABELS = {
@@ -1322,190 +1322,37 @@ const CARD_LABELS = {
   'w_draw2':'+2', 'w_draw4':'+4', 'w_tdraw2':'→+2', 'w_fswap':'↔',
 };
 
-const UNO_RULES = {
- 
-  classic: {
-    name: 'UNO Classic',
-    rules: [
-      'Match the top card by colour or number.',
-      'If you have no playable card, draw one from the deck.',
-      'Play a drawn card immediately if it is playable.',
-      'First player to empty their hand wins.',
-      'Shout "UNO!" when you are down to one card.',
-      'Wild cards may be played at any time on your turn.',
-      'Draw 4 may only be played if you have no other playable card.',
-    ],
-    cards: {
-      skip:    'Next player loses their turn.',
-      reverse: 'Reverses the direction of play.',
-      draw2:   'Next player draws 2 cards and loses their turn.',
-      wild:    'Change the colour of play to any colour.',
-      wild4:   'Change colour AND the next player draws 4 cards and loses their turn.',
-    },
-  },
- 
-  no_mercy: {
-    name: "UNO Show 'Em No Mercy",
-    rules: [
-      'Match the top card by colour or number.',
-      'If you have no playable card, draw cards until you get one you can play.',
-      'Stacking: when a draw card targets you, play one of equal or greater value to pass it on.',
-      'Mercy Rule: if you reach 25 cards you are knocked out. Your cards return to the deck.',
-      'Playing a 7 lets you swap your hand with any other player.',
-      'Playing a 0 rotates every hand in the direction of play.',
-      'Skip All: you get an extra turn — everyone else is skipped.',
-      "Discard All: discard every card in your hand matching this card's colour.",
-      'Wild Color Roulette: next player picks a colour, then draws until they pull that colour.',
-      'First player to empty their hand wins. Last player standing also wins (mercy rule).',
-    ],
-    cards: {
-      skip:          'Next player loses their turn.',
-      skip_all:      'Everyone else is skipped — you get another turn.',
-      reverse:       'Reverses the direction of play.',
-      draw2:         'Next player draws 2 cards and loses their turn.',
-      draw4:         'Next player draws 4 cards and loses their turn.',
-      discard_all:   "Discard all cards in your hand that match this card's colour.",
-      reverse_draw4: 'Reverse direction AND next player draws 4. In 2-player, YOU draw 4.',
-      draw6:         'Change colour. Next player draws 6 cards and loses their turn.',
-      draw10:        'Change colour. Next player draws 10 cards and loses their turn.',
-      color_roulette:'Change colour. Next player picks a colour, then draws until they get it.',
-      '7':           'Swap your entire hand with any other player of your choice.',
-      '0':           'All players pass their hand to the next player in the current direction.',
-    },
-  },
- 
-  attack: {
-    name: 'UNO Attack!',
-    rules: [
-      'Match the top card by colour, number, or action.',
-      'If you have no playable card, press the Launcher. If it fires, take the cards. Either way your turn ends.',
-      'You may also choose NOT to play a card and press the Launcher instead (reneging).',
-      'Hit 2: the next player must press the Launcher twice, taking any cards that come out.',
-      'Wild All-Hit: name a colour, then every OTHER player must press the Launcher once.',
-      'Wild Hit-Fire: name a colour, then the next player keeps pressing until the Launcher fires.',
-      'Trade Hands: you MUST swap your whole hand with a player of your choice. You cannot go out on this card.',
-      "Discard All: discard every card in your hand that matches this card's colour.",
-      'No stacking — you cannot play a Hit 2 on top of another Hit 2.',
-      'First player to empty their hand wins.',
-    ],
-    cards: {
-      skip:          'Next player loses their turn.',
-      reverse:       'Reverses the direction of play.',
-      hit2:          'Next player must press the Launcher twice and take any cards that fly out.',
-      discard_all:   "Discard all cards in your hand that match this card's colour.",
-      trade_hands:   'Trade your entire hand with a player of your choice. Cannot go out on this card.',
-      wild:          'Change the colour of play to any colour.',
-      wild_all_hit:  'Change colour. Every OTHER player must press the Launcher once.',
-      wild_hit_fire: 'Change colour. The next player keeps pressing until the Launcher fires.',
-    },
-  },
- 
-  flip: {
-    name: 'UNO Flip',
-    rules: [
-      'Starts on the Light Side (red/green/blue/yellow) — plays like Classic UNO.',
-      'When a FLIP card is played, every hand, the deck, and the discard flip to their other face.',
-      'Dark Side colours: pink, teal, orange, purple — with much harsher penalties.',
-      'Draw One (Light): next player draws 1 card and loses their turn.',
-      'Draw Five (Dark): next player draws 5 cards and loses their turn.',
-      'Skip (Light): next player loses their turn.',
-      'Skip Everyone (Dark): ALL other players are skipped; the card player goes again.',
-      'Wild Draw 2 (Light): choose colour; next player draws 2, loses turn. Requires no matching-colour card in hand.',
-      'Wild Draw Color (Dark): choose colour; next player draws until they get that colour, loses turn. Same restriction as Wild Draw 2.',
-      'No stacking — you cannot play a draw card to pass the penalty on.',
-      'If you cannot play, draw 1 card. If it is playable you may play it immediately.',
-      'Shout "UNO!" when you are down to one card.',
-    ],
-    cards: {
-      draw_one:        'Light Side — next player draws 1 card and loses their turn.',
-      draw_five:       'Dark Side — next player draws 5 cards and loses their turn.',
-      reverse:         'Reverses the direction of play.',
-      skip:            'Light Side — next player loses their turn.',
-      skip_everyone:   'Dark Side — ALL other players are skipped; you play again immediately.',
-      flip:            'Flips the entire game between the Light Side and the Dark Side!',
-      wild:            'Choose any colour to continue play.',
-      wild_draw2:      'Light Side — choose colour; next player draws 2 and loses their turn. Only playable when you hold no matching-colour cards.',
-      wild_draw_color: 'Dark Side — choose colour; next player draws cards until they pull that colour, then loses their turn. Only playable when you hold no matching-colour cards.',
-    },
-  },
- 
-  all_wild: {
-    name: 'UNO All Wild',
-    rules: [
-      'Every card is a Wild — any card can be played on any other card, no matching needed!',
-      'On your turn, simply play any card from your hand.',
-      'You may also choose not to play — press Draw to take 1 card and end your turn.',
-      'Wild Draw 2: the next player draws 2 cards and loses their turn.',
-      'Wild Draw 4: the next player draws 4 cards and loses their turn.',
-      'Wild Targeted Draw 2: choose ANY player (not just the next) — they draw 2 cards but keep their turn.',
-      'Wild Double Skip: the next 2 players miss their turns. With 2 players, opponent misses 2 turns in a row.',
-      'Wild Forced Swap: you MUST choose a player to swap hands with.',
-      'Wild Reverse: reverses the direction of play.',
-      'Wild Skip: the next player misses their turn.',
-      'Shout "UNO!" when you are down to one card.',
-      'First player to empty their hand wins.',
-    ],
-    cards: {
-      wild:      'No action — just a standard card. Play at any time.',
-      w_reverse: 'Reverses the direction of play.',
-      w_skip:    'Next player misses their turn.',
-      w_dskip:   'The next 2 players miss their turns. In 2-player, your opponent misses 2 turns in a row.',
-      w_draw2:   'Next player draws 2 cards and loses their turn.',
-      w_draw4:   'Next player draws 4 cards and loses their turn.',
-      w_tdraw2:  'Choose any player — they draw 2 cards, but do NOT lose their turn.',
-      w_fswap:   'You MUST choose a player to swap your entire hand with.',
-    },
-  },
- 
-};
-
 
 function cLabel(v){ return CARD_LABELS[v]||v; }
 
-// ── Rules popup ───────────────────────────────────────
-let _cachedRules = null;  // {rules, card_descriptions, name} from last fetch
+// ── ルールポップアップ ───────────────────────────────────────
+let _cachedRules = null;  // {rules, card_descriptions, name} 最後のフェッチデータ
 
 function showRulesForRoom() {
-  // Read the currently selected game type from the create-room dropdown,
-  // or fall back to the in-game snapshot, or 'classic'.
+  // 待機室から呼び出し — ソケット経由でフェッチ
   const type = document.getElementById('room-type-sel')?.value
              || (gameState && gameState.game_type)
              || 'classic';
-  const data = UNO_RULES[type];
-  if (data) {
-    _renderRules(data.name, data.rules, data.cards);
-  } else {
-    // Unknown type — ask the server as a fallback
-    socket.emit('uno_get_rules', { uno_type: type });
-  }
+  socket.emit('uno_get_rules', {uno_type: type});
 }
 
-
 function showRulesFromSnapshot() {
+  // ゲーム中に呼び出し — データはスナップショット内にある
   if (!gameState) return;
-  const type = gameState.game_type || 'classic';
-  const data = UNO_RULES[type];
-  if (data) {
-    _renderRules(data.name, data.rules, data.cards);
-  } else {
-    // Fallback: use whatever the server sent in the snapshot
-    _renderRules(
-      gameState.game_type || 'Game',
-      gameState.rules || [],
-      gameState.card_descriptions || {}
-    );
-  }
+  _renderRules(
+    gameState.game_type || 'ゲーム',
+    gameState.rules || [],
+    gameState.card_descriptions || {}
+  );
 }
 
 socket.on('uno_rules', data => {
-  // Only use server data if we don't have a local translation for this type
-  if (!UNO_RULES[data.uno_type || '']) {
-    _renderRules(data.name, data.rules || [], data.card_descriptions || {});
-  }
+  _cachedRules = data;
+  _renderRules(data.name, data.rules || [], data.card_descriptions || {});
 });
 
 function _renderRules(name, rules, cardDescs) {
-  document.getElementById('rules-title').textContent = '📖 Rules';
+  document.getElementById('rules-title').textContent = '📖 ルール';
   document.getElementById('rules-type-label').textContent = name;
 
   const list = document.getElementById('rules-list');
@@ -1539,35 +1386,35 @@ document.getElementById('rules-overlay').addEventListener('click', e => {
   if (e.target.id === 'rules-overlay') closeRules();
 });
 
-// Also send rules data in the snapshot — add to extra_snapshot_fields on server.
-// Here we read it from gameState when available:
+// スナップショットにルールデータも含めるようにサーバー側で実装済み。
+// ここでは gameState から読み取る:
 function _syncInGameRulesBtn() {
   const btn = document.getElementById('ingame-rules-btn');
   if (btn) btn.style.display = 'inline-block';
 }
 
-// ── Views ─────────────────────────────────────────────
+// ── ビュー ─────────────────────────────────────────────
 function showView(v){
   hideCardTooltip();
   document.querySelectorAll('.uno-view').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v)?.classList.add('active');
 }
 
-// ── Toast ─────────────────────────────────────────────
+// ── トースト ─────────────────────────────────────────────
 function showToast(msg,type='info'){
   const el=document.getElementById('uno-toast');
   el.textContent=msg;el.className='show '+type;
   clearTimeout(el._t);el._t=setTimeout(()=>{el.className=type;},3200);
 }
 
-// ── Username ──────────────────────────────────────────
+// ── ユーザー名 ──────────────────────────────────────────
 document.getElementById('un-input').addEventListener('keydown',e=>{if(e.key==='Enter')submitUsername();});
 document.getElementById('un-submit').addEventListener('click',submitUsername);
 function submitUsername(){
   const val=document.getElementById('un-input').value.trim();
   const err=document.getElementById('un-err');
-  if(!val){err.textContent='Username cannot be empty.';return;}
-  if(val.length>24){err.textContent='Max 24 chars.';return;}
+  if(!val){err.textContent='ユーザー名を入力してください。';return;}
+  if(val.length>24){err.textContent='24文字以内で入力してください。';return;}
   err.textContent='';
   socket.emit('uno_set_username',{username:val});
 }
@@ -1580,7 +1427,7 @@ socket.on('uno_username_ack',data=>{
   socket.emit('uno_get_lobby');
 });
 
-// ── Lobby ─────────────────────────────────────────────
+// ── ロビー ─────────────────────────────────────────────
 function switchLobbyTab(tab,btn){
   document.querySelectorAll('.l-tab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.l-pane').forEach(p=>p.classList.remove('active'));
@@ -1610,7 +1457,7 @@ function renderRooms(list){
   noMsg.style.display='none';
   list.forEach(r=>{
     const div=document.createElement('div');div.className='room-card';
-    div.innerHTML=`<div class="rc-info"><div class="rc-title">${escHtml(r.title)}</div><div class="rc-meta"><span class="rc-type-badge">${escHtml(r.type_name)}</span><span>${r.players}/${r.max} players</span></div></div><button class="join-room-btn" onclick="joinRoom('${r.id}')">Join</button>`;
+    div.innerHTML=`<div class="rc-info"><div class="rc-title">${escHtml(r.title)}</div><div class="rc-meta"><span class="rc-type-badge">${escHtml(r.type_name)}</span><span>${r.players}/${r.max} 人</span></div></div><button class="join-room-btn" onclick="joinRoom('${r.id}')">参加</button>`;
     el.appendChild(div);
   });
 }
@@ -1618,9 +1465,9 @@ socket.on('uno_lobby',data=>{
   mySid=data.my_sid;allRooms=data.rooms||[];filterRooms();
 });
 
-// ── Create / Join room ────────────────────────────────
+// ── ルーム作成 / 参加 ────────────────────────────────
 function createRoom(){
-  const title=document.getElementById('room-title-inp').value.trim()||'My Room';
+  const title=document.getElementById('room-title-inp').value.trim()||'マイルーム';
   const type=document.getElementById('room-type-sel').value;
   socket.emit('uno_create_room',{title,uno_type:type,privacy:selectedPrivacy});
 }
@@ -1628,7 +1475,7 @@ socket.on('uno_room_created',data=>{currentRoomId=data.room_id;showView('room');
 function joinRoom(roomId){socket.emit('uno_join_room',{room_id:roomId});}
 socket.on('uno_joined_room',data=>{currentRoomId=data.room_id;showView('room');});
 
-// ── Available players (real-time) ─────────────────────
+// ── 利用可能プレイヤー (リアルタイム) ─────────────────────
 socket.on('uno_available_update',data=>{renderAvailablePlayers(data.available||[]);});
 function renderAvailablePlayers(avail){
   if(!isCreator||!isPrivate)return;
@@ -1640,24 +1487,24 @@ function renderAvailablePlayers(avail){
   if(noMsg)noMsg.style.display='none';
   others.forEach(p=>{
     const el=document.createElement('div');el.className='avail-entry';
-    el.innerHTML=`<span>${escHtml(p.username)}</span><button class="invite-btn" onclick="invitePlayer('${p.sid}')">Invite</button>`;
+    el.innerHTML=`<span>${escHtml(p.username)}</span><button class="invite-btn" onclick="invitePlayer('${p.sid}')">招待</button>`;
     availEl.appendChild(el);
   });
 }
 
-// ── Room state ────────────────────────────────────────
+// ── ルーム状態 ────────────────────────────────────────
 socket.on('uno_room_state',data=>{
   mySid=data.my_sid;isCreator=data.is_creator;isPrivate=data.privacy==='private';
   document.getElementById('room-title-display').textContent=data.title;
   document.getElementById('room-type-badge').textContent=data.type_name;
-  document.getElementById('room-priv-badge').textContent=data.privacy==='private'?'🔒 Private':'🌐 Public';
+  document.getElementById('room-priv-badge').textContent=data.privacy==='private'?'🔒 非公開':'🌐 公開';
   document.getElementById('room-player-count').textContent=data.players.length+data.bots.length;
   document.getElementById('room-max').textContent=data.max_players;
   const pl=document.getElementById('room-players-list');pl.innerHTML='';
   data.players.forEach(p=>{
     const el=document.createElement('div');el.className='player-entry';
     const isMe=p.sid===mySid;
-    el.innerHTML=`<span style="font-size:1.1rem">🧑</span><span class="pe-name">${escHtml(p.username)}${isMe?' <em style="color:#ffd700;font-style:normal;font-size:.62rem">(you)</em>':''}</span>${p.sid===data.creator_sid?'<span class="pe-crown">👑</span>':''}${isCreator&&!isMe?`<button class="pe-kick" onclick="kickPlayer('${p.sid}')">Kick</button>`:''}`;
+    el.innerHTML=`<span style="font-size:1.1rem">🧑</span><span class="pe-name">${escHtml(p.username)}${isMe?' <em style="color:#ffd700;font-style:normal;font-size:.62rem">(あなた)</em>':''}</span>${p.sid===data.creator_sid?'<span class="pe-crown">👑</span>':''}${isCreator&&!isMe?`<button class="pe-kick" onclick="kickPlayer('${p.sid}')">キック</button>`:''}`;
     pl.appendChild(el);
   });
   const bl=document.getElementById('room-bots-list');
@@ -1678,7 +1525,7 @@ socket.on('uno_room_state',data=>{
   document.getElementById('wait-banner').style.display=(!isCreator)?'block':'none';
   const sb=document.getElementById('start-btn');
   sb.disabled=!data.can_start||!isCreator;
-  document.getElementById('room-status-hint').textContent=`${data.players.length+data.bots.length}/${data.max_players} players · Need at least ${data.min_players}`;
+  document.getElementById('room-status-hint').textContent=`${data.players.length+data.bots.length}/${data.max_players} 人 · 最低${data.min_players}人必要`;
 });
 
 function kickPlayer(sid){socket.emit('uno_kick',{target_sid:sid});}
@@ -1691,16 +1538,16 @@ function leaveRoom(){
   showView('lobby');socket.emit('uno_get_lobby');
 }
 
-socket.on('uno_you_are_creator',()=>{isCreator=true;showToast('You are now the room creator.','info');});
-socket.on('uno_kicked',()=>{currentRoomId=null;isCreator=false;showView('lobby');showToast('You were removed from the room.','err');socket.emit('uno_get_lobby');});
+socket.on('uno_you_are_creator',()=>{isCreator=true;showToast('あなたがルーム作成者になりました。','info');});
+socket.on('uno_kicked',()=>{currentRoomId=null;isCreator=false;showView('lobby');showToast('ルームから追放されました。','err');socket.emit('uno_get_lobby');});
 socket.on('uno_left_room',()=>{showView('lobby');socket.emit('uno_get_lobby');});
-socket.on('uno_player_joined',data=>{showToast(`${data.username} joined!`,'info');});
-socket.on('uno_player_left',data=>{showToast(`${data.username} left (replaced by bot).`,'info');});
+socket.on('uno_player_joined',data=>{showToast(`${data.username} が参加しました`,'info');});
+socket.on('uno_player_left',data=>{showToast(`${data.username} が退出しました (ボットで代替)。`,'info');});
 
-// ── Invite ─────────────────────────────────────────────
+// ── 招待 ─────────────────────────────────────────────
 socket.on('uno_invited',data=>{
   pendingInvite=data;
-  document.getElementById('it-creator').textContent=`${data.creator_username} invited you`;
+  document.getElementById('it-creator').textContent=`${data.creator_username} から招待`;
   document.getElementById('it-room').textContent=`"${data.room_title}" · ${data.type_name}`;
   document.getElementById('invite-toast').classList.add('open');
 });
@@ -1710,22 +1557,22 @@ function respondInvite(accept){
   if(accept)socket.emit('uno_invite_response',{room_id:pendingInvite.room_id,accept:true});
   pendingInvite=null;
 }
-socket.on('uno_invite_sent',data=>{showToast(`Invite sent to ${data.to}.`,'ok');});
+socket.on('uno_invite_sent',data=>{showToast(`${data.to} に招待を送信しました。`,'ok');});
 
-// ── Game started ───────────────────────────────────────
+// ── ゲーム開始 ───────────────────────────────────────
 socket.on('uno_game_started',()=>{
   amSpectator=false;prevTopCard=null;showView('game');
-  showToast('Game started! Good luck 🃏','info');
+  showToast('ゲーム開始！ 頑張ってください 🃏','info');
 });
 socket.on('uno_you_won',data=>{
   amSpectator=true;
-  showToast(`🎉 You finished #${data.rank}! Spectating…`,'ok');
+  showToast(`🎉 ${data.rank}位で終了！ 観戦モードです。`,'ok');
   document.getElementById('spectator-badge').classList.add('visible');
-  document.getElementById('hand-label').textContent='All Hands (Spectating)';
+  document.getElementById('hand-label').textContent='全員の手札 (観戦中)';
   document.getElementById('draw-btn').disabled=true;
 });
 
-// ── Game state ─────────────────────────────────────────
+// ── ゲーム状態 ─────────────────────────────────────────
 socket.on('uno_game_state', data => {
   gameState = data;
   window._stackableValues    = new Set(data.stackable_values || []);
@@ -1734,7 +1581,7 @@ socket.on('uno_game_state', data => {
   window._lastLaunchSeq = window._lastLaunchSeq || 0;
   _syncInGameRulesBtn();
 
-  // Deal sound — fires once when hand goes from empty to full at round start
+  // 配布サウンド — ラウンド開始時に手札が空から増えたときに発動
   const myP2       = data.players?.find(p => p.sid === mySid);
   const newHand    = myP2?.hand_count || 0;
   const prevHand   = window._prevHandSize || 0;
@@ -1764,12 +1611,12 @@ function hideCardTooltip() {
   document.getElementById('card-tooltip').classList.remove('visible');
 }
 
-// Update isPlayable:
+// プレイ可能判定:
 function isPlayable(card, topCard, pending) {
   if (!topCard) return false;
   if (pending > 0) {
     if (!window._stackableValues.has(card.value)) return false;
-    // No Mercy: card's draw value must be >= accumulated pending total
+    // No Mercy: カードのドロー値が累積ペンディング以上であること
     if (Object.keys(window._drawValues).length > 0) {
       const cardVal = window._drawValues[card.value] || 0;
       if (cardVal < pending) return false;
@@ -1782,7 +1629,7 @@ function isPlayable(card, topCard, pending) {
   return false;
 }
 
-// ── UNO Flip: sync colour picker to current side ───────
+// ── UNO Flip: 現在のサイドに合わせてカラーピッカーを同期 ───────
 const _FLIP_LIGHT_CFG = [['red','🔴','cpb-red'],['green','🟢','cpb-green'],['blue','🔵','cpb-blue'],['yellow','🟡','cpb-yellow']];
 const _FLIP_DARK_CFG  = [['pink','🌸','cpb-pink'],['teal','🌊','cpb-teal'],['orange','🔥','cpb-orange'],['purple','💜','cpb-purple']];
 
@@ -1806,13 +1653,13 @@ function renderGame(state){
     : null;
   const myIdx    = state.players.findIndex(p=>p.sid===mySid);
   const pendingAction = state.pending_action;
-  // Flip: must draw until colour (Wild Draw Color targeted this player)
+  // Flip: 指定色が出るまで引き続け (Wild Draw Color がこのプレイヤーに指定)
   const mustDrawUntilColor = !amSpectator
     && state.game_type==='flip'
     && pendingAction?.type==='draw_until_color'
     && myIdx===pendingAction.player_idx;
 
-  // Turn indicator
+  // ターン表示
   const turnEl=document.getElementById('topbar-turn');
   const atmo  =document.getElementById('turn-atmosphere');
   const myArea =document.getElementById('my-area');
@@ -1820,11 +1667,11 @@ function renderGame(state){
   const handLbl=document.getElementById('hand-label');
 
   if(amSpectator){
-    turnEl.textContent=`${state.current_username||'?'}'s turn`;
+    turnEl.textContent=`${state.current_username||'?'} のターン`;
     turnEl.className='other-turn';
     atmo.className='';myArea.className='';
   }else if(isMyTurn){
-    turnEl.textContent=state.waiting_for_color?'✦ Choose a color!':'✦ YOUR TURN';
+    turnEl.textContent=state.waiting_for_color?'✦ 色を選んでください！':'✦ あなたのターン！';
     turnEl.className='my-turn';
     if (isMyTurn && !_wasMyturn) SFX.play('myTurn');
     _wasMyturn = isMyTurn;
@@ -1833,7 +1680,7 @@ function renderGame(state){
     handLbl.className='hand-label my-turn-label';
     drawBtn.classList.add('my-turn-draw');
   }else{
-    turnEl.textContent=`${state.current_username||'?'}'s turn`;
+    turnEl.textContent=`${state.current_username||'?'} のターン`;
     turnEl.className='other-turn';
     atmo.className='';
     myArea.classList.remove('my-turn');
@@ -1841,12 +1688,12 @@ function renderGame(state){
     drawBtn.classList.remove('my-turn-draw');
   }
 
-  // Direction
+  // 方向
   const dirEl=document.getElementById('direction-wrap');
   dirEl.textContent=state.direction===1?'↻':'↺';
   dirEl.className=state.direction===1?'':'ccw';
 
-  // Discard pile — animate flip if card changed
+  // 捨て札 — カードが変わったらフリップアニメーション
   const discardEl=document.getElementById('discard-pile');
   if(topCard){
     const color=topCard.chosen_color||topCard.color;
@@ -1859,10 +1706,10 @@ function renderGame(state){
     }
   }
 
-  // Deck count
-  document.getElementById('deck-count').textContent=`${state.deck_count} cards`;
+  // 山札残数
+  document.getElementById('deck-count').textContent=`${state.deck_count} 枚`;
 
-  // Pending draw badge
+  // 保留ドロップバッジ
   const pdb=document.getElementById('pending-draw-badge');
   if(pending>0){pdb.textContent=`+${pending}`;pdb.classList.add('visible');}
   else pdb.classList.remove('visible');
@@ -1870,18 +1717,18 @@ function renderGame(state){
   
 
 
-  // Draw button
+  // ドローボタン
   drawBtn.disabled = !isMyTurn
                 || state.waiting_for_color
                 || state.status === 'finished'
                 || state.must_play_drawn;
   drawBtn.textContent = mustDrawUntilColor
-    ? `Draw until ${pendingAction.color}`
+    ? `${pendingAction.color} が出るまでドロー`
     : state.must_play_drawn
-      ? 'Play your drawn card'
-      : (pending > 0 && isMyTurn ? `Draw ${pending}` : 'Draw');
+      ? '引いたカードをプレイ'
+      : (pending > 0 && isMyTurn ? `${pending} 枚ドロー` : 'ドロー');
 
-  // UNO badge
+  // UNOバッジ
   const unoBadge=document.getElementById('uno-self-badge');
   if(myP&&myP.has_uno&&!amSpectator)unoBadge.classList.add('visible');
   if (myP?.has_uno && !amSpectator && !document.getElementById('uno-self-badge').classList.contains('visible')) {
@@ -1889,18 +1736,18 @@ function renderGame(state){
   }
   else unoBadge.classList.remove('visible');
 
-  // Color picker
+  // カラーピッカー
   if(state.waiting_for_color&&isMyTurn)document.getElementById('color-overlay').classList.add('open');
   else document.getElementById('color-overlay').classList.remove('open');
 
-  // ── UNO Flip: dark-side atmosphere + colour-picker ────
+  // ── UNO Flip: ダークサイド雰囲気 + カラーピッカー ────
   const root = document.getElementById('uno-root');
   if (state.game_type === 'flip') {
     root.classList.toggle('dark-side', !!state.dark_side);
     _syncColorPicker(!!state.dark_side);
   } else {
     root.classList.remove('dark-side');
-    _syncColorPicker(false);  // restore standard colours if switching game types
+    _syncColorPicker(false);  // ゲームタイプが切り替わったら標準色に戻す
   }
 
   renderOpponents(state);
@@ -1909,7 +1756,7 @@ function renderGame(state){
   else if(myP)renderHand(myP.hand,topCard,pending,isMyTurn,state.waiting_for_color,mustDrawUntilColor);
 
 
-  // Replace the two overlay blocks at the end of renderGame() with:
+  // 以下のオーバーレイブロックを renderGame() 内の適切な位置に置き換え:
   const swapOverlay     = document.getElementById('swap-overlay');
   const rouletteOverlay = document.getElementById('roulette-overlay');
 
@@ -1927,7 +1774,7 @@ function renderGame(state){
     rouletteOverlay.classList.remove('open');
   }
 
-  // ── No Mercy: mercy counter on opponent cards ─────────────────────────────
+  // ── No Mercy: 慈悲ルールのカウンターを対戦相手カードに表示 ─────────────────────────────
   const mercyLimit = state.mercy_limit;
   if (mercyLimit) {
     state.players.forEach(p => {
@@ -1944,8 +1791,8 @@ function renderGame(state){
   const arrowLeft  = document.getElementById('dir-arrow-left');
   const arrowRight = document.getElementById('dir-arrow-right');
   if (arrowRow) {
-    // direction 1 = clockwise = left→right in the visual row
-    // direction -1 = counter-clockwise = right→left
+    // direction 1 = 時計回り = 左→右 視覚的
+    // direction -1 = 反時計回り = 右→左
     if (state.direction === 1) {
       arrowLeft.style.opacity  = '0.2';
       arrowRight.style.opacity = '1';
@@ -1959,10 +1806,10 @@ function renderGame(state){
     }
   }
 
-  // ── UNO Attack: launcher visual, draw button, animation, overlays ─────────
+  // ── UNO Attack: ランチャー表示、ドローボタン、アニメーション、オーバーレイ ─────────
   const isAttack = state.game_type === 'attack';
 
-  // Show/hide the physical launcher widget (replaces the deck card)
+  // 物理ランチャーウィジェットの表示/非表示 (山札カードを置き換え)
   const launcherWrap = document.getElementById('launcher-wrap');
   const deckCardItem = document.getElementById('deck-card').closest('.gc-item');
   if (launcherWrap) {
@@ -1975,14 +1822,14 @@ function renderGame(state){
     }
   }
 
-  // Override the draw button label/state for Attack
+  // Attack 用にドローボタンのラベル/状態を上書き
   if (isAttack) {
     const hits = state.pending_hits || 0;
-    drawBtn.textContent = (isMyTurn && hits > 0) ? `🚀 Press ×${hits}` : '🚀 Press Launcher';
+    drawBtn.textContent = (isMyTurn && hits > 0) ? `🚀 発射 ×${hits}` : '🚀 ランチャー発射';
     drawBtn.disabled    = !isMyTurn || state.waiting_for_color || !!state.pending_action;
   }
 
-  // Launcher fire/click animation (triggers on seq change)
+  // ランチャー発射/クリックアニメーション (シーケンス変更時に発火)
   const ll = state.last_launch || {};
   if (isAttack && ll.seq && ll.seq !== window._lastLaunchSeq) {
     window._lastLaunchSeq = ll.seq;
@@ -1995,19 +1842,19 @@ function renderGame(state){
       burst.textContent = `+${ll.count}🃏`;
       bodyEl.appendChild(burst);
       setTimeout(() => burst.remove(), 500);
-      resultEl.textContent = `${ll.username}: +${ll.count} cards!`;
+      resultEl.textContent = `${ll.username}: +${ll.count} 枚！`;
       resultEl.className   = 'launcher-result fired';
     } else {
       SFX.play('launchSafe');
       bodyEl.classList.add('launcher-click-anim');
       setTimeout(() => bodyEl.classList.remove('launcher-click-anim'), 300);
-      resultEl.textContent = `${ll.username}: safe!`;
+      resultEl.textContent = `${ll.username}: セーフ！`;
       resultEl.className   = 'launcher-result safe';
     }
     setTimeout(() => { resultEl.textContent = ''; resultEl.className = 'launcher-result'; }, 2500);
   }
 
-  // Attack-specific pending-action overlays
+  // Attack 固有の保留アクションオーバーレイ
   const tradeOverlay   = document.getElementById('trade-overlay');
   const allHitOverlay  = document.getElementById('all-hit-overlay');
   const hitFireOverlay = document.getElementById('hit-fire-overlay');
@@ -2028,7 +1875,7 @@ function renderGame(state){
     hitFireOverlay?.classList.remove('open');
   }
 
-  // ── All Wild: targeted-draw-2 and forced-swap overlays ───────────────────
+  // ── All Wild: 対象指定ドロー2 および 強制交換オーバーレイ ───────────────────
   const awTdraw2Overlay = document.getElementById('aw-tdraw2-overlay');
   const awFswapOverlay  = document.getElementById('aw-fswap-overlay');
 
@@ -2065,7 +1912,7 @@ function renderSwapTargets(state) {
     if (p.sid === mySid || p.finished) return;
     const btn = document.createElement('button');
     btn.style.cssText = 'padding:10px 16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-family:\'Share Tech Mono\',monospace;font-size:.8rem;cursor:pointer;text-align:left;';
-    btn.textContent = `${p.username}  (${p.hand_count} cards)`;
+    btn.textContent = `${p.username}  (${p.hand_count} 枚)`;
     btn.onclick = () => chooseSwapTarget(idx);
     el.appendChild(btn);
   });
@@ -2079,7 +1926,7 @@ function renderAWTargets(containerId, actionType, overlayId) {
     if (p.sid === mySid || p.finished) return;
     const btn = document.createElement('button');
     btn.style.cssText = 'padding:10px 16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-family:\'Share Tech Mono\',monospace;font-size:.8rem;cursor:pointer;text-align:left;';
-    btn.textContent = `${p.username}  (${p.hand_count} cards)`;
+    btn.textContent = `${p.username}  (${p.hand_count} 枚)`;
     btn.onclick = () => {
       document.getElementById(overlayId).classList.remove('open');
       socket.emit('uno_player_action', {action_type: actionType, data: {target_idx: idx}});
@@ -2096,7 +1943,7 @@ function renderTradeTargets(state) {
     if (p.sid === mySid || p.finished) return;
     const btn = document.createElement('button');
     btn.style.cssText = 'padding:10px 16px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-family:\'Share Tech Mono\',monospace;font-size:.8rem;cursor:pointer;text-align:left;';
-    btn.textContent = `${p.username}  (${p.hand_count} cards)`;
+    btn.textContent = `${p.username}  (${p.hand_count} 枚)`;
     btn.onclick = () => {
       document.getElementById('trade-overlay').classList.remove('open');
       socket.emit('uno_player_action', {action_type: 'trade_hands', data: {target_idx: idx}});
@@ -2126,7 +1973,7 @@ function chooseRouletteColor(color) {
 
 function renderOpponents(state) {
   const row = document.getElementById('opponents-row');
-  // Include ALL players — mark self with a "(You)" indicator
+  // 全プレイヤーを表示 — 自分には "(あなた)" を付ける
   const newKeys = new Set(state.players.map(p => String(p.id)));
   row.querySelectorAll('.opp-card').forEach(el => {
     if (!newKeys.has(el.dataset.pid)) el.remove();
@@ -2145,11 +1992,11 @@ function renderOpponents(state) {
     div.className = `opp-card${isActive ? ' active-player' : ''}${p.finished ? ' finished' : ''}${isMe ? ' is-me' : ''}`;
     const show  = Math.min(p.hand_count, 7);
     const backs = Array(show).fill('<div class="mini-card-back"></div>').join('');
-    const nameLabel = escHtml(p.username) + (isMe ? ' <em style="color:#ffd700;font-style:normal">(You)</em>' : '');
+    const nameLabel = escHtml(p.username) + (isMe ? ' <em style="color:#ffd700;font-style:normal">(あなた)</em>' : '');
     div.innerHTML = `
       ${p.is_bot ? '<span style="font-size:.75rem;opacity:.5">🤖</span>' : ''}
       <div class="opp-card-backs">${backs}</div>
-      <div class="opp-count">${p.hand_count} card${p.hand_count !== 1 ? 's' : ''}</div>
+      <div class="opp-count">${p.hand_count} 枚</div>
       <div class="opp-name" title="${escHtml(p.username)}">${nameLabel}</div>
       ${p.has_uno ? '<span class="uno-badge">UNO!</span>' : ''}
       ${p.finished ? `<span style="font-size:.65rem;color:${p.mercy_knocked ? '#ff4d4d' : '#ffd700'}">${p.mercy_knocked ? '💀' : '#' + p.rank}</span>` : ''}`;
@@ -2161,9 +2008,9 @@ function renderHand(hand,topCard,pending,isMyTurn,waitingColor,forceNoPlay){
   if(!Array.isArray(hand))return;
   const scroll=document.getElementById('hand-scroll');
   const newKey=hand.map(c=>c.color+'_'+c.value+'_'+(c.chosen_color||'')).join('|');
-  // Only full re-render when hand changed
+  // 手札が変わった時だけ完全再描画
   if(newKey===_handKey&&!isMyTurn&&scroll.children.length>0){
-    // just update playability classes
+    // プレイ可能クラスだけ更新
     [...scroll.children].forEach((el,idx)=>{
       const card=hand[idx];if(!card)return;
       const playable=isMyTurn&&!waitingColor&&!forceNoPlay&&isPlayable(card,topCard,pending);
@@ -2218,7 +2065,7 @@ function renderSpectatorHands(state){
   });
 }
 
-// ── Game actions ───────────────────────────────────────
+// ── ゲームアクション ───────────────────────────────────────
 function playCard(idx, card) {
   SFX.play("flip")
   if (card.color === 'wild' && gameState?.game_type !== 'all_wild') {
@@ -2250,17 +2097,17 @@ socket.on('uno_error', data => {
   showToast(data.message, 'err');
 });
 
-// ── Game over ──────────────────────────────────────────
+// ── ゲーム終了 ──────────────────────────────────────────
 function _showGameOver(data){
   const rankings  = data.rankings || [];
   const myRank    = rankings.find(r => !r.is_bot && r.username === myUsername);
   const iAmCreator= data.is_creator === true;
 
-  let title='🃏 Game Over', icon='🃏';
+  let title='🃏 ゲーム終了', icon='🃏';
   if(myRank){
-    if(myRank.rank===1){title='🏆 You Win!';icon='🏆';}
-    else if(amSpectator){title=`🎉 Finished #${myRank.rank}!`;}
-    else{title='💀 You Lose.';icon='💀';}
+    if(myRank.rank===1){title='🏆 あなたの勝ち！';icon='🏆';}
+    else if(amSpectator){title=`🎉 ${myRank.rank}位で終了！`;}
+    else{title='💀 負けました。';icon='💀';}
   }
   document.getElementById('go-icon').textContent=icon;
   document.getElementById('go-title').textContent=title;
@@ -2277,12 +2124,12 @@ function _showGameOver(data){
     el.innerHTML = `
       <span class="rank-num">${rankDisplay}</span>
       <span class="rank-name">${escHtml(r.username)}</span>
-      ${r.is_bot ? '<span class="rank-bot">🤖 Bot</span>' : ''}
-      ${isKnocked ? '<span class="rank-bot" style="color:#ff4d4d">Knocked out</span>' : ''}`;
+      ${r.is_bot ? '<span class="rank-bot">🤖 ボット</span>' : ''}
+      ${isKnocked ? '<span class="rank-bot" style="color:#ff4d4d">脱落</span>' : ''}`;
     list.appendChild(el);
   });
 
-  // Show the right set of buttons depending on role
+  // 役割に応じたボタン表示
   document.getElementById('go-creator-btns').style.display = iAmCreator ? 'flex' : 'none';
   document.getElementById('go-waiting').style.display      = (!iAmCreator && currentRoomId) ? 'flex' : 'none';
   document.getElementById('go-solo-btns').style.display    = currentRoomId ? 'none' : 'flex';
@@ -2290,7 +2137,7 @@ function _showGameOver(data){
   showView('gameover');
   amSpectator=false; prevTopCard=null; _handKey='';
   document.getElementById('spectator-badge').classList.remove('visible');
-  document.getElementById('hand-label').textContent='Your Hand';
+  document.getElementById('hand-label').textContent='あなたの手札';
 }
 
 socket.on('uno_game_over', data => {
@@ -2300,23 +2147,23 @@ socket.on('uno_game_over', data => {
 
 });
 
-// Server transferred creator role to us mid-post-game
+// ゲーム後、作成者権限が自分に移管された
 socket.on('uno_now_creator', () => {
   isCreator = true;
   document.getElementById('go-creator-btns').style.display = 'flex';
   document.getElementById('go-waiting').style.display      = 'none';
-  showToast('You are now the room creator.','info');
+  showToast('あなたがルーム作成者になりました。','info');
 });
 
 socket.on('uno_you_mercy_knocked', () => {
   amSpectator = true;
-  showToast('💀 You were knocked out by the Mercy Rule! Spectating…', 'err');
+  showToast('💀 慈悲ルールにより脱落しました。観戦します。', 'err');
   document.getElementById('spectator-badge').classList.add('visible');
-  document.getElementById('hand-label').textContent = 'All Hands (Spectating)';
+  document.getElementById('hand-label').textContent = '全員の手札 (観戦中)';
   document.getElementById('draw-btn').disabled = true;
 });
 
-// ── Post-game actions ──────────────────────────────────
+// ── ゲーム後アクション ──────────────────────────────────
 function continueGame(){
   socket.emit('uno_continue_game');
 }
@@ -2332,7 +2179,7 @@ function leavePostGame(){
   socket.emit('uno_get_lobby');
 }
 
-// Server sends everyone back to the waiting room when creator clicks Continue
+// サーバーから全員がルームに戻る通知 (作成者が Continue を押した時)
 socket.on('uno_return_to_room', data => {
   currentRoomId = data.room_id;
   gameState = null; prevTopCard = null; _handKey = '';
@@ -2342,20 +2189,20 @@ socket.on('uno_return_to_room', data => {
   document.getElementById('my-area').classList.remove('my-turn');
   amSpectator = false;
   document.getElementById('spectator-badge').classList.remove('visible');
-  document.getElementById('hand-label').textContent = 'Your Hand';
+  document.getElementById('hand-label').textContent = 'あなたの手札';
   showView('room');
 });
 
 socket.on('uno_mercy_knocked', data => {
-  showToast(`💀 ${data.username} knocked out by Mercy Rule!`, 'err');
+  showToast(`💀 ${data.username} が慈悲ルールで脱落しました！`, 'err');
 });
 
 socket.on('uno_swap_happened', data => {
-  showToast(`🔄 ${data.source} swapped hands with ${data.target}!`, 'info');
+  showToast(`🔄 ${data.source} が ${data.target} と手札を交換しました！`, 'info');
 });
 
 function backToLobby(){
-  // Only used if somehow no room exists (shouldn't happen normally)
+  // ルームが存在しない場合 (通常は起こらない)
   currentRoomId=null; isCreator=false; gameState=null; prevTopCard=null; _handKey='';
   document.getElementById('hand-scroll').innerHTML='';
   document.getElementById('opponents-row').innerHTML='';
@@ -2364,14 +2211,14 @@ function backToLobby(){
   showView('lobby'); socket.emit('uno_get_lobby');
 }
 
-socket.on('disconnect',()=>{showToast('Disconnected from server.','err');});
+socket.on('disconnect',()=>{showToast('サーバーから切断されました。','err');});
 socket.on('connect',()=>{if(myUsername)socket.emit('uno_set_username',{username:myUsername});});
 
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════
-   UNO Sound Effects — Web Audio API (no external files)
+   UNO サウンドエフェクト — Web Audio API (外部ファイルなし)
    ═══════════════════════════════════════════════════════ */
 const SFX = (() => {
   let ctx = null;
@@ -2382,7 +2229,7 @@ const SFX = (() => {
     return ctx;
   }
 
-  /* ── Primitive builders ──────────────────────────────── */
+  /* ── プリミティブビルダー ──────────────────────────────── */
 
   function _osc(type, freq, startTime, duration, gainStart, gainEnd, c = _ctx()) {
     const g   = c.createGain();
@@ -2413,25 +2260,25 @@ const SFX = (() => {
     src.stop(startTime + duration + 0.01);
   }
 
-  /* ── Individual sound recipes ────────────────────────── */
+  /* ── 個別サウンドレシピ ────────────────────────── */
 
   const sounds = {
 
-    // Card laid on the discard pile — short crisp whoosh + thud
+    // 捨て札にカードを置く — 短いサラッと + ソフトな衝撃
     flip() {
       const c = _ctx(), t = c.currentTime;
-      _noise(t,       0.04, 0.18, 0.0, c);            // whoosh
-      _osc('sine',  140, t + 0.03, 0.08, 0.25, 0.0, c); // soft thud
+      _noise(t,       0.04, 0.18, 0.0, c);            // サラッ
+      _osc('sine',  140, t + 0.03, 0.08, 0.25, 0.0, c); // 柔らかい衝撃
     },
 
-    // Drawing a card from the deck — light papery slide
+    // 山札からカードを引く — 軽い紙の擦れる音
     draw() {
       const c = _ctx(), t = c.currentTime;
       _noise(t,       0.06, 0.10, 0.0, c);
       _osc('sine',  220, t,       0.05, 0.12, 0.0, c);
     },
 
-    // Your turn — gentle ascending chime
+    // 自分のターン — 上昇する優しいチャイム
     myTurn() {
       const c = _ctx(), t = c.currentTime;
       [523, 659, 784].forEach((f, i) =>
@@ -2439,28 +2286,28 @@ const SFX = (() => {
       );
     },
 
-    // UNO called (1 card left) — punchy alert
+    // UNO コール (手札1枚) — ぱっとした警告音
     uno() {
       const c = _ctx(), t = c.currentTime;
       _osc('square', 880, t,        0.06, 0.28, 0.0, c);
       _osc('square', 660, t + 0.07, 0.10, 0.22, 0.0, c);
     },
 
-    // Skip / Reverse — quick descending blip
+    // スキップ / リバース — 短い下降音
     skip() {
       const c = _ctx(), t = c.currentTime;
       _osc('sawtooth', 440, t,        0.06, 0.15, 0.0, c);
       _osc('sawtooth', 330, t + 0.06, 0.08, 0.12, 0.0, c);
     },
 
-    // Draw +2 / +4 penalty — low buzzy sting
+    // ドロー +2 / +4 ペナルティ — 低くブザーっぽい音
     penalty() {
       const c = _ctx(), t = c.currentTime;
       _osc('sawtooth', 180, t,        0.12, 0.30, 0.0, c);
       _osc('sawtooth', 120, t + 0.08, 0.14, 0.22, 0.0, c);
     },
 
-    // Wild card played — shimmery sweep
+    // ワイルドカードをプレイ — キラキラスイープ
     wild() {
       const c = _ctx(), t = c.currentTime;
       const osc = c.createOscillator();
@@ -2474,7 +2321,7 @@ const SFX = (() => {
       osc.start(t); osc.stop(t + 0.30);
     },
 
-    // Win / game over — triumphant little fanfare
+    // 勝利 / ゲーム終了 — 小さな勝利のファンファーレ
     win() {
       const c = _ctx(), t = c.currentTime;
       [523, 659, 784, 1047].forEach((f, i) =>
@@ -2482,14 +2329,14 @@ const SFX = (() => {
       );
     },
 
-    // Error / illegal move — low dull thunk
+    // エラー / 不正操作 — 低く鈍い衝撃
     error() {
       const c = _ctx(), t = c.currentTime;
       _osc('square', 100, t, 0.14, 0.20, 0.0, c);
       _noise(t, 0.10, 0.08, 0.0, c);
     },
 
-    // Card dealt at round start — rapid-fire little ticks
+    // ラウンド開始時のカード配布 — 素早い連続チック
     deal(count = 7) {
       const c = _ctx(), t = c.currentTime;
       for (let i = 0; i < count; i++) {
@@ -2498,7 +2345,7 @@ const SFX = (() => {
       }
     },
 
-    // Launcher fire (UNO Attack) — springy mechanical POP
+    // ランチャー発射 (UNO Attack) — バネの機械的なポップ
     launchFire() {
       const c = _ctx(), t = c.currentTime;
       _noise(t, 0.05, 0.35, 0.0, c);
@@ -2513,14 +2360,14 @@ const SFX = (() => {
       osc.start(t); osc.stop(t + 0.22);
     },
 
-    // Launcher click (safe, nothing fires) — dry click
+    // ランチャークリック (発射なし) — 乾いたクリック
     launchSafe() {
       const c = _ctx(), t = c.currentTime;
       _noise(t, 0.025, 0.18, 0.0, c);
       _osc('sine', 600, t, 0.03, 0.10, 0.0, c);
     },
 
-    // Flip card (UNO Flip) — distinct mechanical flip
+    // フリップカード (UNO Flip) — 特徴的なフリップ音
     deckFlip() {
       const c = _ctx(), t = c.currentTime;
       _noise(t,       0.06, 0.20, 0.0, c);
@@ -2530,13 +2377,13 @@ const SFX = (() => {
 
   };
 
-  // Unlock audio on first user gesture (required by all browsers)
+  // 最初のユーザージェスチャで AudioContext を起動 (全ブラウザ必須)
   const _unlock = () => { _ctx(); document.removeEventListener('click', _unlock); };
   document.addEventListener('click', _unlock);
 
   return {
     play(name, ...args) {
-      try { sounds[name]?.(...args); } catch(e) { /* audio errors are non-fatal */ }
+      try { sounds[name]?.(...args); } catch(e) { /* 音声エラーは無視 */ }
     }
   };
 })();

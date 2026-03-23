@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}LANHub — サーバーコンソール{% endblock %}
+
+{% block head %}
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/xterm/4.19.0/xterm.min.css" />
+<style>
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+  .page-wrap {
+    padding: 0 !important;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #console-shell {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    background: #0d0d0d;
+  }
+
+  #console-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 20px;
+    flex-shrink: 0;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+  }
+  #console-toolbar h1 {
+    font-size: 0.88rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dev-badge {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: var(--red-dim);
+    color: var(--red);
+    border: 1px solid var(--red);
+  }
+  #conn-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+  }
+  .cdot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .cdot.connected    { background: var(--green); box-shadow: 0 0 5px var(--green); }
+  .cdot.disconnected { background: var(--red);   box-shadow: 0 0 5px var(--red); }
+
+  .tb-btn {
+    padding: 4px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    white-space: nowrap;
+  }
+  .tb-btn:hover        { border-color: var(--cyan); color: var(--cyan); }
+  .tb-btn.danger:hover { border-color: var(--red);  color: var(--red); }
+
+  #font-info {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .admin-lbl {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  #terminal-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 8px 4px 4px 10px;
+    background: #0d0d0d;
+    position: relative;
+  }
+  #terminal,
+  .xterm,
+  .xterm-viewport,
+  .xterm-screen { height: 100% !important; }
+  .xterm-viewport { overflow-y: hidden !important; }
+
+  #exited-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(4px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    z-index: 10;
+  }
+  #exited-overlay.visible { display: flex; }
+  #exited-overlay p {
+    font-family: var(--font-mono);
+    color: var(--text-bright);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+  #exited-overlay small {
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    font-size: 0.72rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="console-shell">
+
+  <div id="console-toolbar">
+    <h1>🖥 サーバーコンソール <span class="dev-badge">開発者専用</span></h1>
+
+    <div id="conn-status">
+      <span class="cdot" id="cdot"></span>
+      <span id="conn-label">接続中…</span>
+    </div>
+
+    <span id="font-info">フォント: <strong id="fsize">14</strong>px</span>
+    <button class="tb-btn" onclick="changeFontSize(-1)">A−</button>
+    <button class="tb-btn" onclick="changeFontSize(+1)">A+</button>
+    <button class="tb-btn" onclick="clearTerm()">クリア</button>
+    <button class="tb-btn danger" onclick="killShell()">✕ 強制終了</button>
+
+    <span class="admin-lbl">{{ session.admin_name }}</span>
+  </div>
+
+  <div id="terminal-wrap">
+    <div id="terminal"></div>
+    <div id="exited-overlay">
+      <p>シェルプロセスが終了しました。</p>
+      <small>再起動して新しいシェルを開いてください。</small>
+      <button class="tb-btn" onclick="restartShell()">↻ シェルを再起動</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const socket   = _socket;
+  let term       = null;
+  let fitAddon   = null;
+  let fontSize   = 14;
+  let shellAlive = false;
+
+  // ── Load xterm dynamically, then boot ─────────────────────
+  function loadScript(src, onload) {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = onload;
+    s.onerror = () => console.error("Failed to load:", src);
+    document.head.appendChild(s);
+  }
+
+  function loadStylesheet(href) {
+    const l = document.createElement("link");
+    l.rel  = "stylesheet";
+    l.href = href;
+    document.head.appendChild(l);
+  }
+
+  // Chain: CSS → xterm core → FitAddon → boot
+  loadStylesheet("https://cdn.jsdelivr.net/npm/xterm@4.19.0/css/xterm.css");
+
+loadScript("https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.js", () => {
+  loadScript("https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.js", () => {
+    buildTerminal();
+    startShell();
+  });
+});
+
+  // ── Terminal ───────────────────────────────────────────────
+  function buildTerminal() {
+    if (term) { try { term.dispose(); } catch (_) {} }
+
+    term = new Terminal({
+      cursorBlink: true,
+      fontSize:    fontSize,
+      fontFamily:  "'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace",
+      scrollback:  5000,
+      convertEol:  false,
+      theme: {
+        background:          "#0d0d0d",
+        foreground:          "#c9d6e3",
+        cursor:              "#00d4ff",
+        selectionBackground: "#2a3d54",
+        black:       "#0d0d0d",  red:         "#ff4d6a",
+        green:       "#39d98a",  yellow:      "#f5a623",
+        blue:        "#00d4ff",  magenta:     "#a78bfa",
+        cyan:        "#00b4d8",  white:       "#c9d6e3",
+        brightBlack: "#525a66",  brightRed:   "#ff6b6b",
+        brightGreen: "#6ddc8b",  brightWhite: "#eaf2ff",
+      },
+    });
+
+    if (typeof FitAddon !== "undefined" && FitAddon.FitAddon) {
+      fitAddon = new FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+    }
+
+    term.open(document.getElementById("terminal"));
+    doFit();
+
+    term.onData(data => { if (shellAlive) socket.emit("console_input", { data }); });
+    term.onResize(({ cols, rows }) => socket.emit("console_resize", { cols, rows }));
+  }
+
+  function doFit() {
+    if (fitAddon) { try { fitAddon.fit(); } catch (_) {} }
+  }
+
+  // ── Shell control ──────────────────────────────────────────
+  function startShell() {
+    socket.emit("console_start", {
+      cols: term ? term.cols : 80,
+      rows: term ? term.rows : 24,
+    });
+  }
+
+  function restartShell() {
+    document.getElementById("exited-overlay").classList.remove("visible");
+    startShell();
+  }
+
+  function killShell() {
+    if (!confirm("現在のシェルセッションを強制終了しますか？")) return;
+    socket.emit("console_stop");
+    shellAlive = false;
+    setStatus(false, "強制終了");
+    document.getElementById("exited-overlay").classList.add("visible");
+  }
+
+  function clearTerm()          { if (term) term.clear(); }
+
+  function changeFontSize(delta) {
+    fontSize = Math.max(8, Math.min(30, fontSize + delta));
+    document.getElementById("fsize").textContent = fontSize;
+    if (term) { term.options.fontSize = fontSize; doFit(); }
+  }
+
+  function setStatus(connected, label) {
+    document.getElementById("cdot").className =
+      "cdot " + (connected ? "connected" : "disconnected");
+    document.getElementById("conn-label").textContent = label;
+  }
+
+  // ── Socket events ──────────────────────────────────────────
+  socket.on("console_ready", () => {
+    shellAlive = true;
+    setStatus(true, "接続済み");
+    document.getElementById("exited-overlay").classList.remove("visible");
+    if (term) term.focus();
+  });
+
+  socket.on("console_output", data => { if (term) term.write(data.data); });
+
+  socket.on("console_exit", () => {
+    shellAlive = false;
+    setStatus(false, "シェル終了");
+    if (term) term.writeln("\r\n\x1b[33m[プロセスが終了しました]\x1b[0m");
+    document.getElementById("exited-overlay").classList.add("visible");
+  });
+
+  socket.on("connect", () => { if (term && !shellAlive) startShell(); });
+
+  new ResizeObserver(doFit).observe(document.getElementById("terminal-wrap"));
+  window.addEventListener("beforeunload", () => socket.emit("console_stop"));
+</script>
+{% endblock %}

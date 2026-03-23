@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4" style="max-width:720px">
+
+    <h2 class="mb-1">バックアップと復元</h2>
+    <p class="text-muted mb-4" style="font-size:.9rem;">
+        サーバー全体の完全なスナップショットをエクスポートするか、以前のものから復元します。
+        エクスポートには、データベース、構成、アップロードされたファイル、ログ、およびリダイレクターのリポジトリが含まれます。
+    </p>
+
+    <!-- ── Manifest ── -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h6 class="card-title mb-3">エクスポートされる内容</h6>
+            <table class="table table-sm mb-0" style="font-size:.875rem;">
+                <thead>
+                    <tr>
+                        <th>内容</th>
+                        <th>zip内のパス</th>
+                        <th>サイズ</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in manifest %}
+                    <tr>
+                        <td>{{ item.label }}</td>
+                        <td><code>{{ item.path }}</code></td>
+                        <td>{{ item.size }}</td>
+                        <td>
+                            {% if item.exists %}
+                                <span class="badge bg-success">存在</span>
+                            {% else %}
+                                <span class="badge bg-secondary">欠落</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── Export ── -->
+    <div class="card mb-3">
+        <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div>
+                <h6 class="mb-1">バックアップをエクスポート</h6>
+                <p class="text-muted mb-0" style="font-size:.85rem;">
+                    サーバーの全体状態のスナップショット（<code>.zip</code>）をダウンロードします。
+                </p>
+            </div>
+            <a href="/admin/backup/export" class="btn btn-primary">
+                backup.zip をダウンロード
+            </a>
+        </div>
+    </div>
+
+    <!-- ── Import ── -->
+    <div class="card mb-5">
+        <div class="card-body">
+            <h6 class="mb-1">バックアップから復元</h6>
+            <p class="text-muted mb-3" style="font-size:.85rem;">
+                このLANHubまたは別のLANHubインスタンスからエクスポートした <code>lanhub_backup_*.zip</code> ファイルをアップロードします。
+                既存のファイルは上書きされます。復元後はサーバーの再起動を推奨します。
+            </p>
+            <div class="alert alert-warning py-2 mb-3" style="font-size:.83rem;">
+                <strong>警告:</strong> 現在のデータベースとアップロードされたファイルが即座に上書きされます。
+                現在の状態を保持したい場合は、先にバックアップをエクスポートしてください。
+            </div>
+            <form id="importForm" enctype="multipart/form-data">
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <input type="file" name="backup_zip" accept=".zip"
+                           class="form-control" style="max-width:340px;" required>
+                    <button type="submit" class="btn btn-warning">復元</button>
+                </div>
+            </form>
+            <div id="importMsg" class="mt-3" style="display:none;font-size:.875rem;"></div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════
+         DANGER ZONE
+    ════════════════════════════════════════════════════════ -->
+    <div style="border:2px solid #dc3545; border-radius:10px; padding:1.5rem 1.5rem 1rem;">
+
+        <h4 style="color:#dc3545; margin-bottom:.3rem;">危険ゾーン</h4>
+        <p class="text-muted mb-4" style="font-size:.85rem;">
+            以下のアクションはすべて元に戻せません。それぞれ複数回の確認クリックが必要です。
+            続行する前に注意深くお読みください。
+        </p>
+
+        <!-- ── Clear logs ── -->
+        <div class="danger-row mb-3">
+            <div class="danger-info">
+                <strong>すべてのログをクリア</strong>
+                <span class="text-muted">すべての <code>.log</code> ファイルを空にします。データベースやファイルには影響しません。</span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('clear-logs', 2, 'すべてのログをクリア',
+                        'すべてのログファイルを空にします。',
+                        null)">
+                ログをクリア
+            </button>
+        </div>
+
+        <hr class="border-danger opacity-25">
+
+        <!-- ── Purge bans ── -->
+        <div class="danger-row mb-3">
+            <div class="danger-info">
+                <strong>すべてのIPBANをパージ</strong>
+                <span class="text-muted">すべてのIPBAN（アクセス禁止）記録を削除します。BANされたユーザーはすぐに接続できるようになります。</span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('purge-bans', 3, 'すべてのIPBANをパージ',
+                        'すべてのIPBANが削除され、以前にBANされたユーザーが再び接続できるようになります。',
+                        null)">
+                BANをパージ
+            </button>
+        </div>
+
+        <hr class="border-danger opacity-25">
+
+        <!-- ── Purge chat ── -->
+        <div class="danger-row mb-3">
+            <div class="danger-info">
+                <strong>すべてのチャット履歴をパージ</strong>
+                <span class="text-muted">グローバルチャットおよびすべてのチャンネルのメッセージをすべて削除します。この操作は元に戻せません。</span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('purge-chat', 4, 'すべてのチャット履歴をパージ',
+                        'グローバルチャットおよびすべてのチャンネルのすべてのメッセージが永久に削除されます。',
+                        null)">
+                チャットをパージ
+            </button>
+        </div>
+
+        <hr class="border-danger opacity-25">
+
+        <!-- ── Wipe files ── -->
+        <div class="danger-row mb-3">
+            <div class="danger-info">
+                <strong>アップロードされたすべてのファイルを消去</strong>
+                <span class="text-muted">Dropzone内のすべてのファイルをディスクから削除し、データベースからすべてのアップロード記録をクリアします。</span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('wipe-files', 4, 'アップロードされたすべてのファイルを消去',
+                        'すべてのDropzoneファイルがディスクから削除され、データベースの記録も削除されます。',
+                        null)">
+                ファイルを消去
+            </button>
+        </div>
+
+        <hr class="border-danger opacity-25">
+
+        <!-- ── Rotate key ── -->
+        <div class="danger-row mb-3">
+            <div class="danger-info">
+                <strong>シークレットキーをローテーション</strong>
+                <span class="text-muted">
+                    新しい <code>SECRET_KEY</code> を生成します。すべてのアクティブなセッションCookieは即座に無効になります。
+                    あなたを含むすべてのユーザーがログアウトされます。この後、再度ログインする必要があります。
+                </span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('rotate-key', 5, 'シークレットキーをローテーション',
+                        'すべてのアクティブなセッションが無効になります。あなたを含むすべてのユーザーが即座にログアウトされます。',
+                        null)">
+                キーをローテーション
+            </button>
+        </div>
+
+        <hr class="border-danger opacity-25">
+
+        <!-- ── Reset database ── -->
+        <div class="danger-row mb-3">
+            <div class="danger-info">
+                <strong>データベースをリセット</strong>
+                <span class="text-muted">
+                    SQLiteデータベース全体を削除して再初期化します。すべてのメッセージ、アップロード、投票、フィードバック、BAN、管理者アカウント、
+                    およびその他すべての記録が永久に消去されます。<code>configvars.json</code> およびディスク上のファイルは影響を受けません。
+                </span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('reset-db', 6, 'データベースをリセット',
+                        'データベース全体が消去されます。すべてのメッセージ、ユーザー、投票、BAN、管理者アカウントが失われます。',
+                        null)">
+                データベースをリセット
+            </button>
+        </div>
+
+        <hr class="border-danger opacity-25 mb-4">
+
+        <!-- ── NUKE ── -->
+        <div style="background:rgba(220,53,69,.07); border:1px solid rgba(220,53,69,.3);
+                    border-radius:8px; padding:1.2rem;">
+            <h5 style="color:#dc3545;">サーバーの完全な削除</h5>
+            <p style="font-size:.875rem; color:#adb5bd; margin-bottom:1rem;">
+                <code>lanhub</code> の systemd サービスを停止して削除し、Cloudflare トンネルを強制終了し、
+                プロジェクトディレクトリ全体をディスクから削除します。これが完了すると、サーバーコンピューターからLANHubの痕跡がすべて消えます。
+                <strong style="color:#f87171;">この操作は元に戻せません。</strong>
+            </p>
+            <button class="btn btn-danger"
+                    onclick="nukeFlow()">
+                サーバーを完全に削除
+            </button>
+        </div>
+
+    </div><!-- /danger zone -->
+
+    <div id="dangerMsg" class="mt-4" style="display:none;font-size:.9rem;"></div>
+</div>
+
+<!-- ── Confirmation modal ── -->
+<div class="modal fade" id="confirmModal" tabindex="-1" style="display:none">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-danger">
+            <div class="modal-header border-danger">
+                <h5 class="modal-title text-danger" id="modalTitle">アクションの確認</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="modalDesc" class="text-muted mb-3" style="font-size:.875rem;"></p>
+                <div id="modalProgress" class="mb-3">
+                    <div class="progress" style="height:6px;">
+                        <div class="progress-bar bg-danger" id="modalBar" style="width:0%;transition:width .2s;"></div>
+                    </div>
+                    <p class="text-muted mt-2 mb-0" style="font-size:.8rem;">
+                        確認 <span id="modalStep">1</span> / <span id="modalTotal">1</span> —
+                        続行するには<strong>確認</strong>をクリックしてください。
+                    </p>
+                </div>
+                <div id="modalPhraseWrap" style="display:none;">
+                    <label style="font-size:.85rem; color:#adb5bd;">
+                        確認のために <code id="modalPhrase"></code> と正確に入力してください:
+                    </label>
+                    <input type="text" id="modalPhraseInput" class="form-control mt-2"
+                           placeholder="" autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer border-danger">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="button" class="btn btn-danger" id="modalConfirmBtn">確認</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.danger-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.danger-info {
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+    font-size: .875rem;
+    flex: 1;
+}
+.danger-info strong { color: #e2e8f0; }
+.danger-info span   { font-size: .8rem; }
+@media (max-width: 560px) {
+    .danger-row { flex-direction: column; }
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Import form ───────────────────────────────────────────────────────────────
+document.getElementById("importForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector("button");
+    btn.disabled = true;
+    btn.textContent = "復元中…";
+
+    const msg = document.getElementById("importMsg");
+    msg.style.display = "none";
+
+    try {
+        const r    = await fetch("/admin/backup/import", { method: "POST", body: new FormData(e.target) });
+        const data = await r.json();
+        msg.style.display = "block";
+        msg.className     = data.ok ? "alert alert-success" : "alert alert-danger";
+        msg.textContent   = data.ok ? data.message : (data.error || "復元に失敗しました。");
+    } catch (err) {
+        msg.style.display = "block";
+        msg.className     = "alert alert-danger";
+        msg.textContent   = "復元中にネットワークエラーが発生しました。";
+    }
+
+    btn.disabled    = false;
+    btn.textContent = "復元";
+});
+
+// ── Confirmation flow ─────────────────────────────────────────────────────────
+let _action, _steps, _step, _phrase;
+let _modal = null;
+
+function getModal() {
+    if (!_modal) {
+        _modal = new bootstrap.Modal(document.getElementById("confirmModal"));
+    }
+    return _modal;
+}
+
+const modalTitle   = document.getElementById("modalTitle");
+const modalDesc    = document.getElementById("modalDesc");
+const modalStep    = document.getElementById("modalStep");
+const modalTotal   = document.getElementById("modalTotal");
+const modalBar     = document.getElementById("modalBar");
+const modalConfirm = document.getElementById("modalConfirmBtn");
+const phraseWrap   = document.getElementById("modalPhraseWrap");
+const phraseInput  = document.getElementById("modalPhraseInput");
+const phraseLabel  = document.getElementById("modalPhrase");
+
+function confirmAction(action, steps, title, desc, phrase) {
+    _action = action;
+    _steps  = steps;
+    _step   = 1;
+    _phrase = phrase;
+
+    modalTitle.textContent = "⚠️ " + title;
+    modalDesc.textContent  = desc;
+    modalStep.textContent  = "1";
+    modalTotal.textContent = steps;
+    modalBar.style.width   = (100 / steps) + "%";
+
+    phraseWrap.style.display = "none";
+    phraseInput.value        = "";
+
+    getModal().show();
+}
+
+function nukeFlow() {
+    confirmAction(
+        "nuke",
+        10,
+        "サーバーの完全な削除",
+        "lanhubのsystemdサービスを停止・削除し、Cloudflareトンネルを強制終了して、プロジェクトディレクトリ全体を削除します。サーバーは完全に消滅します。",
+        "DELETE LANHUB FOREVER"
+    );
+}
+
+modalConfirm.addEventListener("click", async () => {
+    if (!_action) {
+        getModal().hide();
+        return;
+    }
+
+    // Last step with phrase — validate first
+    if (_phrase && _step === _steps) {
+        if (phraseInput.value.trim() !== _phrase) {
+            phraseInput.classList.add("is-invalid");
+            phraseInput.focus();
+            return;
+        }
+        phraseInput.classList.remove("is-invalid");
+    }
+
+    _step++;
+
+    if (_step <= _steps) {
+        modalStep.textContent = _step;
+        modalBar.style.width  = ((_step) / _steps * 100) + "%";
+
+        if (_phrase && _step === _steps) {
+            phraseWrap.style.display = "block";
+            phraseLabel.textContent  = _phrase;
+            phraseInput.value        = "";
+            phraseInput.focus();
+        }
+        return;
+    }
+
+    // All confirmations passed — execute
+    const actionToRun = _action;
+    _action = null;  // clear immediately so accidental double-clicks do nothing
+    getModal().hide();
+    await executeAction(actionToRun);
+});
+
+document.getElementById("confirmModal").addEventListener("hidden.bs.modal", () => {
+    _action = null;
+    _step   = 0;
+    phraseWrap.style.display = "none";
+    phraseInput.value        = "";
+    phraseInput.classList.remove("is-invalid");
+});
+
+async function executeAction(action) {
+    const msg = document.getElementById("dangerMsg");
+    msg.style.display = "block";
+    msg.className     = "alert alert-secondary";
+    msg.textContent   = "実行中…";
+
+    const body = new FormData();
+    if (action === "nuke") {
+        body.append("confirm_phrase", "DELETE LANHUB FOREVER");
+    }
+
+    try {
+        const r    = await fetch(`/admin/danger/${action}`, { method: "POST", body });
+        const data = await r.json();
+
+        if (data.ok) {
+            msg.className   = "alert alert-success";
+            msg.textContent = data.message;
+
+            // Key rotation logs you out — redirect to login after a moment
+            if (action === "rotate-key") {
+                setTimeout(() => window.location.href = "/admin/login", 3000);
+            }
+            if (action === "nuke") {
+                msg.className   = "alert alert-danger";
+                msg.textContent = data.message + " まもなくこのページは応答しなくなります。";
+            }
+        } else {
+            msg.className   = "alert alert-danger";
+            msg.textContent = data.error || "アクションに失敗しました。";
+        }
+    } catch (err) {
+        // Nuke kills the server — fetch will throw. That's expected.
+        if (action === "nuke") {
+            msg.className   = "alert alert-danger";
+            msg.textContent = "サーバーはシャットダウンし、自身を削除しています。このページは二度と応答しません。";
+        } else {
+            msg.className   = "alert alert-danger";
+            msg.textContent = "ネットワークエラー。";
+        }
+    }
+}
+</script>
+{% endblock %}

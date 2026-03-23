@@ -4,7 +4,7 @@ from init import initialize
 initialize()
 
 import os
-from flask import Flask,render_template, session, redirect, url_for, request
+from flask import Flask, render_template, session, redirect, url_for, request
 from socketio_instance import socketio
 import scheduler as sch
 import sys
@@ -13,6 +13,8 @@ import datetime
 import re as _re
 import config as _config
 import threading
+import jinja2 as _jinja2
+import types as _types
 
 app = Flask(__name__)
 app.secret_key = _config.SECRET_KEY
@@ -20,6 +22,11 @@ import functions as _fns
 _startup_stats = _fns.get_network_stats()
 app.config["LAN_IP"]   = _startup_stats.get("ip_address", "")
 app.config["LAN_PORT"] = int(_config.PORT)
+
+LANG_NAMES = {
+    "en": "English",
+    "ja": "日本語",
+}
 
 # Blueprints
 from blueprints.chat import chat_bp
@@ -42,10 +49,6 @@ from blueprints.geoguesser import geoguesser_bp
 from blueprints.access import access_bp, check_site_access
 from blueprints.backup import backup_bp
 
-
-
-
-
 # Socket event handlers
 import socket_events.chat_events
 import socket_events.global_events
@@ -58,9 +61,40 @@ import socket_events.slither_events
 import socket_events.scribble_events
 import socket_events.geoguesser_events
 
-
-
 socketio.init_app(app)
+
+# ── Language-aware template lookup ────────────────────────────────────────────
+# Jinja2 caches compiled templates by name. Without this patch, the first
+# language to request "chat.html" wins the cache and everyone else gets that
+# copy until restart. We wrap get_template() so "fr" requests look up
+# "fr/chat.html" (a different cache key) and fall back to "chat.html" if the
+# translated file doesn't exist yet. Flask's built-in loader already resolves
+# paths like "fr/chat.html" relative to templates/ with no extra loader needed.
+
+_orig_get_template = app.jinja_env.get_template.__func__
+
+def _lang_get_template(env, name, parent=None, globals=None):
+    lang = "en"
+    try:
+        from flask import has_request_context, request as _req
+        if has_request_context():
+            _l = _req.cookies.get("lanhub_lang", "en")
+            if _l and _l.replace("-", "").replace("_", "").isalnum():
+                lang = _l
+    except Exception:
+        pass
+
+    if lang != "en":
+        try:
+            return _orig_get_template(env, f"{lang}/{name}", parent, globals)
+        except _jinja2.TemplateNotFound:
+            pass  # no translated version — fall through to English
+
+    return _orig_get_template(env, name, parent, globals)
+
+app.jinja_env.get_template = _types.MethodType(_lang_get_template, app.jinja_env)
+# ─────────────────────────────────────────────────────────────────────────────
+
 app.register_blueprint(chat_bp)
 app.register_blueprint(stats_bp)
 app.register_blueprint(logs_bp)
@@ -84,22 +118,44 @@ app.register_blueprint(access_bp)
 app.register_blueprint(backup_bp)
 
 
-
-
 ###########################################
 # App Configs
 ###########################################
 app.config["MAX_CONTENT_LENGTH"] = _config.DROPZONE_MAX_FILE_BYTES
 
 
-
 ###########################################
 # Other Handlers
 ###########################################
 
+from flask import jsonify, make_response
+
+@app.route("/set-language", methods=["POST"])
+def set_language():
+    """
+    POST { "lang": "fr" }
+    Sets a one-year cookie and returns JSON.
+    The JS in base.html reloads the page after receiving { ok: true }.
+    """
+    data = request.get_json(silent=True) or {}
+    lang = str(data.get("lang", "en"))
+    # Sanitise: alphanumeric + hyphens/underscores only, max 10 chars
+    if not lang.replace("-", "").replace("_", "").isalnum() or len(lang) > 10:
+        lang = "en"
+    resp = make_response(jsonify({"ok": True, "lang": lang}))
+    resp.set_cookie(
+        "lanhub_lang", lang,
+        max_age=365 * 86400,
+        httponly=False,   # JS reads this for auto-detect
+        samesite="Lax",
+    )
+    return resp
+
+
 @socketio.on("connect")
 def _track_connect():
     pass
+
 
 @app.template_filter("timestamp_fmt")
 def timestamp_fmt(ts):
@@ -108,54 +164,75 @@ def timestamp_fmt(ts):
     except Exception:
         return str(ts)
 
+
 @app.errorhandler(413)
 def too_large(e):
     from flask import jsonify
     return jsonify({"ok": False, "error": "File too large."}), 413
 
- 
+
 def _repo_url_to_pages(repo_url: str) -> str | None:
     """
     Convert a GitHub repo URL to its GitHub Pages URL.
- 
+
     https://github.com/USER/REPO        →  https://USER.github.io/REPO/
     https://github.com/USER/REPO.git    →  https://USER.github.io/REPO/
     git@github.com:USER/REPO.git        →  https://USER.github.io/REPO/
- 
+
     Returns None if the URL can't be parsed.
     """
-    # HTTPS form
     m = _re.match(
         r'https?://github\.com/([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$',
         repo_url.strip()
     )
     if m:
         return f"https://{m.group(1)}.github.io/{m.group(2)}/"
- 
-    # SSH form
+
     m = _re.match(
         r'git@github\.com:([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$',
         repo_url.strip()
     )
     if m:
         return f"https://{m.group(1)}.github.io/{m.group(2)}/"
- 
+
     return None
- 
+
+
 @app.context_processor
 def inject_globals():
     import config as _config
     import re as _re
+
     def _repo_url_to_pages(url):
         m = _re.match(r'https?://github\.com/([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$', url.strip())
-        if m: return f"https://{m.group(1)}.github.io/{m.group(2)}/"
+        if m:
+            return f"https://{m.group(1)}.github.io/{m.group(2)}/"
         m = _re.match(r'git@github\.com:([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$', url.strip())
-        if m: return f"https://{m.group(1)}.github.io/{m.group(2)}/"
+        if m:
+            return f"https://{m.group(1)}.github.io/{m.group(2)}/"
         return None
+
+    # Only expose languages that actually have a sub-folder in templates/
+    templates_dir = os.path.join(BASE_DIR, "templates")
+    available_langs = {"en": LANG_NAMES["en"]}
+    try:
+        for name in sorted(os.listdir(templates_dir)):
+            if (os.path.isdir(os.path.join(templates_dir, name))
+                    and name in LANG_NAMES):
+                available_langs[name] = LANG_NAMES[name]
+    except Exception:
+        pass
+
+    current_lang = request.cookies.get("lanhub_lang", "en")
+    if current_lang not in available_langs:
+        current_lang = "en"
+
     return {
-        "share_url":       _repo_url_to_pages(getattr(_config, 'REPO_URL', '') or ''),
-        "afk_idle_secs":   int(getattr(_config, 'AFK_IDLE_SECS',   300)),
-         "afk_prompt_secs": int(getattr(_config, 'AFK_PROMPT_SECS',  60)),
+        "share_url":       _repo_url_to_pages(getattr(_config, "REPO_URL", "") or ""),
+        "afk_idle_secs":   int(getattr(_config, "AFK_IDLE_SECS",   300)),
+        "afk_prompt_secs": int(getattr(_config, "AFK_PROMPT_SECS",  60)),
+        "available_langs": available_langs,   # {code: display_name}
+        "current_lang":    current_lang,
     }
 
 
@@ -262,4 +339,4 @@ signal.signal(signal.SIGTERM, graceful_shutdown)
 if __name__ == "__main__":
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         sch.start_scheduler()
-    socketio.run(app, host="0.0.0.0",debug=True,port=_config.PORT,allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", debug=True, port=_config.PORT, allow_unsafe_werkzeug=True)

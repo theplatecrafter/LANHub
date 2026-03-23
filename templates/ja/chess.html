@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Chess — LANHub</title>
+<title>チェス — LANHub</title>
 <link id="theme-ss" rel="stylesheet" href="/static/themes/dark.css"/>
 <script>(function(){var s=localStorage.getItem('lanhub-theme')||'dark';document.getElementById('theme-ss').href='/static/themes/'+s+'.css';})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -607,7 +607,7 @@ body{display:flex;flex-direction:column;font-family:'Syne',sans-serif;
     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
     LANHub
   </a>
-  <span class="topbar-brand">♟ Chess</span>
+  <span class="topbar-brand">♟ チェス</span>
   <span id="topbar-player"></span>
 </nav>
 
@@ -615,29 +615,29 @@ body{display:flex;flex-direction:column;font-family:'Syne',sans-serif;
 <div id="un-overlay">
   <div class="un-box">
     <div class="un-king">♟</div>
-    <div class="un-title">Chess</div>
-    <div class="un-sub">Enter your name to play</div>
-    <input class="un-input" id="un-input" type="text" maxlength="24" placeholder="Username…" autocomplete="off"/>
+    <div class="un-title">チェス</div>
+    <div class="un-sub">プレイする名前を入力</div>
+    <input class="un-input" id="un-input" type="text" maxlength="24" placeholder="ユーザー名…" autocomplete="off"/>
     <div class="un-err" id="un-err"></div>
-    <button class="un-btn" id="un-submit">Enter the Board →</button>
+    <button class="un-btn" id="un-submit">ゲームを開始 →</button>
   </div>
 </div>
 
 <!-- ── CHALLENGE TOAST ───────────────── -->
 <div id="challenge-toast">
-  <div class="ct-title">⚔ Challenge!</div>
+  <div class="ct-title">⚔ チャレンジ！</div>
   <div class="ct-name"  id="ct-name"></div>
   <div class="ct-tc"    id="ct-tc"></div>
   <div class="ct-btns">
-    <button class="ct-accept"  onclick="respondChallenge(true)">Accept</button>
-    <button class="ct-decline" onclick="respondChallenge(false)">Decline</button>
+    <button class="ct-accept"  onclick="respondChallenge(true)">承諾</button>
+    <button class="ct-decline" onclick="respondChallenge(false)">拒否</button>
   </div>
 </div>
 
 <!-- ── PROMO OVERLAY ─────────────────── -->
 <div id="promo-overlay">
   <div class="promo-box">
-    <div class="promo-label">Promote pawn</div>
+    <div class="promo-label">ポーンを昇格</div>
     <div class="promo-pieces" id="promo-pieces"></div>
   </div>
 </div>
@@ -646,10 +646,10 @@ body{display:flex;flex-direction:column;font-family:'Syne',sans-serif;
 <div id="game-over">
   <div class="go-box">
     <div class="go-icon"   id="go-icon">🏆</div>
-    <div class="go-result" id="go-result">You Win!</div>
-    <div class="go-reason" id="go-reason">Checkmate</div>
+    <div class="go-result" id="go-result">あなたの勝ち！</div>
+    <div class="go-reason" id="go-reason">チェックメイト</div>
     <div class="go-detail" id="go-detail"></div>
-    <button class="go-again" onclick="backToLobby()">Play Again</button>
+    <button class="go-again" onclick="backToLobby()">もう一度プレイ</button>
   </div>
 </div>
 
@@ -662,48 +662,48 @@ body{display:flex;flex-direction:column;font-family:'Syne',sans-serif;
     <div class="lobby-hero">
       <div class="lobby-hero-icon">♟</div>
       <div>
-        <h1>Chess</h1>
-        <p>Welcome, <strong id="lobby-username" style="color:var(--amber)"></strong></p>
+        <h1>チェス</h1>
+        <p>ようこそ、<strong id="lobby-username" style="color:var(--amber)"></strong></p>
       </div>
     </div>
 
     <!-- Time control row (shared) -->
     <div class="tc-row" id="tc-row-main">
-      <button class="tc-btn" data-tc="bullet"    onclick="selectTC(this)"><span class="tc-icon">⚡</span><span class="tc-name">Bullet</span><span class="tc-time">2+1</span></button>
-      <button class="tc-btn active" data-tc="blitz" onclick="selectTC(this)"><span class="tc-icon">🔥</span><span class="tc-name">Blitz</span><span class="tc-time">5+3</span></button>
-      <button class="tc-btn" data-tc="rapid"     onclick="selectTC(this)"><span class="tc-icon">⏱</span><span class="tc-name">Rapid</span><span class="tc-time">15+10</span></button>
-      <button class="tc-btn" data-tc="classical" onclick="selectTC(this)"><span class="tc-icon">🕰</span><span class="tc-name">Classical</span><span class="tc-time">30+0</span></button>
+      <button class="tc-btn" data-tc="bullet"    onclick="selectTC(this)"><span class="tc-icon">⚡</span><span class="tc-name">ブレット</span><span class="tc-time">2+1</span></button>
+      <button class="tc-btn active" data-tc="blitz" onclick="selectTC(this)"><span class="tc-icon">🔥</span><span class="tc-name">ブリッツ</span><span class="tc-time">5+3</span></button>
+      <button class="tc-btn" data-tc="rapid"     onclick="selectTC(this)"><span class="tc-icon">⏱</span><span class="tc-name">ラピッド</span><span class="tc-time">15+10</span></button>
+      <button class="tc-btn" data-tc="classical" onclick="selectTC(this)"><span class="tc-icon">🕰</span><span class="tc-name">クラシカル</span><span class="tc-time">30+0</span></button>
     </div>
 
     <div class="lobby-cols">
 
       <!-- vs Bot -->
       <div class="lobby-col">
-        <div class="col-title">🤖 vs Computer</div>
-        <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--parchment);opacity:.5;margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase;">Difficulty</div>
+        <div class="col-title">🤖 vs コンピューター</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--parchment);opacity:.5;margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase;">難易度</div>
         <div class="diff-row">
-          <button class="diff-btn" data-d="easy"   onclick="selectDiff(this)">Easy</button>
-          <button class="diff-btn active" data-d="medium" onclick="selectDiff(this)">Medium</button>
-          <button class="diff-btn" data-d="hard"   onclick="selectDiff(this)">Hard</button>
+          <button class="diff-btn" data-d="easy"   onclick="selectDiff(this)">かんたん</button>
+          <button class="diff-btn active" data-d="medium" onclick="selectDiff(this)">ふつう</button>
+          <button class="diff-btn" data-d="hard"   onclick="selectDiff(this)">むずかしい</button>
         </div>
-        <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--parchment);opacity:.5;margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase;">Play as</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--parchment);opacity:.5;margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase;">プレイヤーカラー</div>
         <div class="color-row">
-          <button class="color-btn active" data-c="white"  onclick="selectColor(this)">♔ White</button>
-          <button class="color-btn"        data-c="black"  onclick="selectColor(this)">♚ Black</button>
-          <button class="color-btn"        data-c="random" onclick="selectColor(this)">🎲 Random</button>
+          <button class="color-btn active" data-c="white"  onclick="selectColor(this)">♔ 白</button>
+          <button class="color-btn"        data-c="black"  onclick="selectColor(this)">♚ 黒</button>
+          <button class="color-btn"        data-c="random" onclick="selectColor(this)">🎲 ランダム</button>
         </div>
-        <button class="action-btn" onclick="startBot()">Play vs Bot</button>
+        <button class="action-btn" onclick="startBot()">対コンピューター</button>
       </div>
 
       <!-- vs Human -->
       <div class="lobby-col">
-        <div class="col-title">⚔ vs Human</div>
+        <div class="col-title">⚔ vs 対戦相手</div>
         <div class="diff-row" style="margin-bottom:14px;">
-          <button class="action-btn" onclick="queueRandom()" style="font-size:.72rem;">🎲 Random Match</button>
+          <button class="action-btn" onclick="queueRandom()" style="font-size:.72rem;">🎲 ランダム対戦</button>
         </div>
-        <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--parchment);opacity:.5;margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase;">Available Players</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--parchment);opacity:.5;margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase;">対戦可能なプレイヤー</div>
         <div id="players-list">
-          <div class="no-players" id="no-players">No players online yet.</div>
+          <div class="no-players" id="no-players">現在オンラインのプレイヤーはいません。</div>
         </div>
       </div>
 
@@ -716,9 +716,9 @@ body{display:flex;flex-direction:column;font-family:'Syne',sans-serif;
   <div class="queue-center">
     <div class="queue-ring"></div>
     <div class="queue-piece">♟</div>
-    <div class="queue-txt">Searching for opponent…</div>
-    <div class="queue-sub" id="queue-tc-label">Blitz 5+3</div>
-    <button class="cancel-btn" onclick="cancelQueue()">Cancel</button>
+    <div class="queue-txt">対戦相手を探しています…</div>
+    <div class="queue-sub" id="queue-tc-label">ブリッツ 5+3</div>
+    <button class="cancel-btn" onclick="cancelQueue()">キャンセル</button>
   </div>
 </div>
 
@@ -730,8 +730,8 @@ body{display:flex;flex-direction:column;font-family:'Syne',sans-serif;
     <div class="player-bar">
       <div class="pb-left">
         <span class="pb-piece" id="opp-piece">♚</span>
-        <span class="pb-name"  id="opp-name">Opponent</span>
-        <span class="pb-tag"   id="opp-tag">Black</span>
+        <span class="pb-name"  id="opp-name">対戦相手</span>
+        <span class="pb-tag"   id="opp-tag">黒</span>
       </div>
       <div class="chess-clock" id="opp-clock">—</div>
     </div>
@@ -744,8 +744,8 @@ body{display:flex;flex-direction:column;font-family:'Syne',sans-serif;
     <div class="player-bar">
       <div class="pb-left">
         <span class="pb-piece" id="my-piece">♔</span>
-        <span class="pb-name"  id="my-name">You</span>
-        <span class="pb-tag"   id="my-tag">White</span>
+        <span class="pb-name"  id="my-name">あなた</span>
+        <span class="pb-tag"   id="my-tag">白</span>
       </div>
       <div class="chess-clock active" id="my-clock">—</div>
     </div>
@@ -753,20 +753,20 @@ body{display:flex;flex-direction:column;font-family:'Syne',sans-serif;
 
   <!-- Info panel -->
   <div class="info-panel">
-    <div id="turn-banner">Waiting…</div>
+    <div id="turn-banner">待機中…</div>
     <div class="draw-bar" id="draw-bar">
-      <p>🤝 Opponent offers a draw</p>
+      <p>🤝 対戦相手が引き分けを提案しています</p>
       <div class="draw-btns">
-        <button class="da-accept"  onclick="respondDraw(true)">Accept</button>
-        <button class="da-decline" onclick="respondDraw(false)">Decline</button>
+        <button class="da-accept"  onclick="respondDraw(true)">承諾</button>
+        <button class="da-decline" onclick="respondDraw(false)">拒否</button>
       </div>
     </div>
-    <div class="ip-section-title">Move History</div>
+    <div class="ip-section-title">棋譜</div>
     <div class="move-list" id="move-list"></div>
     <div class="game-ctrls">
-      <button class="ctrl-btn danger" id="resign-btn"     onclick="resignGame()">⛳ Resign</button>
-      <button class="ctrl-btn offer"  id="draw-btn"       onclick="offerDraw()">🤝 Offer Draw</button>
-      <button class="ctrl-btn offer"  id="claim-draw-btn" onclick="claimDraw()" style="display:none">✋ Claim Draw</button>
+      <button class="ctrl-btn danger" id="resign-btn"     onclick="resignGame()">⛳ 投了</button>
+      <button class="ctrl-btn offer"  id="draw-btn"       onclick="offerDraw()">🤝 引き分け提案</button>
+      <button class="ctrl-btn offer"  id="claim-draw-btn" onclick="claimDraw()" style="display:none">✋ 引き分け主張</button>
     </div>
   </div>
 </div>
@@ -809,8 +809,8 @@ document.getElementById('un-submit').addEventListener('click', submitUsername);
 function submitUsername() {
   const val = document.getElementById('un-input').value.trim();
   const err = document.getElementById('un-err');
-  if (!val)          { err.textContent = 'Username cannot be empty.'; return; }
-  if (val.length>24) { err.textContent = 'Too long (max 24 chars).'; return; }
+  if (!val)          { err.textContent = 'ユーザー名を入力してください。'; return; }
+  if (val.length>24) { err.textContent = '24文字以内で入力してください。'; return; }
   err.textContent = '';
   socket.emit('chess_set_username', {username: val});
 }
@@ -848,7 +848,7 @@ socket.on('chess_lobby_state', data => {
     const row = document.createElement('div');
     row.className = 'player-row';
     row.innerHTML = `<span class="pr-name">♟ ${escHtml(p.username)}</span>
-      <button class="challenge-btn" onclick="challengePlayer('${p.sid}')">Challenge</button>`;
+      <button class="challenge-btn" onclick="challengePlayer('${p.sid}')">チャレンジ</button>`;
     list.appendChild(row);
   });
 });
@@ -865,7 +865,7 @@ function challengePlayer(sid) {
 
 socket.on('chess_challenged', data => {
   pendingChallenge = {challenger_sid: data.challenger_sid, time_control: data.time_control};
-  document.getElementById('ct-name').textContent = `${data.challenger_username} challenges you!`;
+  document.getElementById('ct-name').textContent = `${data.challenger_username} からチャレンジ！`;
   document.getElementById('ct-tc').textContent   = data.tc_label;
   document.getElementById('challenge-toast').classList.add('open');
 });
@@ -880,8 +880,8 @@ function respondChallenge(accept) {
   pendingChallenge = null;
 }
 
-socket.on('chess_challenge_declined', data => { showToast(`${data.by} declined.`, 'err'); });
-socket.on('chess_challenge_sent',     data => { showToast(`Challenge sent to ${data.target}.`, 'info'); });
+socket.on('chess_challenge_declined', data => { showToast(`${data.by} が拒否しました。`, 'err'); });
+socket.on('chess_challenge_sent',     data => { showToast(`${data.target} にチャレンジを送信しました。`, 'info'); });
 
 // ── Queue ─────────────────────────────────────────────────────
 function queueRandom() {
@@ -922,20 +922,20 @@ socket.on('chess_game_over', data => {
   const myColor = gameState?.player_color;
   let icon, result;
   if (data.result === '1/2-1/2') {
-    icon = '🤝'; result = 'Draw!';
+    icon = '🤝'; result = '引き分け！';
   } else if ((data.result === '1-0' && myColor === 'white') ||
              (data.result === '0-1' && myColor === 'black')) {
-    icon = '🏆'; result = 'You Win!';
+    icon = '🏆'; result = 'あなたの勝ち！';
   } else if (myColor === 'spectator') {
     icon = '♟'; result = data.result;
   } else {
-    icon = '💀'; result = 'You Lose.';
+    icon = '💀'; result = 'あなたの負け。';
   }
   document.getElementById('go-icon').textContent   = icon;
   document.getElementById('go-result').textContent = result;
   document.getElementById('go-reason').textContent = data.reason;
   document.getElementById('go-detail').textContent =
-    `${data.white_username} (White) vs ${data.black_username} (Black)`;
+    `${data.white_username} (白) vs ${data.black_username} (黒)`;
   document.getElementById('game-over').classList.add('open');
 });
 
@@ -960,21 +960,21 @@ function updateGameUI(data) {
 
   const myTag  = document.getElementById('my-tag');
   const oppTag = document.getElementById('opp-tag');
-  myTag.textContent  = myIsWhite ? 'White' : 'Black';
-  oppTag.textContent = myIsWhite ? 'Black' : 'White';
+  myTag.textContent  = myIsWhite ? '白' : '黒';
+  oppTag.textContent = myIsWhite ? '黒' : '白';
   myTag.className  = 'pb-tag' + (isMyTurn  ? ' turn' : '');
   oppTag.className = 'pb-tag' + (!isMyTurn ? ' turn' : '');
 
   // Turn banner
   const banner = document.getElementById('turn-banner');
   if (data.is_over) {
-    banner.textContent = 'Game over';
+    banner.textContent = 'ゲーム終了';
     banner.className = 'turn-banner';
   } else if (isMyTurn) {
-    banner.textContent = data.waiting_for_promotion ? 'Choose promotion' : 'Your turn!';
+    banner.textContent = data.waiting_for_promotion ? '昇格を選択' : 'あなたの番です！';
     banner.className = 'turn-banner my-turn';
   } else {
-    banner.textContent = `${myIsWhite ? data.black_username : data.white_username}'s turn…`;
+    banner.textContent = `${myIsWhite ? data.black_username : data.white_username} の番…`;
     banner.className = 'turn-banner';
   }
 
@@ -1025,7 +1025,6 @@ function renderBoard(data) {
 
       // Highlights
       if (selectedSq === sqName) sq.classList.add('selected');
-      // last_move can be a string "e2e4" or array ["e2","e4"] depending on server version
       const lm = data.last_move;
       if (lm) {
         const lmStr = Array.isArray(lm) ? lm.join('') : String(lm);
@@ -1178,21 +1177,21 @@ function setClockDisplay(id, secs, isActive) {
 
 // ── Game controls ─────────────────────────────────────────────
 function resignGame() {
-  if (!confirm('Resign this game?')) return;
+  if (!confirm('このゲームを投了しますか？')) return;
   socket.emit('chess_resign', {game_id: currentGameId});
 }
 function offerDraw() {
   socket.emit('chess_offer_draw', {game_id: currentGameId});
-  showToast('Draw offered.', 'info');
+  showToast('引き分けを提案しました。', 'info');
 }
 function claimDraw() { socket.emit('chess_claim_draw', {game_id: currentGameId}); }
 function respondDraw(accept) {
   socket.emit('chess_draw_response', {game_id: currentGameId, accept});
-  document.getElementById('draw-bar').classList.remove('open');  // ← add
+  document.getElementById('draw-bar').classList.remove('open');
 }
 
 socket.on('chess_draw_offered',  () => { document.getElementById('draw-bar').classList.add('open'); });
-socket.on('chess_draw_declined', () => { showToast('Draw declined.', 'err'); document.getElementById('draw-bar').classList.remove('open'); });
+socket.on('chess_draw_declined', () => { showToast('引き分けを拒否されました。', 'err'); document.getElementById('draw-bar').classList.remove('open'); });
 socket.on('chess_error',          data => { showToast(data.message, 'err'); });
 
 // ── Toast ─────────────────────────────────────────────────────

@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}LANHub — ホーム{% endblock %}
+
+{% block content %}
+{% if request.args.get('afk') %}
+<div id="afk-banner" style="
+  margin-bottom: 18px; padding: 12px 18px;
+  background: var(--amber-dim); border: 1px solid var(--amber);
+  border-radius: var(--radius); font-family: var(--font-mono);
+  font-size: .78rem; color: var(--amber);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+">
+  <span>😴 非アクティブ状態のためホーム画面に戻りました。</span>
+  <button onclick="document.getElementById('afk-banner').remove()" style="
+    background: transparent; border: 1px solid var(--amber);
+    border-radius: var(--radius); color: var(--amber);
+    font-family: var(--font-mono); font-size: .65rem;
+    padding: 3px 10px; cursor: pointer;
+  ">閉じる</button>
+</div>
+{% endif %}
+
+
+<!-- Hero -->
+<div class="fade-up" style="padding: 2.5rem 0 2rem;">
+  <p class="mono" style="color: var(--cyan); letter-spacing: 0.15em; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 10px;">
+    ◈ システム稼働中
+  </p>
+  <h1><span style="color: var(--cyan);">LANHub</span> へようこそ</h1>
+  <p style="color: var(--text-dim); margin-top: 10px; max-width: 480px; font-size: 0.92rem;">
+    ローカルネットワーク (LAN) 上で動作するウェブアプリです。ネットワーク内の他の人とチャットやゲームなどを楽しめます。
+  </p>
+</div>
+
+<!-- COMMUNICATIONS -->
+<div class="category">
+  <div class="category-header">
+    <h2>📡 &nbsp;コミュニケーション</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+    <a href="/chat" class="feature-card accent-cyan">
+      <div class="card-icon">💬</div>
+      <div class="card-label">チャット</div>
+      <div class="card-title">LANチャット</div>
+      <div class="card-desc">同じネットワーク上の誰とでもリアルタイムメッセージ。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/channels" class="feature-card accent-cyan">
+      <div class="card-icon">📺</div>
+      <div class="card-label">チャンネル</div>
+      <div class="card-title">チャンネル</div>
+      <div class="card-desc">LAN上のトピック別チャットルームを作成／参加。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/dropzone" class="feature-card accent-cyan">
+      <div class="card-icon">📁</div>
+      <div class="card-label">ファイル共有</div>
+      <div class="card-title">ドロップゾーン</div>
+      <div class="card-desc">ファイルをアップロード、タグ付け、LAN内の誰とでも共有。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/feedback" class="feature-card accent-cyan">
+      <div class="card-icon">🐛</div>
+      <div class="card-label">フィードバック</div>
+      <div class="card-title">バグ報告・機能要望</div>
+      <div class="card-desc">バグ報告や機能提案。アイデアに投票して議論できます。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/updates" class="feature-card accent-cyan">
+      <div class="card-icon">🚀</div>
+      <div class="card-label">変更履歴</div>
+      <div class="card-title">LANHubアップデート</div>
+      <div class="card-desc">DEVチームによるリリースノートと機能更新情報。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+  </div>
+</div>
+
+<!-- GAMES -->
+<div class="category">
+  <div class="category-header">
+    <h2>🎮 &nbsp;ゲーム</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+    <a href="/tetris" class="feature-card accent-purple">
+      <div class="card-icon">🧱</div>
+      <div class="card-label">アーケード</div>
+      <div class="card-title">テトリス</div>
+      <div class="card-desc">ソロ、対CPU、またはLAN対戦で1対1の勝負。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/chess" class="feature-card accent-purple">
+      <div class="card-icon">♟️</div>
+      <div class="card-label">ボードゲーム</div>
+      <div class="card-title">チェス</div>
+      <div class="card-desc">CPUと対戦するか、LANの対戦相手に挑戦。公式ルールの時計付き。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/uno" class="feature-card accent-purple">
+      <div class="card-icon">🃏</div>
+      <div class="card-label">カードゲーム</div>
+      <div class="card-title">UNO</div>
+      <div class="card-desc">ボットやLANプレイヤーとUNO対戦。公開・非公開ルーム。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/slither" class="feature-card accent-purple">
+      <div class="card-icon">🐍</div>
+      <div class="card-label">アーケード</div>
+      <div class="card-title">スリザー</div>
+      <div class="card-desc">食べて、成長し、LAN上のすべてのスネークを出し抜け。一つの大きな部屋、誰でも参加可能。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/scribble" class="feature-card accent-purple">
+      <div class="card-icon">🎨</div>
+      <div class="card-label">パーティー</div>
+      <div class="card-title">スクリブル</div>
+      <div class="card-desc">お題を描き、他の人が描いたものを当てる。自動マッチングルーム、最大15人。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/geoguesser" class="feature-card accent-purple">
+      <div class="card-icon">🌍</div>
+      <div class="card-label">探検</div>
+      <div class="card-title">ジオゲッサー</div>
+      <div class="card-desc">ストリートビューで世界中の場所を当てよう。ソロまたはLANマルチプレイ。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+  </div>
+</div>
+
+<!-- SERVER STATS -->
+<div class="category">
+  <div class="category-header">
+    <h2>📊 &nbsp;サーバー統計</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+    <a href="/stats" class="feature-card accent-green">
+      <div class="card-icon">🖥️</div>
+      <div class="card-label">システム</div>
+      <div class="card-title">ライブモニター</div>
+      <div class="card-desc">CPU、RAM、ネットワークI/O、稼働時間を一目で。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/devices" class="feature-card accent-green">
+      <div class="card-icon">📶</div>
+      <div class="card-label">ネットワーク</div>
+      <div class="card-title">接続デバイス</div>
+      <div class="card-desc">LAN上のデバイスとその活動を確認。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/logs" class="feature-card accent-green">
+      <div class="card-icon">📜</div>
+      <div class="card-label">ログ</div>
+      <div class="card-title">ログビューアー</div>
+      <div class="card-desc">アクセス、アプリ、エラーログをブラウザで閲覧。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+    <a href="/about" class="feature-card accent-green">
+      <div class="card-icon">ℹ️</div>
+      <div class="card-label">情報</div>
+      <div class="card-title">LANHub概要</div>
+      <div class="card-desc">LANHubとは何か、できること、仕組みについて。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+  </div>
+</div>
+
+<!-- TOOLS -->
+<div class="category">
+  <div class="category-header">
+    <h2>🔧 &nbsp;ツール</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+    <div class="feature-card accent-amber soon">
+      <div class="card-icon">📋</div>
+      <div class="card-label">ユーティリティ</div>
+      <div class="card-title">クリップボード同期</div>
+      <div class="card-desc">LAN上のデバイス間でクリップボードテキストを即時共有。</div>
+      <span class="card-badge">近日公開</span>
+    </div>
+    <div class="feature-card accent-amber soon">
+      <div class="card-icon">⏱️</div>
+      <div class="card-label">ユーティリティ</div>
+      <div class="card-title">共有タイマー</div>
+      <div class="card-desc">ネットワーク全体で表示されるカウントダウンタイマー。</div>
+      <span class="card-badge">近日公開</span>
+    </div>
+    <div class="feature-card accent-amber soon">
+      <div class="card-icon">📝</div>
+      <div class="card-label">ユーティリティ</div>
+      <div class="card-title">共有メモ</div>
+      <div class="card-desc">LAN上の全員が編集できる共有メモパッド。</div>
+      <span class="card-badge">近日公開</span>
+    </div>
+    <a href="/polls" class="feature-card accent-cyan">
+      <div class="card-icon">📊</div>
+      <div class="card-label">投票</div>
+      <div class="card-title">投票・アンケート</div>
+      <div class="card-desc">単一選択・複数選択の投票を作成。リアルタイム結果を表示。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+  </div>
+</div>
+
+<!-- DEV / MOD TOOLS -->
+<div class="category">
+  <div class="category-header">
+    <h2>⚙️ &nbsp;DEV / MOD ツール</h2>
+    <div class="cat-line"></div>
+  </div>
+
+  {% if not session.get('admin_role') %}
+  <!-- 未ログイン → ログインカードのみ表示 -->
+  <div class="card-grid">
+    <a href="{{ url_for('admin.login') }}" class="feature-card accent-red">
+      <div class="card-icon">🔐</div>
+      <div class="card-label">認証</div>
+      <div class="card-title">DEV / MODとしてログイン</div>
+      <div class="card-desc">モデレーションや開発者ツールにアクセスします。</div>
+      <span class="card-badge">制限あり</span>
+    </a>
+  </div>
+
+  {% else %}
+  <!-- ログイン済み → ロールバッジ + ログアウト + 適切なカードを表示 -->
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+    <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-dim);">
+      ログイン中:
+      <strong style="color:{{ 'var(--red)' if session.admin_role == 'DEV' else 'var(--amber)' }}">
+        {{ session.admin_name }}
+      </strong>
+      <span style="
+        display:inline-block; margin-left:6px; padding:1px 8px; border-radius:20px;
+        font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase;
+        border:1px solid {{ 'var(--red)' if session.admin_role == 'DEV' else 'var(--amber)' }};
+        color:{{ 'var(--red)' if session.admin_role == 'DEV' else 'var(--amber)' }};
+        background:{{ 'var(--red-dim)' if session.admin_role == 'DEV' else 'var(--amber-dim)' }};
+      ">{{ session.admin_role }}</span>
+    </span>
+
+    <!-- ログアウトボタン -->
+    <form method="POST" action="{{ url_for('admin.logout') }}" style="margin:0;">
+      <button type="submit" style="
+        padding: 4px 14px; border-radius: var(--radius); cursor: pointer;
+        background: transparent; border: 1px solid var(--border);
+        font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim);
+        letter-spacing: 0.06em; text-transform: uppercase;
+        transition: all 0.12s ease;
+      " onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+         onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">
+        ログアウト
+      </button>
+    </form>
+  </div>
+
+  <div class="card-grid stagger">
+
+    {# MOD + DEV 共通機能 #}
+    <a href="{{ url_for('admin.bans') }}" class="feature-card accent-red">
+      <div class="card-icon">🚫</div>
+      <div class="card-label">モデレーション</div>
+      <div class="card-title">IP制限管理</div>
+      <div class="card-desc">IPアドレスのブロック/ブロック解除。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+
+    <a href="{{ url_for('admin.reports') }}" class="feature-card accent-red">
+      <div class="card-icon">🏷️</div>
+      <div class="card-label">モデレーション</div>
+      <div class="card-title">通報キュー</div>
+      <div class="card-desc">ユーザーから送信された /report 通報を確認。</div>
+      <span class="card-badge">公開中</span>
+    </a>
+
+    {# DEV 専用機能 #}
+    {% if session.admin_role == 'DEV' %}
+
+    <a href="{{ url_for('admin.server_control') }}" class="feature-card accent-red">
+      <div class="card-icon">🔄</div>
+      <div class="card-label">サーバー</div>
+      <div class="card-title">再起動 / 更新</div>
+      <div class="card-desc">ブラウザから git pull とサービス再起動を実行。</div>
+      <span class="card-badge">開発者のみ</span>
+    </a>
+
+    <a href="{{ url_for('admin.db_inspector') }}" class="feature-card accent-red">
+      <div class="card-icon">🗃️</div>
+      <div class="card-label">データベース</div>
+      <div class="card-title">DBインスペクタ</div>
+      <div class="card-desc">ブラウザでアプリのデータベースを参照・クエリ。</div>
+      <span class="card-badge">開発者のみ</span>
+    </a>
+
+    <a href="{{ url_for('admin.power') }}" class="feature-card accent-red">
+      <div class="card-icon">👑</div>
+      <div class="card-label">管理者</div>
+      <div class="card-title">管理者権限制御</div>
+      <div class="card-desc">DEV/MOD 管理者アカウントの作成、編集、削除。</div>
+      <span class="card-badge">開発者のみ</span>
+    </a>
+
+    <a href="{{ url_for('admin.console') }}" class="feature-card accent-red">
+      <div class="card-icon">🖥️</div>
+      <div class="card-label">システム</div>
+      <div class="card-title">サーバーコンソール</div>
+      <div class="card-desc">ブラウザから直接フルLinuxシェルアクセス。</div>
+      <span class="card-badge">開発者のみ</span>
+    </a>
+    <a href="{{ url_for('server_config.server_config') }}" class="feature-card accent-red">
+      <div class="card-icon">⚙️</div>
+      <div class="card-label">設定</div>
+      <div class="card-title">サーバー設定</div>
+      <div class="card-desc">configvars.py の設定（ポート、制限、リダイレクトURL）をブラウザから編集。</div>
+      <span class="card-badge">開発者のみ</span>
+    </a>
+    <a href="{{ url_for('admin.access') }}" class="feature-card accent-red">
+      <div class="card-icon">🌐</div>
+      <div class="card-label">World Wide Web</div>
+      <div class="card-title">アクセス設定</div>
+      <div class="card-desc">LANHubを公開アクセス可能にするかどうかを設定。</div>
+      <span class="card-badge">開発者のみ</span>
+    </a>
+    <a href="{{ url_for('backup.backup_page') }}" class="feature-card accent-red">
+      <div class="card-icon">⚠️</div>
+      <div class="card-label">危険ゾーン</div>
+      <div class="card-title">バックアップ / データ削除</div>
+      <div class="card-desc">現在のサーバーデータをZIPで保存、サーバーデータを削除。</div>
+      <span class="card-badge">開発者のみ</span>
+    </a>
+
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

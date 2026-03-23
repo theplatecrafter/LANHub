@@ -1,0 +1,1050 @@
+{% extends "base.html" %}
+{% block title %}LANHub — ドロップゾーン{% endblock %}
+
+{% block head %}
+<style>
+
+  /* Tag search in search bar */
+  .tag-search-wrap {
+    position: relative; display: flex; align-items: center;
+    background: var(--bg); border: 1px solid var(--border-hi);
+    border-radius: var(--radius); padding: 0 8px; gap: 4px; flex-shrink: 0;
+  }
+  .tag-search-wrap:focus-within { border-color: var(--cyan); }
+  .tag-search-prefix { color: var(--cyan); font-family: var(--font-mono); font-size: 0.8rem; }
+  #tag-search-input {
+    border: none; background: transparent; outline: none;
+    color: var(--text-bright); font-family: var(--font-mono); font-size: 0.78rem;
+    width: 110px; padding: 6px 0;
+  }
+  .tag-search-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; min-width: 160px;
+    background: var(--bg-panel); border: 1px solid var(--border-hi);
+    border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 200; display: none;
+  }
+  .tag-search-dropdown.open { display: block; }
+  .tag-sug-item {
+    padding: 7px 12px; font-family: var(--font-mono); font-size: 0.78rem;
+    color: var(--text-dim); cursor: pointer;
+  }
+  .tag-sug-item:hover, .tag-sug-item.selected { background: var(--bg-hover); color: var(--cyan); }
+
+  .page-wrap { padding: 0 !important; }
+
+  .dz-shell {
+    display: flex; flex-direction: column;
+    max-width: 960px; margin: 0 auto;
+    padding: 24px; gap: 24px;
+  }
+
+  /* ── Hero ──────────────────────────────────────────────── */
+  .dz-hero {
+    display: flex; align-items: flex-start;
+    justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .dz-hero h1 { font-size: 1.6rem; margin-bottom: 6px; }
+  .dz-hero p  { font-size: 0.85rem; color: var(--text-dim); max-width: 420px; }
+
+  /* ── Storage gauge ─────────────────────────────────────── */
+  .storage-gauge {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 14px 18px;
+    min-width: 220px; flex-shrink: 0;
+  }
+  .sg-label {
+    font-family: var(--font-mono); font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-dim); margin-bottom: 6px;
+  }
+  .sg-track {
+    height: 6px; background: var(--bg-card); border-radius: 3px;
+    overflow: hidden; margin-bottom: 6px; border: 1px solid var(--border);
+  }
+  .sg-fill  { height: 100%; border-radius: 3px; background: var(--cyan); transition: width 0.4s ease; }
+  .sg-fill.warn { background: var(--amber); }
+  .sg-fill.crit { background: var(--red); }
+  .sg-numbers {
+    display: flex; justify-content: space-between;
+    font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim);
+  }
+  .sg-used { color: var(--text-bright); font-weight: 700; }
+  .ip-quota { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+  /* ── Upload card ───────────────────────────────────────── */
+  .upload-card {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .card-title {
+    padding: 12px 20px; font-family: var(--font-mono); font-size: 0.65rem;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--text-dim); border-bottom: 1px solid var(--border);
+  }
+  .upload-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* Drop area */
+  #drop-area {
+    border: 2px dashed var(--border-hi); border-radius: var(--radius-lg);
+    padding: 36px 20px; text-align: center; cursor: pointer;
+    transition: all 0.2s ease; position: relative;
+  }
+  #drop-area.drag-over { border-color: var(--cyan); background: var(--cyan-dim); }
+  #drop-area.has-file  { border-color: var(--green); background: var(--green-dim); }
+  #drop-area input[type=file] {
+    position: absolute; inset: 0; opacity: 0;
+    cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-icon  { font-size: 2rem; margin-bottom: 8px; display: block; }
+  .drop-label { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim); }
+  .drop-label strong { color: var(--cyan); }
+  #file-chosen {
+    font-family: var(--font-mono); font-size: 0.78rem;
+    color: var(--green); margin-top: 6px; display: none;
+  }
+
+  /* Form fields */
+  .upload-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .fg { display: flex; flex-direction: column; gap: 5px; }
+  .fg.full { grid-column: 1 / -1; }
+  .fg label {
+    font-family: var(--font-mono); font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim);
+  }
+  .fg .hint { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-dim); margin-top: 3px; }
+
+  /* Tag chips */
+  .tag-wrap { position: relative; }
+  .tag-chips {
+    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+    padding: 6px 10px; min-height: 38px;
+    background: var(--bg); border: 1px solid var(--border-hi);
+    border-radius: var(--radius); cursor: text;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .tag-chips:focus-within { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-dim); }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--cyan-dim); border: 1px solid var(--cyan);
+    color: var(--cyan); border-radius: 20px; padding: 2px 8px;
+    font-family: var(--font-mono); font-size: 0.68rem; white-space: nowrap;
+  }
+  .chip-remove { cursor: pointer; font-size: 0.7rem; opacity: 0.7; }
+  .chip-remove:hover { opacity: 1; color: var(--red); }
+  #tag-input {
+    border: none !important; background: transparent !important;
+    outline: none !important; box-shadow: none !important;
+    font-family: var(--font-mono) !important; font-size: 0.82rem;
+    color: var(--text-bright) !important; width: 120px; min-width: 80px;
+    padding: 0 4px !important; flex: 1;
+  }
+  #tag-suggestions {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--bg-panel); border: 1px solid var(--border-hi);
+    border-radius: var(--radius); z-index: 50;
+    max-height: 160px; overflow-y: auto; display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  #tag-suggestions.open { display: block; }
+  .tag-suggestion {
+    padding: 7px 12px; font-family: var(--font-mono); font-size: 0.78rem;
+    color: var(--text-dim); cursor: pointer; transition: background 0.1s ease;
+  }
+  .tag-suggestion:hover,
+  .tag-suggestion.selected { background: var(--bg-hover); color: var(--text-bright); }
+
+  /* Upload button */
+  .upload-btn {
+    align-self: flex-start; padding: 10px 28px;
+    border-radius: var(--radius); border: none;
+    background: var(--cyan); color: var(--bg);
+    font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    cursor: pointer; transition: opacity 0.15s ease;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .upload-btn:hover:not(:disabled) { opacity: 0.85; }
+  .upload-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .upload-btn .u-spinner {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid var(--bg); border-top-color: transparent;
+    animation: spin 0.7s linear infinite; display: none;
+  }
+  .upload-btn.uploading .u-spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Progress */
+  #upload-progress-wrap { display: none; }
+  #upload-progress-wrap.visible { display: block; }
+  #upload-progress-track {
+    height: 4px; background: var(--bg-card); border-radius: 2px;
+    overflow: hidden; margin-top: 8px;
+  }
+  #upload-progress-fill {
+    height: 100%; background: var(--cyan); width: 0%;
+    transition: width 0.2s ease; border-radius: 2px;
+  }
+  #upload-status { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; }
+
+  /* ── Search bar ────────────────────────────────────────── */
+  .search-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  #search-input {
+    flex: 1; min-width: 200px;
+    padding: 9px 14px !important; border-radius: var(--radius) !important;
+    font-family: var(--font-mono) !important; font-size: 0.82rem;
+  }
+  .search-btn {
+    padding: 9px 18px; border-radius: var(--radius); border: 1px solid var(--border);
+    background: transparent; color: var(--text-dim);
+    font-family: var(--font-mono); font-size: 0.78rem;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
+  }
+  .search-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  #active-tag-filter {
+    display: none; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--cyan);
+    background: var(--cyan-dim); border: 1px solid var(--cyan);
+    border-radius: 20px; padding: 4px 10px;
+  }
+  #active-tag-filter.visible { display: flex; }
+  #clear-tag { cursor: pointer; opacity: 0.7; font-size: 0.7rem; }
+  #clear-tag:hover { opacity: 1; color: var(--red); }
+
+  /* ── File grid ─────────────────────────────────────────── */
+  #file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .file-card {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .file-card:hover { border-color: var(--border-hi); transform: translateY(-2px); }
+  .file-header { display: flex; align-items: flex-start; gap: 10px; }
+  .file-icon { font-size: 1.8rem; flex-shrink: 0; line-height: 1; }
+  .file-names { flex: 1; min-width: 0; }
+  .file-display-name {
+    font-family: var(--font-ui); font-weight: 700; font-size: 0.9rem;
+    color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .file-original-name {
+    font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
+  }
+  .file-meta {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-dim);
+  }
+  .file-size { color: var(--text); }
+  .lock-icon { color: var(--amber); }
+  .file-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-family: var(--font-mono); font-size: 0.62rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-dim); cursor: pointer; transition: all 0.12s ease;
+  }
+  .tag-pill:hover { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-dim); }
+  .file-actions { display: flex; gap: 6px; margin-top: 4px; }
+  .f-btn {
+    flex: 1; padding: 7px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); font-family: var(--font-mono);
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+    cursor: pointer; transition: all 0.12s ease; text-align: center;
+  }
+  .f-btn:hover     { border-color: var(--cyan);  color: var(--cyan);  background: var(--cyan-dim); }
+  .f-btn.del:hover { border-color: var(--red);   color: var(--red);   background: var(--red-dim); }
+  .f-btn.rep:hover { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+  .f-btn.icon-only { flex: none; }
+
+  /* Empty / loading */
+  #files-empty {
+    display: none; grid-column: 1/-1; text-align: center;
+    padding: 48px 20px; font-family: var(--font-mono);
+    font-size: 0.8rem; color: var(--text-dim);
+  }
+  #files-empty.visible { display: block; }
+  #files-loading {
+    display: none; grid-column: 1/-1; text-align: center;
+    padding: 32px; font-family: var(--font-mono);
+    font-size: 0.75rem; color: var(--text-dim);
+  }
+  #files-loading.visible { display: block; }
+
+  /* ── Modals (all at top level, never nested) ───────────── */
+  .modal-bg {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center; z-index: 200;
+  }
+  .modal-bg.open { display: flex; }
+  .modal-box {
+    background: var(--bg-panel); border: 1px solid var(--border-hi);
+    border-radius: var(--radius-lg); padding: 2rem;
+    width: 360px; max-width: 90vw;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    animation: modal-in 0.2s ease;
+  }
+  .modal-box.danger { border-color: var(--red); border-top: 3px solid var(--red); }
+  @keyframes modal-in {
+    from { opacity:0; transform:translateY(10px) scale(.97); }
+    to   { opacity:1; transform:translateY(0) scale(1); }
+  }
+  .modal-box h3 { font-size: 1rem; margin-bottom: 6px; }
+  .modal-box p  { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 16px; }
+  .modal-error  {
+    color: var(--red); font-family: var(--font-mono);
+    font-size: 0.75rem; min-height: 1.2em; margin: 8px 0;
+  }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .modal-cancel {
+    flex: 1; padding: 8px; border-radius: var(--radius);
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-family: var(--font-mono);
+    font-size: 0.78rem; cursor: pointer; transition: all 0.12s ease;
+  }
+  .modal-cancel:hover { border-color: var(--border-hi); color: var(--text-bright); }
+  .modal-confirm {
+    flex: 1; padding: 8px; border-radius: var(--radius); border: none;
+    font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+  .modal-confirm:hover { opacity: 0.85; }
+  .modal-confirm.cyan { background: var(--cyan); color: var(--bg); }
+  .modal-confirm.red  { background: var(--red);  color: #fff; }
+  .modal-confirm.amber{ background: var(--amber); color: var(--bg); }
+
+  /* ── Toast ─────────────────────────────────────────────── */
+  #dz-toast {
+    position: fixed; bottom: 24px; right: 24px;
+    padding: 10px 18px; border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 0.8rem; border: 1px solid;
+    z-index: 999; pointer-events: none;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  #dz-toast.show { opacity: 1; transform: translateY(0); }
+  #dz-toast.ok  { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  #dz-toast.err { background: var(--red-dim);   border-color: var(--red);   color: var(--red); }
+
+  @media (max-width: 640px) {
+    .dz-shell { padding: 16px; }
+    .upload-fields { grid-template-columns: 1fr; }
+    .dz-hero { flex-direction: column; }
+    .storage-gauge { min-width: unset; width: 100%; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dz-shell">
+
+  <!-- ── Hero ───────────────────────────────────────────── -->
+  <div class="dz-hero fade-up">
+    <div>
+      <h1>📁 ドロップゾーン</h1>
+      <p>LAN上の誰とでもファイルを共有できます。タグ付け、検索、パスワード保護が可能です。</p>
+      <p style="margin-top:6px; font-family:var(--font-mono); font-size:0.7rem; color:var(--text-dim);">
+        最大ファイルサイズ: <strong>{{ max_file_mb }} MB</strong> ·
+        あなたのクォータ: <strong>{{ rate_limit_mb }} MB</strong> / <strong>{{ rate_window_h }}時間</strong>
+      </p>
+    </div>
+    <div class="storage-gauge">
+      <div class="sg-label">サーバーストレージ</div>
+      <div class="sg-track"><div class="sg-fill" id="sg-fill" style="width:{{ stats.used_pct }}%"></div></div>
+      <div class="sg-numbers">
+        <span class="sg-used" id="sg-used">{{ stats.used_bytes // (1024*1024) }} MB 使用中</span>
+        <span>/ {{ stats.max_bytes // (1024*1024) }} MB</span>
+      </div>
+      <div class="ip-quota">
+        <div class="sg-label">あなたのクォータ ({{ rate_window_h }}時間)</div>
+        <div class="sg-track"><div class="sg-fill" id="ip-fill" style="width:0%"></div></div>
+        <div class="sg-numbers">
+          <span id="ip-used">— MB 使用中</span>
+          <span>/ {{ rate_limit_mb }} MB</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Upload card ────────────────────────────────────── -->
+  <div class="upload-card">
+    <div class="card-title">ファイルアップロード</div>
+    <div class="upload-body">
+
+      <div id="drop-area">
+        <input type="file" id="file-input" onchange="onFileChosen(this)" />
+        <span class="drop-icon">⬆</span>
+        <div class="drop-label"><strong>クリックして選択</strong> またはファイルをここにドラッグ＆ドロップ</div>
+        <div id="file-chosen"></div>
+      </div>
+
+      <div class="upload-fields">
+        <div class="fg">
+          <label>表示名 <span style="color:var(--red)">*</span></label>
+          <input type="text" id="display-name" placeholder="私のすごいファイル" maxlength="80"
+                 autocomplete="off" />
+        </div>
+        <div class="fg">
+          <label>パスワード <span style="color:var(--text-dim)">(任意)</span></label>
+          <!-- autocomplete="new-password" stops Google from offering to save this -->
+          <input type="password" id="upload-password" placeholder="空欄＝公開"
+                 autocomplete="new-password" />
+        </div>
+        <div class="fg full">
+          <label>タグ <span style="color:var(--text-dim)">(カンマ区切り)</span></label>
+          <div class="tag-wrap">
+            <div class="tag-chips" id="tag-chips"
+                 onclick="document.getElementById('tag-input').focus()">
+              <input type="text" id="tag-input" placeholder="タグを追加…" autocomplete="off" />
+            </div>
+            <div id="tag-suggestions"></div>
+          </div>
+          <div class="hint">Enter または カンマ で追加。Backspaceで最後のタグを削除。</div>
+        </div>
+      </div>
+
+      <button class="upload-btn" id="upload-btn" onclick="doUpload()" disabled>
+        <div class="u-spinner"></div>
+        <span>⬆ アップロード</span>
+      </button>
+
+      <div id="upload-progress-wrap">
+        <div id="upload-status"></div>
+        <div id="upload-progress-track"><div id="upload-progress-fill"></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Search bar ─────────────────────────────────────── -->
+  <div class="search-bar">
+    <input type="text" id="search-input" placeholder="名前や表示名で検索…"
+          oninput="debounceSearch()" />
+
+    <!-- Tag search -->
+    <div class="tag-search-wrap" id="tag-search-wrap">
+      <span class="tag-search-prefix">#</span>
+      <input type="text" id="tag-search-input" placeholder="タグで絞り込み…"
+            autocomplete="off" oninput="onTagSearchInput()" onkeydown="onTagSearchKeydown(event)" />
+      <div id="tag-search-sug" class="tag-search-dropdown"></div>
+    </div>
+
+    <div id="active-tag-filter">
+      <span id="active-tag-label"></span>
+      <span id="clear-tag" onclick="clearTagFilter()">✕</span>
+    </div>
+    <button class="search-btn" onclick="doSearch()">検索</button>
+    <button class="search-btn" onclick="loadFiles()">すべて表示</button>
+  </div>
+
+  <!-- ── File grid ──────────────────────────────────────── -->
+  <div id="file-grid">
+    <div id="files-loading" class="visible">ファイルを読み込み中…</div>
+    <div id="files-empty">ファイルが見つかりません。</div>
+  </div>
+
+</div><!-- end .dz-shell -->
+
+<!-- ═══════════════════════════════════════════════════════
+     MODALS — all siblings at document level, never nested
+     ═══════════════════════════════════════════════════════ -->
+
+<!-- Download password modal -->
+<div id="pw-modal-bg" class="modal-bg">
+  <div class="modal-box">
+    <h3>🔒 パスワードが必要です</h3>
+    <p id="pw-filename"></p>
+    <input type="password" id="pw-input" placeholder="ファイルのパスワードを入力"
+           autocomplete="new-password" style="width:100%; margin-bottom:4px;" />
+    <div class="modal-error" id="pw-error"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closePwModal()">キャンセル</button>
+      <button class="modal-confirm cyan" onclick="submitPwDownload()">ダウンロード</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div id="del-modal-bg" class="modal-bg">
+  <div class="modal-box danger">
+    <h3>🗑 ファイル削除</h3>
+    <p>この操作は元に戻せません。</p>
+    <div id="del-pw-row" style="display:none; margin-bottom:12px;">
+      <label style="display:block; font-family:var(--font-mono); font-size:0.62rem;
+                    text-transform:uppercase; letter-spacing:0.1em;
+                    color:var(--text-dim); margin-bottom:5px;">
+        ファイルパスワードが必要です
+      </label>
+      <input type="password" id="del-pw-input"
+             placeholder="削除確認のためパスワードを入力"
+             autocomplete="new-password" style="width:100%;" />
+    </div>
+    <div class="modal-error" id="del-error"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeDelModal()">キャンセル</button>
+      <button class="modal-confirm red" onclick="confirmDelete()">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report modal -->
+<div id="rep-modal-bg" class="modal-bg">
+  <div class="modal-box">
+    <h3>🚩 ファイルを通報</h3>
+    <p id="rep-filename"></p>
+    <div class="fg">
+      <label style="font-family:var(--font-mono); font-size:0.62rem;
+                    text-transform:uppercase; letter-spacing:0.1em; color:var(--text-dim);">
+        理由 <span style="color:var(--text-dim)">(任意)</span>
+      </label>
+      <input type="text" id="rep-reason" placeholder="問題の内容を記述…"
+             maxlength="200" autocomplete="off" />
+    </div>
+    <div class="modal-error" id="rep-error"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeRepModal()">キャンセル</button>
+      <button class="modal-confirm amber" onclick="submitReport()">通報を送信</button>
+    </div>
+  </div>
+</div>
+
+<div id="dz-toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── Global state ────────────────────────────────────────
+  let currentTags      = [];
+  let activeTagFilter  = "";
+  let searchDebounce   = null;
+  let sugSelected      = -1;
+  let filesLoading     = false;
+
+  // Modal state
+  let pwPendingId          = null;
+  let delPendingId         = null;
+  let delPendingProtected  = false;
+  let repPendingId         = null;
+
+  // ── Init ────────────────────────────────────────────────
+  loadFiles();
+  loadQuota();
+
+  // ── Modal close-on-backdrop ─────────────────────────────
+  document.getElementById("pw-modal-bg").addEventListener("click", e => {
+    if (e.target === e.currentTarget) closePwModal();
+  });
+  document.getElementById("del-modal-bg").addEventListener("click", e => {
+    if (e.target === e.currentTarget) closeDelModal();
+  });
+  document.getElementById("rep-modal-bg").addEventListener("click", e => {
+    if (e.target === e.currentTarget) closeRepModal();
+  });
+
+  // ── Modal keyboard shortcuts ─────────────────────────────
+  document.getElementById("pw-input").addEventListener("keydown", e => {
+    if (e.key === "Enter")  submitPwDownload();
+    if (e.key === "Escape") closePwModal();
+  });
+  document.getElementById("del-pw-input").addEventListener("keydown", e => {
+    if (e.key === "Enter")  confirmDelete();
+    if (e.key === "Escape") closeDelModal();
+  });
+  document.getElementById("rep-reason").addEventListener("keydown", e => {
+    if (e.key === "Enter")  submitReport();
+    if (e.key === "Escape") closeRepModal();
+  });
+
+  // ── Drag and drop ───────────────────────────────────────
+  const dropArea = document.getElementById("drop-area");
+  dropArea.addEventListener("dragover",  e => { e.preventDefault(); dropArea.classList.add("drag-over"); });
+  dropArea.addEventListener("dragleave", ()  => dropArea.classList.remove("drag-over"));
+  dropArea.addEventListener("drop", e => {
+    e.preventDefault();
+    dropArea.classList.remove("drag-over");
+    if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  });
+
+  function onFileChosen(input) {
+    if (input.files[0]) setFile(input.files[0]);
+  }
+
+  function setFile(file) {
+    dropArea.classList.add("has-file");
+    const label = document.getElementById("file-chosen");
+    label.style.display = "block";
+    label.textContent   = "✓ " + file.name + " (" + fmtSize(file.size) + ")";
+    document.getElementById("upload-btn").disabled = false;
+    const dn = document.getElementById("display-name");
+    if (!dn.value) dn.value = file.name.replace(/\.[^.]+$/, "");
+  }
+
+  // ── Tag input ───────────────────────────────────────────
+  const tagInput = document.getElementById("tag-input");
+  const tagSugEl = document.getElementById("tag-suggestions");
+
+  tagInput.addEventListener("input", async () => {
+    const val = tagInput.value.trim();
+    if (!val) { closeSuggestions(); return; }
+    const res  = await fetch("/api/dropzone/tags?q=" + encodeURIComponent(val));
+    const data = await res.json();
+    renderSuggestions(data.tags);
+  });
+
+  tagInput.addEventListener("keydown", e => {
+    const items = tagSugEl.querySelectorAll(".tag-suggestion");
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      sugSelected = Math.min(sugSelected + 1, items.length - 1);
+      items.forEach((el, i) => el.classList.toggle("selected", i === sugSelected));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      sugSelected = Math.max(sugSelected - 1, -1);
+      items.forEach((el, i) => el.classList.toggle("selected", i === sugSelected));
+    } else if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const chosen = sugSelected >= 0
+        ? items[sugSelected]?.textContent
+        : tagInput.value.trim().replace(/,$/, "");
+      if (chosen) addTag(chosen);
+    } else if (e.key === "Backspace" && !tagInput.value && currentTags.length) {
+      removeTag(currentTags[currentTags.length - 1]);
+    } else if (e.key === "Escape") {
+      closeSuggestions();
+    }
+  });
+
+  tagInput.addEventListener("blur", () => {
+    setTimeout(() => {
+      const v = tagInput.value.trim().replace(/,$/, "");
+      if (v) addTag(v);
+      closeSuggestions();
+    }, 150);
+  });
+
+  function renderSuggestions(tags) {
+    if (!tags.length) { closeSuggestions(); return; }
+    sugSelected = -1;
+    tagSugEl.innerHTML = tags.map(t =>
+      `<div class="tag-suggestion" onmousedown="addTag('${escHtml(t)}')">${escHtml(t)}</div>`
+    ).join("");
+    tagSugEl.classList.add("open");
+  }
+
+  function closeSuggestions() { tagSugEl.classList.remove("open"); tagSugEl.innerHTML = ""; }
+
+  function addTag(tag) {
+    tag = tag.trim().toLowerCase();
+    if (!tag || currentTags.includes(tag)) { tagInput.value = ""; closeSuggestions(); return; }
+    currentTags.push(tag);
+    renderChips();
+    tagInput.value = "";
+    closeSuggestions();
+  }
+
+  function removeTag(tag) {
+    currentTags = currentTags.filter(t => t !== tag);
+    renderChips();
+  }
+
+  function renderChips() {
+    const chips = document.getElementById("tag-chips");
+    chips.querySelectorAll(".chip").forEach(el => el.remove());
+    currentTags.forEach(tag => {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.innerHTML =
+        `${escHtml(tag)}<span class="chip-remove" onclick="removeTag('${escHtml(tag)}')">✕</span>`;
+      chips.insertBefore(chip, tagInput);
+    });
+  }
+
+  // ── Upload ──────────────────────────────────────────────
+  async function doUpload() {
+    const fileInput   = document.getElementById("file-input");
+    const displayName = document.getElementById("display-name").value.trim();
+    const password    = document.getElementById("upload-password").value;
+
+    if (!fileInput.files[0]) { showToast("ファイルを選択してください。", false); return; }
+    if (!displayName)        { showToast("表示名を入力してください。", false); return; }
+
+    const btn          = document.getElementById("upload-btn");
+    const progressWrap = document.getElementById("upload-progress-wrap");
+    const progressFill = document.getElementById("upload-progress-fill");
+    const statusEl     = document.getElementById("upload-status");
+
+    btn.disabled = true;
+    btn.classList.add("uploading");
+    progressWrap.classList.add("visible");
+    statusEl.textContent = "アップロード中…";
+
+    const formData = new FormData();
+    formData.append("file",         fileInput.files[0]);
+    formData.append("display_name", displayName);
+    formData.append("tags",         currentTags.join(","));
+    if (password) formData.append("password", password);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/dropzone/upload");
+
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) {
+        const pct = Math.round(e.loaded / e.total * 100);
+        progressFill.style.width = pct + "%";
+        statusEl.textContent = `アップロード中… ${pct}%`;
+      }
+    };
+
+    xhr.onload = () => {
+      btn.disabled = false;
+      btn.classList.remove("uploading");
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (data.ok) {
+          showToast("アップロードに成功しました！", true);
+          progressFill.style.width = "100%";
+          statusEl.textContent = "✓ アップロード完了。";
+          setTimeout(() => {
+            fileInput.value = "";
+            document.getElementById("display-name").value = "";
+            document.getElementById("upload-password").value = "";
+            document.getElementById("file-chosen").style.display = "none";
+            dropArea.classList.remove("has-file");
+            currentTags = []; renderChips();
+            progressWrap.classList.remove("visible");
+            progressFill.style.width = "0%";
+            btn.disabled = true;
+          }, 1500);
+          loadFiles();
+          loadQuota();
+        } else {
+          showToast(data.error, false);
+          statusEl.textContent = "✗ " + data.error;
+        }
+      } catch { showToast("アップロードに失敗しました。", false); }
+    };
+
+    xhr.onerror = () => {
+      btn.disabled = false;
+      btn.classList.remove("uploading");
+      showToast("ネットワークエラー。", false);
+    };
+
+    xhr.send(formData);
+  }
+
+  // ── Load / Search ───────────────────────────────────────
+  function debounceSearch() {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(doSearch, 300);
+  }
+
+  function doSearch() {
+    loadFiles(document.getElementById("search-input").value.trim(), activeTagFilter);
+  }
+
+  function loadFiles(q = "", tag = "") {
+    if (filesLoading) return;
+    filesLoading = true;
+
+    const loading = document.getElementById("files-loading");
+    const grid    = document.getElementById("file-grid");
+    loading.classList.add("visible");
+    grid.querySelectorAll(".file-card").forEach(el => el.remove());
+
+    let url = "/api/dropzone/search?q=" + encodeURIComponent(q);
+    if (tag) url += "&tag=" + encodeURIComponent(tag);
+
+    fetch(url)
+      .then(r => r.json())
+      .then(data => {
+        loading.classList.remove("visible");
+        filesLoading = false;
+        renderFiles(data.results || []);
+      })
+      .catch(() => { filesLoading = false; });
+  }
+
+  function renderFiles(files) {
+    const grid  = document.getElementById("file-grid");
+    const empty = document.getElementById("files-empty");
+    grid.querySelectorAll(".file-card").forEach(el => el.remove());
+    if (!files.length) { empty.classList.add("visible"); return; }
+    empty.classList.remove("visible");
+    files.forEach(f => grid.appendChild(makeFileCard(f)));
+  }
+
+  function makeFileCard(f) {
+    const card = document.createElement("div");
+    card.className = "file-card";
+
+    const tags = (f.tags || []).map(t =>
+      `<span class="tag-pill" onclick="filterByTag('${escHtml(t)}')">#${escHtml(t)}</span>`
+    ).join("");
+
+    card.innerHTML = `
+      <div class="file-header">
+        <div class="file-icon">${mimeIcon(f.mime_type)}</div>
+        <div class="file-names">
+          <div class="file-display-name" title="${escHtml(f.display_name)}">${escHtml(f.display_name)}</div>
+          <div class="file-original-name" title="${escHtml(f.original_name)}">${escHtml(f.original_name)}</div>
+        </div>
+      </div>
+      <div class="file-meta">
+        <span class="file-size">${escHtml(f.size_str)}</span>
+        <span>${escHtml(f.time_str)}</span>
+        ${f.protected ? '<span class="lock-icon" title="パスワードで保護されています">🔒</span>' : ""}
+      </div>
+      ${tags ? `<div class="file-tags">${tags}</div>` : ""}
+      <div class="file-actions">
+        <button class="f-btn"
+                onclick="downloadFile(${f.id}, ${f.protected}, '${escHtml(f.display_name)}')">
+          ⬇ ダウンロード
+        </button>
+        <button class="f-btn del icon-only"
+                onclick="openDelModal(${f.id}, ${f.protected})" title="削除">🗑</button>
+        <button class="f-btn rep icon-only"
+                onclick="openRepModal(${f.id}, '${escHtml(f.display_name)}')" title="通報">🚩</button>
+      </div>
+    `;
+    return card;
+  }
+
+  // ── Tag search input ────────────────────────────────────
+  let tagSugSelected = -1;
+
+  async function onTagSearchInput() {
+    const val = document.getElementById("tag-search-input").value.trim();
+    const sug = document.getElementById("tag-search-sug");
+    tagSugSelected = -1;
+    if (!val) { sug.classList.remove("open"); sug.innerHTML = ""; return; }
+    const res  = await fetch("/api/dropzone/tags?q=" + encodeURIComponent(val));
+    const data = await res.json();
+    if (!data.tags.length) { sug.classList.remove("open"); sug.innerHTML = ""; return; }
+    sug.innerHTML = data.tags.map((t, i) =>
+      `<div class="tag-sug-item" data-tag="${escHtml(t)}" onclick="selectTagSug('${escHtml(t)}')">#${escHtml(t)}</div>`
+    ).join("");
+    sug.classList.add("open");
+  }
+
+  function onTagSearchKeydown(e) {
+    const sug   = document.getElementById("tag-search-sug");
+    const items = sug.querySelectorAll(".tag-sug-item");
+    if (e.key === "ArrowDown")  { e.preventDefault(); tagSugSelected = Math.min(tagSugSelected+1, items.length-1); items.forEach((el,i) => el.classList.toggle("selected", i===tagSugSelected)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); tagSugSelected = Math.max(tagSugSelected-1, -1); items.forEach((el,i) => el.classList.toggle("selected", i===tagSugSelected)); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      const chosen = tagSugSelected >= 0 ? items[tagSugSelected]?.dataset.tag : document.getElementById("tag-search-input").value.trim();
+      if (chosen) selectTagSug(chosen);
+    } else if (e.key === "Escape") {
+      sug.classList.remove("open"); sug.innerHTML = "";
+    }
+  }
+
+  function selectTagSug(tag) {
+    document.getElementById("tag-search-input").value = "";
+    document.getElementById("tag-search-sug").classList.remove("open");
+    filterByTag(tag);
+  }
+
+  document.addEventListener("click", e => {
+    if (!document.getElementById("tag-search-wrap")?.contains(e.target)) {
+      document.getElementById("tag-search-sug")?.classList.remove("open");
+    }
+  });
+
+  // ── Tag filter ──────────────────────────────────────────
+  function filterByTag(tag) {
+    activeTagFilter = tag;
+    document.getElementById("active-tag-label").textContent = "#" + tag;
+    document.getElementById("active-tag-filter").classList.add("visible");
+    loadFiles(document.getElementById("search-input").value.trim(), tag);
+  }
+
+  function clearTagFilter() {
+    activeTagFilter = "";
+    document.getElementById("active-tag-filter").classList.remove("visible");
+    loadFiles(document.getElementById("search-input").value.trim());
+  }
+
+  // ── Download ────────────────────────────────────────────
+  function downloadFile(id, isProtected, name) {
+    if (isProtected) {
+      pwPendingId = id;
+      document.getElementById("pw-filename").textContent = "ファイル: " + name;
+      document.getElementById("pw-input").value   = "";
+      document.getElementById("pw-error").textContent = "";
+      document.getElementById("pw-modal-bg").classList.add("open");
+      setTimeout(() => document.getElementById("pw-input").focus(), 100);
+    } else {
+      triggerDownload(id, "");
+    }
+  }
+
+  function triggerDownload(id, password) {
+    let url = `/api/dropzone/download/${id}`;
+    if (password) url += `?password=${encodeURIComponent(password)}`;
+    window.location.href = url;
+  }
+
+  function closePwModal() {
+    document.getElementById("pw-modal-bg").classList.remove("open");
+    pwPendingId = null;
+  }
+
+  async function submitPwDownload() {
+  const pw = document.getElementById("pw-input").value;
+  if (!pw) { document.getElementById("pw-error").textContent = "パスワードを入力してください。"; return; }
+
+  const res = await fetch(
+    `/api/dropzone/download/${pwPendingId}?password=${encodeURIComponent(pw)}`,
+    { method: "GET", headers: { "Accept": "application/json" } }
+  );
+
+  if (res.ok) {
+    const idToDownload = pwPendingId;   // ← save BEFORE closing
+    closePwModal();
+    triggerDownload(idToDownload, pw);  // ← use saved copy
+  } else {
+    try {
+      const data = await res.json();
+      document.getElementById("pw-error").textContent = data.error || "パスワードが間違っています。";
+    } catch {
+      document.getElementById("pw-error").textContent = "パスワードが間違っています。";
+    }
+  }
+}
+
+  // ── Delete ──────────────────────────────────────────────
+  function openDelModal(id, isProtected) {
+    delPendingId        = id;
+    delPendingProtected = isProtected;
+    document.getElementById("del-pw-input").value      = "";
+    document.getElementById("del-error").textContent   = "";
+    document.getElementById("del-pw-row").style.display = isProtected ? "block" : "none";
+    document.getElementById("del-modal-bg").classList.add("open");
+    if (isProtected) setTimeout(() => document.getElementById("del-pw-input").focus(), 100);
+  }
+
+  function closeDelModal() {
+    document.getElementById("del-modal-bg").classList.remove("open");
+    delPendingId = null;
+  }
+
+  async function confirmDelete() {
+    const password = delPendingProtected
+      ? document.getElementById("del-pw-input").value.trim()
+      : "";
+
+    const body = new URLSearchParams();
+    if (password) body.append("password", password);
+
+    const res  = await fetch(`/api/dropzone/delete/${delPendingId}`, { method: "POST", body });
+    const data = await res.json();
+
+    if (data.ok) {
+      closeDelModal();
+      showToast("ファイルを削除しました。", true);
+      loadFiles(document.getElementById("search-input").value.trim(), activeTagFilter);
+      loadQuota();
+    } else if (data.protected && !password) {
+      document.getElementById("del-pw-row").style.display = "block";
+      document.getElementById("del-error").textContent = data.error;
+      setTimeout(() => document.getElementById("del-pw-input").focus(), 50);
+    } else {
+      document.getElementById("del-error").textContent = data.error || "削除に失敗しました。";
+    }
+  }
+
+  // ── Report ──────────────────────────────────────────────
+  function openRepModal(id, name) {
+    repPendingId = id;
+    document.getElementById("rep-filename").textContent  = "ファイル: " + name;
+    document.getElementById("rep-reason").value          = "";
+    document.getElementById("rep-error").textContent     = "";
+    document.getElementById("rep-modal-bg").classList.add("open");
+    setTimeout(() => document.getElementById("rep-reason").focus(), 100);
+  }
+
+  function closeRepModal() {
+    document.getElementById("rep-modal-bg").classList.remove("open");
+    repPendingId = null;
+  }
+
+  async function submitReport() {
+    const reason = document.getElementById("rep-reason").value.trim();
+    const res    = await fetch(`/api/dropzone/report/${repPendingId}`, {
+      method: "POST",
+      body: new URLSearchParams({ reason }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      closeRepModal();
+      showToast("通報を送信しました。ありがとうございます。", true);
+    } else {
+      document.getElementById("rep-error").textContent = data.error || "送信に失敗しました。";
+    }
+  }
+
+  // ── Quota ───────────────────────────────────────────────
+  async function loadQuota() {
+    const res  = await fetch("/api/dropzone/stats");
+    const data = await res.json();
+
+    const pct  = data.used_pct || 0;
+    const fill = document.getElementById("sg-fill");
+    fill.style.width = pct + "%";
+    fill.className   = "sg-fill" + (pct > 90 ? " crit" : pct > 70 ? " warn" : "");
+    document.getElementById("sg-used").textContent = (data.used_str || "0 B") + " 使用中";
+
+    const ipPct  = data.ip_used_pct || 0;
+    const ipFill = document.getElementById("ip-fill");
+    ipFill.style.width = ipPct + "%";
+    ipFill.className   = "sg-fill" + (ipPct > 90 ? " crit" : ipPct > 70 ? " warn" : "");
+    document.getElementById("ip-used").textContent = (data.ip_used_str || "0 B") + " 使用中";
+  }
+
+  // ── Helpers ─────────────────────────────────────────────
+  function mimeIcon(mime) {
+    if (!mime)                          return "📄";
+    if (mime.startsWith("image/"))      return "🖼️";
+    if (mime.startsWith("video/"))      return "🎬";
+    if (mime.startsWith("audio/"))      return "🎵";
+    if (mime.includes("pdf"))           return "📕";
+    if (mime.includes("zip") || mime.includes("tar") || mime.includes("gzip")) return "📦";
+    if (mime.includes("text/"))         return "📝";
+    if (mime.includes("spreadsheet") || mime.includes("excel")) return "📊";
+    if (mime.includes("word") || mime.includes("document"))     return "📄";
+    return "📁";
+  }
+
+  function fmtSize(b) {
+    if (b >= 1<<30) return (b/(1<<30)).toFixed(1) + " GB";
+    if (b >= 1<<20) return (b/(1<<20)).toFixed(1) + " MB";
+    if (b >= 1<<10) return (b/(1<<10)).toFixed(1) + " KB";
+    return b + " B";
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  function showToast(msg, ok) {
+    const el = document.getElementById("dz-toast");
+    el.textContent = msg;
+    el.className   = "show " + (ok ? "ok" : "err");
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.className = ok ? "ok" : "err"; }, 3000);
+  }
+</script>
+{% endblock %}

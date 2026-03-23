@@ -1,0 +1,2535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>テトリス — LANHub</title>
+
+<!-- ベーステーマを読み込み、CSS変数を使用 -->
+<link id="theme-ss" rel="stylesheet" href="/static/themes/dark.css"/>
+<script>(function(){var s=localStorage.getItem('lanhub-theme')||'dark';document.getElementById('theme-ss').href='/static/themes/'+s+'.css';})();</script>
+
+<!-- アーケードフォント -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+<style>
+/* ══════════════════════════════════════════════════════════════
+   テトリス — エレクトリックアーケード スタンドアロン版
+   元のテンプレートが想定するすべてのCSS変数を定義し、
+   その上にネオンアーケードのオーバーライドを適用する
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 元のCSSが使用するすべての変数を定義 ─────────────────── */
+:root {
+  --bg:           #050508;
+  --bg-panel:     rgba(10,8,22,.95);
+  --bg-card:      rgba(14,10,28,.90);
+  --bg-hover:     rgba(155,89,255,.08);
+  --text:         #c8d0f0;
+  --text-bright:  #e0e8ff;
+  --text-dim:     rgba(200,210,255,.38);
+  --border:       rgba(155,89,255,.22);
+  --border-hi:    rgba(155,89,255,.55);
+  --cyan:         #00ffee;
+  --cyan-dim:     rgba(0,255,238,.08);
+  --red:          #ff2060;
+  --red-dim:      rgba(255,32,96,.10);
+  --green:        #00e67a;
+  --green-dim:    rgba(0,230,122,.10);
+  --amber:        #ffe600;
+  --amber-dim:    rgba(255,230,0,.08);
+  --font-mono:    'Share Tech Mono', monospace;
+  --font-ui:      'Share Tech Mono', monospace;
+  --radius:       6px;
+  --radius-lg:    14px;
+  --transition:   0.15s ease;
+}
+
+/* ── 基本レイアウト ────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  display: flex; flex-direction: column;
+  font-family: 'Share Tech Mono', monospace;
+  background: var(--bg); color: var(--text-bright);
+}
+
+/* ── スキャンライン (CRT効果) ─────────────────────────────────── */
+body::after {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg, transparent 0px, transparent 2px,
+    rgba(0,0,0,.07) 2px, rgba(0,0,0,.07) 4px
+  );
+}
+
+/* ── ネオングリッド背景 ───────────────────────────────────── */
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(rgba(155,89,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(155,89,255,.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ── トップバー ─────────────────────────────────────────────────── */
+#tet-topbar {
+  height: 50px; flex-shrink: 0; position: relative; z-index: 20;
+  background: rgba(4,4,10,.98);
+  border-bottom: 1px solid rgba(155,89,255,.3);
+  display: flex; align-items: center; padding: 0 18px; gap: 16px;
+}
+#tet-topbar::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  animation: tb-sweep 4s ease-in-out infinite;
+}
+@keyframes tb-sweep { 0%,100%{opacity:.2}50%{opacity:.9} }
+.topbar-brand {
+  font-family: 'Orbitron', monospace; font-weight: 900; font-size: .95rem;
+  letter-spacing: .22em; color: var(--cyan);
+  text-shadow: 0 0 14px var(--cyan), 0 0 28px rgba(0,255,238,.3);
+}
+.topbar-back {
+  font-size: .6rem; color: var(--text-dim); text-decoration: none;
+  padding: 4px 11px; border: 1px solid rgba(155,89,255,.25); border-radius: 5px;
+  transition: all .15s; display: flex; align-items: center; gap: 5px;
+}
+.topbar-back:hover { color: var(--cyan); border-color: var(--cyan); background: var(--cyan-dim); }
+.topbar-back svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+#topbar-player { margin-left: auto; font-size: .68rem; color: var(--text-dim); letter-spacing: .08em; }
+
+/* ── page-wrap + container: base.html が提供するものと一致 ───── */
+.page-wrap {
+  padding: 0 !important; flex: 1;
+  display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden;
+  position: relative; z-index: 1;
+}
+.container {
+  max-width: 100% !important; padding: 0 !important;
+  flex: 1; display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden; width: 100%;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   元のテンプレートCSS — tetris.html からそのまま保持
+   ══════════════════════════════════════════════════════════════ */
+
+  html, body { height: 100%; overflow: hidden; }
+  body { display: flex; flex-direction: column; }
+  .page-wrap  {
+    padding: 0 !important; flex: 1;
+    display: flex; flex-direction: column;
+    min-height: 0; overflow: hidden;
+  }
+  .container  {
+    max-width: 100% !important; padding: 0 !important;
+    flex: 1; display: flex; flex-direction: column;
+    min-height: 0; overflow: hidden; width: 100%;
+  }
+
+  /* ── スクリーン (ゲーム開始前のオーバーレイ) ─────────────── */
+  .t-screen {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.88);
+    backdrop-filter: blur(8px);
+    align-items: center; justify-content: center;
+    z-index: 100; flex-direction: column; gap: 18px;
+  }
+  .t-screen.active { display: flex; }
+
+  .t-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-lg);
+    padding: 2rem 2.5rem;
+    width: 380px; max-width: 94vw;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+    animation: t-in 0.22s ease;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  @keyframes t-in {
+    from { opacity:0; transform:translateY(14px) scale(.97); }
+    to   { opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  .t-card h2 {
+    font-size: 1.1rem; text-align: center;
+    font-family: var(--font-mono); letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--cyan);
+    margin-bottom: 4px;
+  }
+
+  .t-subtitle {
+    font-family: var(--font-mono); font-size: 0.68rem;
+    color: var(--text-dim); text-align: center; letter-spacing: 0.06em;
+  }
+
+  /* メニューボタン */
+  .t-btn {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--bg-card);
+    color: var(--text); font-family: var(--font-ui); font-size: 0.9rem;
+    cursor: pointer; transition: all 0.15s ease; text-align: left; width: 100%;
+  }
+  .t-btn:hover   { border-color: var(--cyan); background: var(--cyan-dim); color: var(--text-bright); }
+  .t-btn .t-ico  { font-size: 1.4rem; flex-shrink: 0; }
+  .t-btn .t-info { display: flex; flex-direction: column; gap: 2px; }
+  .t-btn .t-lbl  { font-weight: 600; font-size: 0.88rem; }
+  .t-btn .t-desc { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); }
+  .t-btn:hover .t-desc { color: var(--text-dim); }
+  .t-btn.danger:hover  { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+  .t-btn.selected      { border-color: var(--cyan); background: var(--cyan-dim); color: var(--cyan); }
+  .t-btn:disabled      { opacity: 0.35; cursor: not-allowed; }
+
+  .t-back {
+    background: none; border: none; color: var(--text-dim);
+    font-family: var(--font-mono); font-size: 0.72rem; cursor: pointer;
+    letter-spacing: 0.06em; text-transform: uppercase; align-self: flex-start;
+    padding: 0; transition: color 0.12s;
+  }
+  .t-back:hover { color: var(--text-bright); }
+
+  .t-error {
+    color: var(--red); font-family: var(--font-mono); font-size: 0.73rem;
+    min-height: 1em; text-align: center;
+  }
+
+  .t-divider {
+    height: 1px; background: var(--border); margin: 2px 0;
+  }
+
+  /* ロビーのプレイヤーリスト */
+  .t-player-list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 200px; overflow-y: auto;
+  }
+  .t-player-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-radius: var(--radius);
+    background: var(--bg-card); border: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 0.8rem;
+  }
+  .t-player-name { color: var(--text-bright); }
+  .t-challenge-btn {
+    padding: 3px 10px; border-radius: var(--radius); border: 1px solid var(--border);
+    background: transparent; color: var(--text-dim); font-family: var(--font-mono);
+    font-size: 0.65rem; cursor: pointer; transition: all 0.12s;
+  }
+  .t-challenge-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  .t-empty { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim); text-align: center; padding: 12px; }
+
+  /* カウントダウンオーバーレイ */
+  #countdown-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center; z-index: 90;
+    font-family: var(--font-mono); font-size: 6rem; font-weight: 700;
+    color: var(--cyan); text-shadow: 0 0 40px var(--cyan);
+    animation: countdown-pulse 0.9s ease infinite;
+  }
+  @keyframes countdown-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(0.9)} }
+  #countdown-overlay.active { display: flex; }
+
+  /* ── ゲームレイアウト ────────────────────────────────────────── */
+  #game-root {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    flex: 1;
+    min-height: 0;
+    gap: 12px;
+    width: 100%;
+    overflow-y: auto;
+  }
+  #game-root.active { display: flex; }
+
+  #game-area {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* 単一ゲームボードのラッパー */
+  .board-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  /* サイドパネル (ホールド, ネクスト, スコア) */
+  .side-panel {
+    display: flex; flex-direction: column; gap: 10px; width: 80px;
+  }
+
+  .panel-box {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 8px;
+  }
+  .panel-box-title {
+    font-family: var(--font-mono); font-size: 0.58rem;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-dim); margin-bottom: 6px; text-align: center;
+  }
+  .panel-score-val {
+    font-family: var(--font-mono); font-size: 1rem; font-weight: 700;
+    color: var(--text-bright); text-align: center;
+  }
+  .panel-score-sub {
+    font-family: var(--font-mono); font-size: 0.62rem;
+    color: var(--text-dim); text-align: center; margin-top: 2px;
+  }
+
+  .mini-canvas {
+    display: block; margin: 0 auto;
+    image-rendering: pixelated;
+  }
+
+  /* メインゲームキャンバス */
+  #player-canvas, #opponent-canvas {
+    display: block;
+    border: 2px solid var(--border-hi);
+    border-radius: 4px;
+    image-rendering: pixelated;
+  }
+  #player-canvas  { border-color: var(--cyan); box-shadow: 0 0 20px rgba(0,212,255,0.15); }
+  #opponent-canvas{ border-color: var(--red);  box-shadow: 0 0 20px rgba(255,77,106,0.1); }
+
+  /* ボードの上にあるラベル */
+  .board-label {
+    font-family: var(--font-mono); font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-dim); text-align: center; margin-bottom: 4px;
+    width: 100%;
+  }
+  .board-label.you { color: var(--cyan); }
+  .board-label.opp { color: var(--red); }
+
+  /* VS 区切り線 */
+  #vs-divider {
+    display: none; align-items: center; justify-content: center;
+    align-self: center;
+    font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700;
+    color: var(--text-dim); padding: 0 4px;
+  }
+
+  /* ガベージインジケータ */
+  .garbage-queue {
+    position: absolute; right: -14px; top: 0; bottom: 0;
+    display: flex; flex-direction: column-reverse; gap: 1px;
+    width: 10px;
+  }
+  .garbage-block {
+    width: 10px; height: 10px; flex-shrink: 0;
+    background: var(--red); border-radius: 2px;
+    animation: gblock-in 0.3s ease;
+  }
+  @keyframes gblock-in { from{opacity:0;transform:scaleX(0)} to{opacity:1;transform:scaleX(1)} }
+
+  .board-container { position: relative; display: inline-block; }
+
+  /* ゲームオーバーオーバーレイ (キャンバス上) */
+  .canvas-overlay {
+    position: absolute; inset: 0;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.7); border-radius: 4px;
+    font-family: var(--font-mono); font-size: 1rem; font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+  .canvas-overlay.visible { display: flex; }
+  .canvas-overlay.win  { color: var(--green); }
+  .canvas-overlay.lose { color: var(--red); }
+
+  /* 下部コントロールヒント */
+  #controls-hint {
+    font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-dim);
+    text-align: center; line-height: 1.8;
+  }
+
+  /* トースト / イベント表示 */
+  #game-toast {
+    position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700;
+    color: var(--cyan); text-shadow: 0 0 12px var(--cyan);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.3s ease; z-index: 50;
+  }
+  #game-toast.show { opacity: 1; }
+
+  /* ── 設定ボタン (常に表示) ──────────────────── */
+  #settings-fab {
+    position: fixed; bottom: 20px; right: 20px; z-index: 200;
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--bg-panel); border: 1px solid var(--border-hi);
+    color: var(--text-dim); font-size: 1.1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transition: all 0.15s ease;
+  }
+  #settings-fab:hover { border-color: var(--cyan); color: var(--cyan); transform: rotate(30deg); }
+
+  /* ── 設定パネル ─────────────────────────────────────── */
+  #settings-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+    align-items: center; justify-content: center; z-index: 300;
+  }
+  #settings-overlay.open { display: flex; }
+
+  #settings-panel {
+    background: var(--bg-panel); border: 1px solid var(--border-hi);
+    border-radius: var(--radius-lg); padding: 1.8rem;
+    width: 420px; max-width: 96vw; max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+    animation: t-in 0.2s ease;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .settings-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .settings-header h2 {
+    font-family: var(--font-mono); font-size: 0.9rem; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--cyan); margin: 0;
+  }
+  #settings-close {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 1.1rem; cursor: pointer; padding: 0;
+    transition: color 0.12s;
+  }
+  #settings-close:hover { color: var(--red); }
+
+  /* モード切り替え */
+  .mode-toggle {
+    display: flex; gap: 8px;
+  }
+  .mode-btn {
+    flex: 1; padding: 10px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--bg-card);
+    color: var(--text-dim); font-family: var(--font-mono);
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+    cursor: pointer; transition: all 0.15s ease; text-align: center;
+  }
+  .mode-btn:hover   { border-color: var(--border-hi); color: var(--text-bright); }
+  .mode-btn.active  { border-color: var(--cyan); background: var(--cyan-dim); color: var(--cyan); }
+
+  /* セクションラベル */
+  .settings-label {
+    font-family: var(--font-mono); font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-dim);
+    border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  }
+
+  /* キーバインドテーブル */
+  .keybind-table { display: flex; flex-direction: column; gap: 4px; }
+
+  .keybind-row {
+    display: flex; align-items: center;
+    padding: 8px 10px; border-radius: var(--radius);
+    background: var(--bg-card); border: 1px solid var(--border);
+    gap: 10px; transition: border-color 0.12s;
+  }
+  .keybind-row.listening {
+    border-color: var(--amber);
+    background: var(--amber-dim);
+  }
+  .keybind-action {
+    flex: 1; font-family: var(--font-ui); font-size: 0.82rem; color: var(--text);
+  }
+  .keybind-key {
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-bright);
+    background: var(--bg); border: 1px solid var(--border-hi);
+    border-radius: 4px; padding: 2px 8px; min-width: 80px; text-align: center;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .keybind-key:hover  { border-color: var(--cyan); color: var(--cyan); }
+  .keybind-row.listening .keybind-key {
+    border-color: var(--amber); color: var(--amber);
+    animation: blink-key 0.8s ease infinite;
+  }
+  @keyframes blink-key { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .keybind-reset {
+    background: none; border: none; color: var(--text-dim);
+    font-family: var(--font-mono); font-size: 0.65rem; cursor: pointer;
+    padding: 0 4px; transition: color 0.12s; flex-shrink: 0;
+  }
+  .keybind-reset:hover { color: var(--red); }
+
+  /* DAS/ARR スライダー */
+  .slider-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .slider-label {
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim);
+    min-width: 90px;
+  }
+  .slider-row input[type=range] {
+    flex: 1; accent-color: var(--cyan);
+  }
+  .slider-val {
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-bright);
+    min-width: 40px; text-align: right;
+  }
+
+  /* ── モバイルタッチボタン ───────────────────────────────── */
+  #mobile-controls {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    width: 100%;
+    max-width: 280px;
+    align-self: center;
+    user-select: none;
+  }
+  #mobile-controls.visible { display: flex; }
+
+  .mb-row {
+    display: flex; justify-content: center; gap: 8px;
+  }
+
+  .mb-btn {
+    width: 62px; height: 52px;
+    background: var(--bg-panel); border: 1px solid var(--border-hi);
+    border-radius: var(--radius); color: var(--text-dim);
+    font-size: 1.2rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 2px;
+    transition: all 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .mb-btn:active, .mb-btn.pressed {
+    background: var(--cyan-dim); border-color: var(--cyan);
+    color: var(--cyan); transform: scale(0.93);
+  }
+  .mb-btn .mb-label {
+    font-family: var(--font-mono); font-size: 0.52rem;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim);
+  }
+  .mb-btn.mb-hard-drop  { width: 134px; }
+  .mb-btn.mb-hold       { border-color: var(--amber); }
+  .mb-btn.mb-hold:active{ background: var(--amber-dim); border-color: var(--amber); color: var(--amber); }
+
+
+  /* ── 受信ガベージ警告 ───────────────────────────── */
+  #garbage-warning {
+    display: none;
+    align-items: center; justify-content: center; gap: 6px;
+    padding: 5px 12px;
+    background: var(--red-dim); border: 1px solid var(--red);
+    border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700;
+    color: var(--red); letter-spacing: 0.06em;
+    animation: warn-pulse 0.6s ease infinite;
+    flex-shrink: 0;
+  }
+  #garbage-warning.visible { display: flex; }
+  @keyframes warn-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+  /* モバイル */
+  @media (max-width: 600px) {
+    .side-panel { width: 60px; }
+    .panel-score-val { font-size: 0.82rem; }
+  }
+
+/* ══════════════════════════════════════════════════════════════
+   アーケードオーバーライド — 元のスタイルに重ねて適用
+   ══════════════════════════════════════════════════════════════ */
+
+/* カード内のすべての見出しに Orbitron を適用 */
+.t-card h2 {
+  font-family: 'Orbitron', monospace !important;
+  font-size: 1rem !important;
+  letter-spacing: .18em !important;
+  text-shadow: 0 0 12px rgba(0,255,238,.45) !important;
+}
+
+/* スコア値 — ネオングロー */
+.panel-score-val {
+  font-family: 'Orbitron', monospace !important;
+  color: var(--cyan) !important;
+  text-shadow: 0 0 8px rgba(0,255,238,.4) !important;
+}
+
+/* ボードラベル */
+.board-label { font-family: 'Orbitron', monospace !important; letter-spacing: .14em !important; }
+.board-label.you { text-shadow: 0 0 8px rgba(0,255,238,.4) !important; }
+.board-label.opp { text-shadow: 0 0 8px rgba(255,32,96,.4) !important; }
+
+/* キャンバスのグロー */
+#player-canvas   { box-shadow: 0 0 22px rgba(0,255,238,.25), 0 0 44px rgba(0,255,238,.08) !important; }
+#opponent-canvas { box-shadow: 0 0 22px rgba(255,32,96,.25),  0 0 44px rgba(255,32,96,.08)  !important; }
+
+/* VS 区切り線 */
+#vs-divider {
+  font-family: 'Orbitron', monospace !important;
+  color: rgba(155,89,255,.8) !important;
+  text-shadow: 0 0 14px rgba(155,89,255,.5) !important;
+}
+
+/* カウントダウン */
+#countdown-overlay {
+  font-family: 'Orbitron', monospace !important;
+  font-size: 8rem !important;
+  text-shadow: 0 0 40px var(--cyan), 0 0 80px rgba(0,255,238,.4) !important;
+}
+
+/* ゲームトースト */
+#game-toast {
+  background: rgba(8,6,20,.96) !important;
+  border: 1px solid var(--cyan) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 0 20px rgba(0,255,238,.2) !important;
+  padding: 6px 20px !important;
+}
+
+/* ガベージブロック */
+.garbage-block { box-shadow: 0 0 6px rgba(255,32,96,.5) !important; }
+
+/* 設定ボタン */
+#settings-fab:hover { box-shadow: 0 0 20px rgba(0,255,238,.3) !important; }
+</style>
+</head>
+<body>
+
+<!-- ── トップバー ──────────────────────────────────────────────── -->
+<nav id="tet-topbar">
+  <a href="/" class="topbar-back">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    LANHub
+  </a>
+  <span class="topbar-brand">テトリス</span>
+  <span id="topbar-player"></span>
+</nav>
+
+<!-- ── page-wrap + container (base.html のシェルを置き換え) ─────── -->
+<main class="page-wrap"><div class="container">
+
+<!-- ════════════════════════════════════════════════════════════
+     元のコンテンツ (旧ブロック content)
+     ════════════════════════════════════════════════════════════ -->
+
+<!-- ── スクリーン ──────────────────────────────────────────── -->
+
+<!-- ユーザー名入力 -->
+<div id="screen-username" class="t-screen active">
+  <div class="t-card">
+    <h2>🧱 テトリス</h2>
+    <div class="t-subtitle">プレイする名前を入力してください</div>
+    <input type="text" id="username-input" maxlength="24"
+           placeholder="ユーザー名…" autocomplete="off" />
+    <div class="t-error" id="username-error"></div>
+    <button class="t-btn" onclick="submitUsername()" style="justify-content:center;">
+      <span class="t-lbl">入室 →</span>
+    </button>
+  </div>
+</div>
+
+<!-- メインメニュー -->
+<div id="screen-menu" class="t-screen">
+  <div class="t-card">
+    <h2>🧱 テトリス</h2>
+    <div class="t-subtitle" id="menu-user-label"></div>
+    <button class="t-btn" onclick="showScreen('screen-solo')">
+      <span class="t-ico">🎮</span>
+      <div class="t-info">
+        <span class="t-lbl">ソロ</span>
+        <span class="t-desc">一人で遊ぶ、またはボットと対戦</span>
+      </div>
+    </button>
+    <button class="t-btn" onclick="showScreen('screen-mp')">
+      <span class="t-ico">⚔️</span>
+      <div class="t-info">
+        <span class="t-lbl">マルチプレイヤー</span>
+        <span class="t-desc">LAN上の他のプレイヤーと1対1対戦</span>
+      </div>
+    </button>
+    <div class="t-divider"></div>
+    <div id="controls-hint" style="font-size:0.6rem; text-align:left; line-height:2;">
+      ← → 移動 &nbsp;|&nbsp; ↑ 右回転 &nbsp;|&nbsp; Z 左回転 &nbsp;|&nbsp;
+      ↓ ソフトドロップ &nbsp;|&nbsp; Space ハードドロップ &nbsp;|&nbsp; C ホールド
+    </div>
+  </div>
+</div>
+
+<!-- ソロモード -->
+<div id="screen-solo" class="t-screen">
+  <div class="t-card">
+    <button class="t-back" onclick="showScreen('screen-menu')">← 戻る</button>
+    <h2>ソロ</h2>
+    <button class="t-btn" onclick="startSolo()">
+      <span class="t-ico">🧩</span>
+      <div class="t-info">
+        <span class="t-lbl">クラシックソロ</span>
+        <span class="t-desc">一人でハイスコアを目指す</span>
+      </div>
+    </button>
+    <button class="t-btn" onclick="showScreen('screen-bot')">
+      <span class="t-ico">🤖</span>
+      <div class="t-info">
+        <span class="t-lbl">vs ボット</span>
+        <span class="t-desc">AIとガベージバトル</span>
+      </div>
+    </button>
+  </div>
+</div>
+
+<!-- ボット難易度 -->
+<div id="screen-bot" class="t-screen">
+  <div class="t-card">
+    <button class="t-back" onclick="showScreen('screen-solo')">← 戻る</button>
+    <h2>vs ボット</h2>
+    <div class="t-subtitle">すべてのボットレベルは完全にプレイします。速度のみが変数です。</div>
+
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-family:var(--font-mono);font-size:.68rem;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;">ボット速度</span>
+        <span id="bot-speed-label" style="font-family:var(--font-mono);font-size:.78rem;color:var(--cyan);min-width:80px;text-align:right;">普通 (300ms)</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:.7rem;color:var(--text-dim);white-space:nowrap;">⚡ 速い</span>
+        <input type="range" id="bot-speed-slider" min="50" max="1500" step="50" value="1000"
+               oninput="updateBotSpeedLabel(this.value)"
+               style="flex:1;accent-color:var(--cyan);"/>
+        <span style="font-size:.7rem;color:var(--text-dim);white-space:nowrap;">🐢 遅い</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.56rem;color:var(--text-dim);padding:0 2px;">
+        <span>50ms</span>
+        <span>200ms</span>
+        <span>500ms</span>
+        <span>1000ms</span>
+        <span>1500ms</span>
+      </div>
+    </div>
+
+    <button class="t-btn" onclick="startBotGame()" style="justify-content:center;margin-top:4px;">
+      <span class="t-ico">🤖</span>
+      <span class="t-lbl">ゲーム開始</span>
+    </button>
+  </div>
+</div>
+
+<!-- マルチプレイヤーモード -->
+<div id="screen-mp" class="t-screen">
+  <div class="t-card">
+    <button class="t-back" onclick="showScreen('screen-menu')">← 戻る</button>
+    <h2>マルチプレイヤー</h2>
+    <button class="t-btn" id="btn-random" onclick="joinRandomQueue()">
+      <span class="t-ico">🎲</span>
+      <div class="t-info"><span class="t-lbl">ランダムマッチ</span><span class="t-desc">利用可能なプレイヤーと自動マッチング</span></div>
+    </button>
+    <button class="t-btn" onclick="showScreen('screen-lobby')">
+      <span class="t-ico">📋</span>
+      <div class="t-info"><span class="t-lbl">プレイヤーを選択</span><span class="t-desc">ロビーから対戦相手を選ぶ</span></div>
+    </button>
+  </div>
+</div>
+
+<!-- ロビー (対戦相手選択) -->
+<div id="screen-lobby" class="t-screen">
+  <div class="t-card">
+    <button class="t-back" onclick="showScreen('screen-mp')">← 戻る</button>
+    <h2>対戦相手を選択</h2>
+    <div class="t-player-list" id="lobby-list">
+      <div class="t-empty">現在利用可能なプレイヤーはいません。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ランダムマッチ待機中 -->
+<div id="screen-waiting" class="t-screen">
+  <div class="t-card">
+    <h2>検索中…</h2>
+    <div class="t-subtitle">対戦相手が見つかるまでお待ちください</div>
+    <div style="text-align:center; font-size:2rem;">⏳</div>
+    <button class="t-btn danger" onclick="leaveQueue()">
+      <span class="t-lbl" style="width:100%; text-align:center;">キャンセル</span>
+    </button>
+  </div>
+</div>
+
+<!-- 受信チャレンジ -->
+<div id="screen-challenge" class="t-screen">
+  <div class="t-card">
+    <h2>⚔️ チャレンジ！</h2>
+    <div class="t-subtitle" id="challenge-from-label"></div>
+    <button class="t-btn" onclick="respondChallenge(true)">
+      <span class="t-ico">✅</span>
+      <div class="t-info"><span class="t-lbl">承諾</span></div>
+    </button>
+    <button class="t-btn danger" onclick="respondChallenge(false)">
+      <span class="t-ico">❌</span>
+      <div class="t-info"><span class="t-lbl">拒否</span></div>
+    </button>
+  </div>
+</div>
+
+<!-- ゲーム結果 -->
+<div id="screen-result" class="t-screen">
+  <div class="t-card">
+    <h2 id="result-title"></h2>
+    <div class="t-subtitle" id="result-sub"></div>
+    <button class="t-btn" onclick="showScreen('screen-menu'); resetGame();">
+      <span class="t-lbl" style="width:100%; text-align:center;">もう一度プレイ</span>
+    </button>
+  </div>
+</div>
+
+<!-- カウントダウン -->
+<div id="countdown-overlay"></div>
+
+<!-- ゲームトースト -->
+<div id="game-toast"></div>
+
+<!-- ── 設定ボタン ──────────────────────────────────────── -->
+<button id="settings-fab" onclick="openSettings()" title="設定">⚙️</button>
+
+<!-- ── 設定オーバーレイ ─────────────────────────────────── -->
+<div id="settings-overlay">
+  <div id="settings-panel">
+
+    <div class="settings-header">
+      <h2>⚙️ 設定</h2>
+      <button id="settings-close" onclick="closeSettings()">✕</button>
+    </div>
+
+    <div>
+      <div class="settings-label" style="margin-bottom:10px;">入力モード</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-btn-keyboard" onclick="setInputMode('keyboard')">⌨️ キーボード</button>
+        <button class="mode-btn" id="mode-btn-mobile" onclick="setInputMode('mobile')">📱 モバイル</button>
+      </div>
+    </div>
+
+    <div id="settings-keyboard-section">
+      <div class="settings-label" style="margin-bottom:10px;">キー割り当て
+        <button class="keybind-reset" onclick="resetAllKeys()" style="float:right;">↺ すべてリセット</button>
+      </div>
+      <div class="keybind-table" id="keybind-table"></div>
+      <div class="settings-label" style="margin-top:14px; margin-bottom:10px;">操作感度</div>
+      <div class="slider-row">
+        <span class="slider-label">DAS <span style="font-size:0.58rem;">(ms)</span></span>
+        <input type="range" id="das-slider" min="50" max="300" step="10" oninput="updateDAS(this.value)" />
+        <span class="slider-val" id="das-val">133ms</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">ARR <span style="font-size:0.58rem;">(ms)</span></span>
+        <input type="range" id="arr-slider" min="0" max="100" step="5" oninput="updateARR(this.value)" />
+        <span class="slider-val" id="arr-val">10ms</span>
+      </div>
+    </div>
+
+    <div id="settings-mobile-section" style="display:none;">
+      <div class="settings-label" style="margin-bottom:8px;">モバイル操作</div>
+      <p style="font-family:var(--font-mono); font-size:0.72rem; color:var(--text-dim); line-height:1.7;">
+        画面内ボタンがボードの下に表示されます。<br>
+        左右のボタンを長押しするとDAS動作が有効になります。
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── ゲーム ──────────────────────────────────────────────── -->
+<div id="game-root">
+  <div id="game-area">
+
+    <!-- プレイヤー側 -->
+    <div class="board-wrap" id="player-wrap">
+      <div class="side-panel" id="left-panel">
+        <div class="panel-box">
+          <div class="panel-box-title">ホールド</div>
+          <canvas id="hold-canvas" class="mini-canvas" width="80" height="80"></canvas>
+        </div>
+        <div class="panel-box">
+          <div class="panel-box-title">スコア</div>
+          <div class="panel-score-val" id="score-val">0</div>
+          <div class="panel-score-sub" id="level-val">Lv 1</div>
+          <div class="panel-score-sub" id="lines-val">0 ライン</div>
+        </div>
+        <div class="panel-box" id="combo-box" style="display:none;">
+          <div class="panel-box-title">コンボ</div>
+          <div class="panel-score-val" id="combo-val">x0</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <div class="board-label you" id="player-label">あなた</div>
+        <div class="board-container">
+          <canvas id="player-canvas" width="250" height="500"></canvas>
+          <div class="garbage-queue" id="player-garbage-queue"></div>
+          <div class="canvas-overlay" id="player-overlay"></div>
+        </div>
+      </div>
+
+      <div class="side-panel" id="right-panel">
+        <div class="panel-box">
+          <div class="panel-box-title">ネクスト</div>
+          <canvas id="next-canvas" class="mini-canvas" width="80" height="320"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- VS 区切り線 (マルチプレイヤーのみ) -->
+    <div id="vs-divider">VS</div>
+
+    <!-- 対戦相手側 (マルチプレイヤーのみ) -->
+    <div class="board-wrap" id="opponent-wrap" style="display:none;">
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <div class="board-label opp" id="opponent-label">対戦相手</div>
+        <div class="board-container">
+          <canvas id="opponent-canvas" width="250" height="500"></canvas>
+          <div class="canvas-overlay" id="opponent-overlay"></div>
+        </div>
+        <div id="opp-garbage-warning" style="display:none; align-items:center; justify-content:center; gap:6px; padding:5px 12px; background:var(--red-dim); border:1px solid var(--red); border-radius:var(--radius); font-family:var(--font-mono); font-size:0.78rem; font-weight:700; color:var(--red); letter-spacing:0.06em; animation:warn-pulse 0.6s ease infinite; margin-top:4px;">
+          ⚠ <span id="opp-garbage-count">0</span> ライン保留中
+        </div>
+      </div>
+      <div class="side-panel" style="width:70px;">
+        <div class="panel-box">
+          <div class="panel-box-title">スコア</div>
+          <div class="panel-score-val" id="opp-score-val">0</div>
+          <div class="panel-score-sub" id="opp-level-val">Lv 1</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <button class="t-btn" id="pause-btn"
+          onclick="togglePause()"
+          style="width:auto; padding:6px 18px; justify-content:center; margin-top:4px;">
+    ⏸ 一時停止
+  </button>
+
+
+  <!-- 受信ガベージ警告 -->
+  <div id="garbage-warning">
+    ⚠ <span id="garbage-warning-count">0</span> ライン受信！
+  </div>
+
+  <!-- モバイルタッチコントロール -->
+  <div id="mobile-controls">
+    <div class="mb-row">
+      <button class="mb-btn" id="mb-rcw"
+        onpointerdown="mbPress('rotateCW')" onpointerup="mbRelease('rotateCW')" onpointercancel="mbRelease('rotateCW')">
+        ↻<span class="mb-label">右回転</span>
+      </button>
+      <button class="mb-btn mb-hard-drop"
+        onpointerdown="mbPress('hardDrop')" onpointerup="mbRelease('hardDrop')" onpointercancel="mbRelease('hardDrop')">
+        ⬇⬇<span class="mb-label">ハードドロップ</span>
+      </button>
+      <button class="mb-btn" id="mb-rccw"
+        onpointerdown="mbPress('rotateCCW')" onpointerup="mbRelease('rotateCCW')" onpointercancel="mbRelease('rotateCCW')">
+        ↺<span class="mb-label">左回転</span>
+      </button>
+    </div>
+    <div class="mb-row">
+      <button class="mb-btn"
+        onpointerdown="mbStartRepeat('moveLeft')" onpointerup="mbStopRepeat()" onpointercancel="mbStopRepeat()">
+        ◀<span class="mb-label">左</span>
+      </button>
+      <button class="mb-btn"
+        onpointerdown="mbPress('softDrop')" onpointerup="mbRelease('softDrop')" onpointercancel="mbRelease('softDrop')">
+        ▼<span class="mb-label">ソフト</span>
+      </button>
+      <button class="mb-btn"
+        onpointerdown="mbStartRepeat('moveRight')" onpointerup="mbStopRepeat()" onpointercancel="mbStopRepeat()">
+        ▶<span class="mb-label">右</span>
+      </button>
+    </div>
+    <div class="mb-row">
+      <button class="mb-btn mb-hold"
+        onpointerdown="mbPress('hold')" onpointerup="mbRelease('hold')" onpointercancel="mbRelease('hold')"
+        style="width:134px;">
+        📦<span class="mb-label">ホールド</span>
+      </button>
+      <button class="mb-btn"
+        onpointerdown="mbPress('togglePause')" onpointerup="mbRelease('togglePause')" onpointercancel="mbRelease('togglePause')">
+        ⏸<span class="mb-label">一時停止</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+</div></main><!-- container と page-wrap を閉じる -->
+
+<!-- ════════════════════════════════════════════════════════════
+     ソケット + 元のスクリプト (旧 block scripts)
+     ════════════════════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+let gameEnded = false;
+
+// base.html とまったく同じ _socket をブート
+const _socket = io();
+_socket.on('connect', () => _socket.emit('page_open', { path: window.location.pathname }));
+// ログイン成功時にトップバーのユーザー名を更新
+_socket.on('tetris_login_ack', data => {
+  if (data.ok && document.getElementById('topbar-player')) {
+    document.getElementById('topbar-player').textContent = data.username;
+  }
+});
+</script>
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", function() {
+
+// ═══════════════════════════════════════════════════════════════
+// テトリス — ガイドライン準拠実装
+// SRS回転 · 7バッグ · ロックディレイ · DAS/ARR · ゴースト · ホールド
+// ═══════════════════════════════════════════════════════════════
+
+// ── 定数 ─────────────────────────────────────────────────
+const COLS = 10, ROWS = 20, CS = 25; // セルサイズ (px)
+const BOARD_W = COLS * CS, BOARD_H = ROWS * CS;
+const MINI_CS = 16; // ミニキャンバスのセルサイズ
+
+// ガイドラインカラー
+const PC = { I:'#00f0f0', O:'#f0f000', T:'#a000f0', S:'#00f000', Z:'#f00000', J:'#0000f0', L:'#f0a000' };
+const GHOST_ALPHA = 0.25;
+
+// ── SRS ピース定義 ─────────────────────────────────────
+// 各ピース: 4回転状態、各状態: 4×4のバウンディングボックス内の [col, row] オフセット
+// 出現カラムはボードのカラム3から、出現行は 0 (ボード上部、一部は見切れ)
+const PIECES = {
+  I: { color: PC.I, states: [
+    [[0,1],[1,1],[2,1],[3,1]], [[2,0],[2,1],[2,2],[2,3]],
+    [[0,2],[1,2],[2,2],[3,2]], [[1,0],[1,1],[1,2],[1,3]],
+  ], spawn: [3, -1] },
+  O: { color: PC.O, states: [
+    [[1,0],[2,0],[1,1],[2,1]], [[1,0],[2,0],[1,1],[2,1]],
+    [[1,0],[2,0],[1,1],[2,1]], [[1,0],[2,0],[1,1],[2,1]],
+  ], spawn: [3, -1] },
+  T: { color: PC.T, states: [
+    [[1,0],[0,1],[1,1],[2,1]], [[1,0],[1,1],[2,1],[1,2]],
+    [[0,1],[1,1],[2,1],[1,2]], [[1,0],[0,1],[1,1],[1,2]],
+  ], spawn: [3, -1] },
+  S: { color: PC.S, states: [
+    [[1,0],[2,0],[0,1],[1,1]], [[1,0],[1,1],[2,1],[2,2]],
+    [[1,1],[2,1],[0,2],[1,2]], [[0,0],[0,1],[1,1],[1,2]],
+  ], spawn: [3, -1] },
+  Z: { color: PC.Z, states: [
+    [[0,0],[1,0],[1,1],[2,1]], [[2,0],[1,1],[2,1],[1,2]],
+    [[0,1],[1,1],[1,2],[2,2]], [[1,0],[0,1],[1,1],[0,2]],
+  ], spawn: [3, -1] },
+  J: { color: PC.J, states: [
+    [[0,0],[0,1],[1,1],[2,1]], [[1,0],[2,0],[1,1],[1,2]],
+    [[0,1],[1,1],[2,1],[2,2]], [[1,0],[1,1],[0,2],[1,2]],
+  ], spawn: [3, -1] },
+  L: { color: PC.L, states: [
+    [[2,0],[0,1],[1,1],[2,1]], [[1,0],[1,1],[1,2],[2,2]],
+    [[0,1],[1,1],[2,1],[0,2]], [[0,0],[1,0],[1,1],[1,2]],
+  ], spawn: [3, -1] },
+};
+
+// ── SRS 壁蹴りデータ ─────────────────────────────────────────
+// [dx, dy] (dy 正=下). 標準 SRS は y 上向きなので符号反転
+const KICKS_JLSTZ = [
+  [[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],   // 0→R
+  [[0,0],[1,0],[1,1],[0,-2],[1,-2]],      // R→2
+  [[0,0],[1,0],[1,-1],[0,2],[1,2]],       // 2→L
+  [[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],  // L→0
+];
+const KICKS_I = [
+  [[0,0],[-2,0],[1,0],[-2,1],[1,-2]],    // 0→R
+  [[0,0],[-1,0],[2,0],[-1,-2],[2,1]],    // R→2
+  [[0,0],[2,0],[-1,0],[2,-1],[-1,2]],    // 2→L
+  [[0,0],[1,0],[-2,0],[1,2],[-2,-1]],    // L→0
+];
+
+function getKicks(type, fromState, toState) {
+  const table = (type === 'I') ? KICKS_I : KICKS_JLSTZ;
+  const dir = ((toState - fromState + 4) % 4 === 1) ? fromState : fromState; // CW or CCW?
+  // インデックス: 0=0→R, 1=R→2, 2=2→L, 3=L→0
+  const idx = (fromState % 4);
+  return table[idx];
+}
+
+function showDisarmed(who) {
+  TetSFX.play('disarmed');
+  const isPlayer = (who === 'player');
+  const warnEl   = document.getElementById(isPlayer ? 'garbage-warning' : 'opp-garbage-warning');
+  const toastMsg = isPlayer ? '🛡 防御！' : '🛡 ブロック！';
+
+  // 緑に点滅してから消去
+  if (warnEl) {
+    warnEl.style.background    = 'var(--green-dim)';
+    warnEl.style.borderColor   = 'var(--green)';
+    warnEl.style.color         = 'var(--green)';
+    const countEl = warnEl.querySelector('span');
+    if (countEl) countEl.textContent = '防御';
+    setTimeout(() => {
+      warnEl.style.background  = '';
+      warnEl.style.borderColor = '';
+      warnEl.style.color       = '';
+    }, 600);
+  }
+  showGameToast(toastMsg);
+}
+
+// ── 7バッグ ランダマイザ ──────────────────────────────────────────
+const PIECE_TYPES = ['I','O','T','S','Z','J','L'];
+function makeBag() {
+  const bag = [...PIECE_TYPES];
+  for (let i = bag.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bag[i], bag[j]] = [bag[j], bag[i]];
+  }
+  return bag;
+}
+
+// ── ゲーム状態 ────────────────────────────────────────────────
+class TetrisGame {
+  constructor(opts = {}) {
+    this.opts       = opts;       // { onGarbage, onBoard, onGameOver, onScore }
+    this.board      = [];         // board[row][col] = color string or null
+    this.bag        = [];
+    this.nextQueue  = [];
+    this.current    = null;       // { type, state, col, row }
+    this.held       = null;       // type string or null
+    this.holdUsed   = false;
+    this.score      = 0;
+    this.level      = 1;
+    this.lines      = 0;
+    this.combo      = -1;
+    this.b2b        = false;      // back-to-back フラグ
+    this.alive      = false;
+    this.paused     = false;
+
+    this.lockTimer  = 0;          // ピースが床に触れてからの経過時間 (ms)
+    this.lockMoves  = 0;          // リセット用
+    this.softDropping = false;
+    this.garbageQueue = 0;        // 保留中の受信ガベージライン数
+
+    this.lastTime   = 0;
+    this.dropTimer  = 0;          // 重力用蓄積時間 (ms)
+
+    // DAS / ARR
+    this.dasLeft    = 0;
+    this.dasRight   = 0;
+    this.arrLeft    = 0;
+    this.arrRight   = 0;
+    this.DAS        = 133;        // ms
+    this.ARR        = 10;         // ms
+
+    this._initBoard();
+    this._fillQueue();
+    this._spawn();
+  }
+
+  _initBoard() {
+    this.board = Array.from({length: ROWS}, () => Array(COLS).fill(null));
+  }
+
+  _fillQueue() {
+    while (this.nextQueue.length < 6) {
+      if (this.bag.length === 0) this.bag = makeBag();
+      this.nextQueue.push(this.bag.pop());
+    }
+  }
+
+  _spawn() {
+    const type = this.nextQueue.shift();
+    this._fillQueue();
+    const p = PIECES[type];
+    this.current = {
+      type,
+      state: 0,
+      col:   p.spawn[0],
+      row:   p.spawn[1],
+    };
+    this.holdUsed  = false;
+    this.lockTimer = 0;
+    this.lockMoves = 0;
+
+    if (!this._valid(this.current)) {
+      this.alive = false;
+      if (this.opts.onGameOver) this.opts.onGameOver();
+    }
+  }
+
+  _cells(piece) {
+    const p = PIECES[piece.type];
+    return p.states[piece.state].map(([dc, dr]) => [piece.col + dc, piece.row + dr]);
+  }
+
+  _valid(piece) {
+    for (const [c, r] of this._cells(piece)) {
+      if (c < 0 || c >= COLS) return false;
+      if (r >= ROWS) return false;
+      if (r >= 0 && this.board[r][c]) return false;
+    }
+    return true;
+  }
+
+  _ghostRow() {
+    const g = { ...this.current };
+    while (this._valid({ ...g, row: g.row + 1 })) g.row++;
+    return g.row;
+  }
+
+  // ── 入力 ────────────────────────────────────────────────
+  moveLeft()  { this._tryMove(this.current.col - 1, this.current.row); }
+  moveRight() { this._tryMove(this.current.col + 1, this.current.row); }
+  softDrop()  {
+    if (!this._tryMove(this.current.col, this.current.row + 1)) return;
+    this.score += 1;
+    if (this.opts.onScore) this.opts.onScore(this.score, this.level, this.lines, 0, 0, this.combo);
+  }
+
+  hardDrop() {
+    const gr = this._ghostRow();
+    this.score += 2 * Math.max(0, gr - this.current.row);
+    this.current.row = gr;
+    this._lock();
+    // onScore は _lock 内の _applyScore で発火; ハードドロップ加算は上で追加済み
+    if (this.opts.onScore) this.opts.onScore(this.score, this.level, this.lines, 0, 0, this.combo);
+  }
+
+  rotateCW()  { this._rotate(1); }
+  rotateCCW() { this._rotate(-1); }
+
+  hold() {
+    if (this.holdUsed) return;
+    const t = this.current.type;
+    if (this.held) {
+      const p = PIECES[this.held];
+      this.current = { type: this.held, state: 0, col: p.spawn[0], row: p.spawn[1] };
+    } else {
+      this._spawn();
+    }
+    this.held     = t;
+    this.holdUsed = true;
+  }
+
+  _tryMove(col, row) {
+    const n = { ...this.current, col, row };
+    if (!this._valid(n)) return false;
+    this.current = n;
+    // 床に触れている場合、ロックディレイをリセット
+    if (!this._valid({ ...n, row: n.row + 1 }) && this.lockMoves < 15) {
+      this.lockTimer = 0;
+      this.lockMoves++;
+    }
+    return true;
+  }
+
+  _rotate(dir) {
+    const next = { ...this.current, state: ((this.current.state + dir) + 4) % 4 };
+    const kicks = getKicks(this.current.type, this.current.state, next.state);
+    for (const [dx, dy] of kicks) {
+      const attempt = { ...next, col: next.col + dx, row: next.row + dy };
+      if (this._valid(attempt)) {
+        this.current = attempt;
+        if (!this._valid({ ...attempt, row: attempt.row + 1 }) && this.lockMoves < 15) {
+          this.lockTimer = 0;
+          this.lockMoves++;
+        }
+        return;
+      }
+    }
+  }
+
+  // ── ロック ──────────────────────────────────────────────
+  _lock() {
+    const cells = this._cells(this.current);
+    for (const [c, r] of cells) {
+      if (r < 0) { this.alive = false; if (this.opts.onGameOver) this.opts.onGameOver(); return; }
+      this.board[r][c] = PIECES[this.current.type].color;
+    }
+
+    const tSpin = this._detectTSpin();
+    const cleared = this._clearLines();
+    if (cleared === 0 && !tSpin) TetSFX.play('lock');
+    this._applyScore(cleared, tSpin);
+    this._applyGarbage(cleared);
+
+    // 保留中のガベージを追加 (クリア後に追加、プレイヤーは生き残れる)
+    if (this.garbageQueue > 0 && cleared === 0) {
+      this._addGarbageLines(this.garbageQueue);
+      TetSFX.play('garbageLand');
+      this.garbageQueue = 0;
+      if (this.opts.onClearGarbage) this.opts.onClearGarbage(false); // false = landed
+    } else if (cleared > 0) {
+      const hadGarbage = this.garbageQueue > 0;
+      this.garbageQueue = 0;
+      if (this.opts.onClearGarbage) this.opts.onClearGarbage(true, hadGarbage);
+    }
+
+    this._spawn();
+    this._sendBoardUpdate();
+  }
+
+  _clearLines() {
+    let cleared = 0;
+    for (let r = ROWS - 1; r >= 0; ) {
+      if (this.board[r].every(c => c !== null)) {
+        this.board.splice(r, 1);
+        this.board.unshift(Array(COLS).fill(null));
+        cleared++;
+      } else {
+        r--;
+      }
+    }
+    return cleared;
+  }
+
+  _detectTSpin() {
+    if (this.current.type !== 'T') return 0;
+    // 3コーナールール
+    const [cc, cr] = [this.current.col + 1, this.current.row + 1]; // 中心
+    const corners = [
+      [cc-1, cr-1], [cc+1, cr-1],
+      [cc-1, cr+1], [cc+1, cr+1],
+    ];
+    const filled = corners.reduce((n, [c, r]) => {
+      if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return n + 1;
+      return n + (this.board[r][c] ? 1 : 0);
+    }, 0);
+    return filled >= 3 ? 1 : 0; // 簡易版: mini は区別しない
+  }
+
+  _applyScore(cleared, tSpin) {
+    if (cleared === 0 && !tSpin) { this.combo = -1; return; }
+
+    this.combo++;
+    const isB2B  = this.b2b && (cleared === 4 || tSpin);
+    const b2bMul = isB2B ? 1.5 : 1;
+
+    // ── サウンド ────────────────────────────────────────────────
+    if (tSpin)           TetSFX.play('tSpin');
+    if (cleared === 4)   TetSFX.play('clearTetris');
+    else if (cleared === 3) TetSFX.play('clearTriple');
+    else if (cleared === 2) TetSFX.play('clearDouble');
+    else if (cleared === 1) TetSFX.play('clearSingle');
+    if (isB2B)           TetSFX.play('b2b');
+    if (this.combo >= 2) TetSFX.play('combo', this.combo);
+    // ─────────────────────────────────────────────────────────
+
+    const BASE = {
+      0: tSpin ? 400 : 0,
+      1: tSpin ? 800 : 100,
+      2: tSpin ? 1200: 300,
+      3: tSpin ? 1600: 500,
+      4: 800,
+    };
+    let pts = (BASE[cleared] || 0) * this.level * b2bMul;
+    if (this.combo > 0) pts += 50 * this.combo * this.level;
+    this.score += Math.floor(pts);
+
+    const prevLevel = this.level;                       
+    this.lines += cleared;
+    this.level  = Math.floor(this.lines / 10) + 1;
+    if (this.level > prevLevel) TetSFX.play('levelUp');  
+    this.b2b    = (cleared === 4 || tSpin);
+
+
+    if (this.opts.onScore) this.opts.onScore(this.score, this.level, this.lines, cleared, tSpin, this.combo);
+
+    // トースト表示
+    if (cleared === 4)          showGameToast('テトリス！' + (isB2B ? ' B2B' : ''));
+    else if (tSpin && cleared)  showGameToast('T-SPIN' + (isB2B ? ' B2B' : ''));
+    else if (cleared === 3)     showGameToast('トリプル！');
+    else if (cleared === 2)     showGameToast('ダブル！');
+    if (this.combo >= 2)        showGameToast('コンボ x' + this.combo);
+  }
+
+  _applyGarbage(cleared) {
+    const SEND = { 1:0, 2:1, 3:2, 4:4 };
+    const tSpinSend = { 1:2, 2:4, 3:6 };
+    // 簡易版: ラインクリアのみ
+    let toSend = SEND[cleared] || 0;
+    if (this.b2b && toSend > 0) toSend++;
+    if (toSend > 0 && this.opts.onGarbage) this.opts.onGarbage(toSend);
+  }
+
+  receiveGarbage(lines) {
+    this.garbageQueue += lines;
+  }
+
+  _addGarbageLines(lines) {
+    const gapCol = Math.floor(Math.random() * COLS);
+    for (let i = 0; i < lines; i++) {
+      this.board.shift();
+      const row = Array.from({length: COLS}, (_, c) => c === gapCol ? null : '#808080');
+      this.board.push(row);
+    }
+  }
+
+  _sendBoardUpdate() {
+    if (this.opts.onBoard) {
+      // コンパクトな形式: 盤面を 0/1 の配列に変換
+      const compact = this.board.map(row => row.map(c => c ? 1 : 0));
+      this.opts.onBoard(compact);
+    }
+  }
+
+  // ── 重力速度 (ガイドライン式) ─────────────────────
+  _gravityMs() {
+    const secs = Math.pow(0.8 - (this.level - 1) * 0.007, this.level - 1);
+    return Math.max(50, secs * 1000);
+  }
+
+  // ── 更新 (アニメーションフレーム毎に呼び出し) ─────────────────
+  update(dt) {
+    if (!this.alive || this.paused) return;
+
+    // DAS/ARR
+    if (this.dasLeft  > 0) { this.dasLeft  -= dt; if (this.dasLeft  <= 0) this.arrLeft  = 0; }
+    if (this.dasRight > 0) { this.dasRight -= dt; if (this.dasRight <= 0) this.arrRight = 0; }
+    if (this.dasLeft  <= 0 && this._keys?.ArrowLeft)  { this.arrLeft  -= dt; if (this.arrLeft  <= 0) { this.moveLeft();  this.arrLeft  = this.ARR; } }
+    if (this.dasRight <= 0 && this._keys?.ArrowRight) { this.arrRight -= dt; if (this.arrRight <= 0) { this.moveRight(); this.arrRight = this.ARR; } }
+
+    // ソフトドロップ
+    if (this.softDropping) {
+      this.dropTimer += dt * 20; // 20倍速
+    } else {
+      this.dropTimer += dt;
+    }
+
+    while (this.dropTimer >= this._gravityMs()) {
+      this.dropTimer -= this._gravityMs();
+      const fell = this._tryMove(this.current.col, this.current.row + 1);
+      if (!fell) break;
+    }
+
+    // ロックディレイ (床に触れてから500ms)
+    if (!this._valid({ ...this.current, row: this.current.row + 1 })) {
+      this.lockTimer += dt;
+      if (this.lockTimer >= 500) this._lock();
+    } else {
+      this.lockTimer = 0;
+    }
+  }
+
+  // ── 描画 ────────────────────────────────────────────
+  render(ctx) {
+    ctx.clearRect(0, 0, BOARD_W, BOARD_H);
+
+    // グリッド背景
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 0.5;
+    for (let c = 0; c <= COLS; c++) { ctx.beginPath(); ctx.moveTo(c*CS, 0); ctx.lineTo(c*CS, BOARD_H); ctx.stroke(); }
+    for (let r = 0; r <= ROWS; r++) { ctx.beginPath(); ctx.moveTo(0, r*CS); ctx.lineTo(BOARD_W, r*CS); ctx.stroke(); }
+
+    // 固定セル
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (this.board[r][c]) drawCell(ctx, c, r, this.board[r][c], CS);
+      }
+    }
+
+    if (!this.alive) return;
+
+    // ゴースト
+    const gr = this._ghostRow();
+    const color = PIECES[this.current.type].color;
+    for (const [dc, dr] of PIECES[this.current.type].states[this.current.state]) {
+      const gc = this.current.col + dc, ggr = gr + dr;
+      if (ggr >= 0) drawCellAlpha(ctx, gc, ggr, color, CS, GHOST_ALPHA);
+    }
+
+    // 現在のピース
+    for (const [dc, dr] of PIECES[this.current.type].states[this.current.state]) {
+      const cc = this.current.col + dc, rr = this.current.row + dr;
+      if (rr >= 0) drawCell(ctx, cc, rr, color, CS);
+    }
+  }
+
+  renderHold(ctx) {
+    ctx.clearRect(0, 0, 80, 80);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, 80, 80);
+    if (!this.held) return;
+    drawMiniPiece(ctx, this.held, 40, 40, this.holdUsed ? 0.4 : 1);
+  }
+
+  renderNext(ctx) {
+    ctx.clearRect(0, 0, 80, 320);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, 80, 320);
+    this.nextQueue.slice(0, 5).forEach((t, i) => {
+      drawMiniPiece(ctx, t, 40, 28 + i * 60, 1);
+    });
+  }
+}
+
+// ── キャンバスヘルパー ────────────────────────────────────────────
+function drawCell(ctx, c, r, color, cs) {
+  ctx.fillStyle = color;
+  ctx.fillRect(c*cs + 1, r*cs + 1, cs - 2, cs - 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.fillRect(c*cs + 1, r*cs + 1, cs - 2, 3);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(c*cs + 1, r*cs + cs - 3, cs - 2, 3);
+}
+
+function drawCellAlpha(ctx, c, r, color, cs, alpha) {
+  ctx.globalAlpha = alpha;
+  drawCell(ctx, c, r, color, cs);
+  ctx.globalAlpha = 1;
+}
+
+function drawMiniPiece(ctx, type, cx, cy, alpha = 1) {
+  const p = PIECES[type];
+  const cells = p.states[0];
+  // バウンディングボックス計算
+  const minC = Math.min(...cells.map(([c]) => c));
+  const maxC = Math.max(...cells.map(([c]) => c));
+  const minR = Math.min(...cells.map(([,r]) => r));
+  const maxR = Math.max(...cells.map(([,r]) => r));
+  const w = (maxC - minC + 1) * MINI_CS;
+  const h = (maxR - minR + 1) * MINI_CS;
+  const ox = cx - w / 2;
+  const oy = cy - h / 2;
+  ctx.globalAlpha = alpha;
+  for (const [dc, dr] of cells) {
+    const cc = (dc - minC), rr = (dr - minR);
+    drawCell(ctx, 0, 0, p.color, MINI_CS); // placeholder
+    // 実際に正しいオフセットで描画
+    ctx.fillStyle = p.color;
+    ctx.fillRect(ox + cc*MINI_CS + 1, oy + rr*MINI_CS + 1, MINI_CS-2, MINI_CS-2);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(ox + cc*MINI_CS + 1, oy + rr*MINI_CS + 1, MINI_CS-2, 2);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ── 対戦相手の盤面を描画 (コンパクトスナップショットから) ─────────────
+function renderOpponentBoard(ctx, board, score) {
+  ctx.clearRect(0, 0, BOARD_W, BOARD_H);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 0.5;
+  for (let c = 0; c <= COLS; c++) { ctx.beginPath(); ctx.moveTo(c*CS, 0); ctx.lineTo(c*CS, BOARD_H); ctx.stroke(); }
+  for (let r = 0; r <= ROWS; r++) { ctx.beginPath(); ctx.moveTo(0, r*CS); ctx.lineTo(BOARD_W, r*CS); ctx.stroke(); }
+  if (!board) return;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r] && board[r][c]) {
+        ctx.fillStyle = '#cc3355';
+        ctx.fillRect(c*CS + 1, r*CS + 1, CS-2, CS-2);
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fillRect(c*CS + 1, r*CS + 1, CS-2, 3);
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ボット AI — Dellacherie ヒューリスティック
+// ═══════════════════════════════════════════════════════════════
+// ボット: 常に完全な精度、速度はスライダーで設定 (ミリ秒/手)
+let botThinkMs = 300; // デフォルト — ゲーム開始前にスライダーで上書き
+const BOT_THINK = { easy: 900, medium: 300, hard: 80 }; // 互換性のために保持
+const BOT_ERROR = { easy: 0, medium: 0, hard: 0 };      // 全てゼロ — 完全精度
+
+function evaluateBoard(board) {
+  const heights = Array(COLS).fill(0);
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      if (board[r][c]) { heights[c] = ROWS - r; break; }
+    }
+  }
+  const aggHeight = heights.reduce((a, b) => a + b, 0);
+  let holes = 0;
+  for (let c = 0; c < COLS; c++) {
+    let found = false;
+    for (let r = 0; r < ROWS; r++) {
+      if (board[r][c]) found = true;
+      else if (found) holes++;
+    }
+  }
+  let bumpiness = 0;
+  for (let c = 0; c < COLS - 1; c++) bumpiness += Math.abs(heights[c] - heights[c+1]);
+  let lines = 0;
+  for (let r = 0; r < ROWS; r++) {
+    if (board[r].every(c => c !== null)) lines++;
+  }
+  return -0.51 * aggHeight + 0.76 * lines - 0.36 * holes - 0.18 * bumpiness;
+}
+
+function tryPlace(board, type, state, startCol, startRow) {
+  const cells = PIECES[type].states[state];
+  const newBoard = board.map(r => [...r]);
+  for (const [dc, dr] of cells) {
+    const c = startCol + dc, r = startRow + dr;
+    if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return null;
+    if (newBoard[r][c]) return null;
+    newBoard[r][c] = PIECES[type].color;
+  }
+  return newBoard;
+}
+
+function botBestMove(game, difficulty) {
+  const { current, board } = game;
+  let best = null, bestScore = -Infinity;
+  const numStates = current.type === 'O' ? 1 : 4;
+  for (let state = 0; state < numStates; state++) {
+    for (let col = -2; col < COLS + 2; col++) {
+      // ピースを落とす
+      let row = current.row;
+      let testPiece = { type: current.type, state, col, row };
+      // 初期有効性チェック
+      const initCells = PIECES[current.type].states[state].map(([dc,dr]) => [col+dc, row+dr]);
+      if (initCells.some(([c,r]) => c<0||c>=COLS)) continue;
+      // 落下
+      while (true) {
+        const nextCells = PIECES[current.type].states[state].map(([dc,dr]) => [col+dc, row+1+dr]);
+        const blocked = nextCells.some(([c,r]) => r >= ROWS || (r >= 0 && board[r]?.[c]));
+        if (blocked) break;
+        row++;
+      }
+      const placed = tryPlace(board, current.type, state, col, row);
+      if (!placed) continue;
+      let score = evaluateBoard(placed);
+      // 難易度によるランダム誤差 (難易度エラー)
+      score += (Math.random() - 0.5) * 300 * (BOT_ERROR[difficulty] || 0);
+      if (score > bestScore) { bestScore = score; best = { state, col, row }; }
+    }
+  }
+  return best;
+}
+
+function applyBotMove(game, move) {
+  if (!move || !game.alive) return;
+  game.current.state = move.state;
+  game.current.col   = move.col;
+  game.current.row   = move.row;
+  game._lock();
+  game.current.row   = PIECES[game.current.type]?.spawn[1] || 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// アプリケーション状態 & UI
+// ═══════════════════════════════════════════════════════════════
+const socket = _socket;
+let myUsername   = null;
+let gameMode     = null; // 'solo' | 'vsbot' | 'vsplayer'
+let botDifficulty = 'medium';
+let mpRoomId     = null;
+let pendingChallengeFrom = null;
+
+let playerGame = null;
+let botGame    = null;
+let botThinkTimer = 0;
+
+const playerCtx  = document.getElementById('player-canvas').getContext('2d');
+const oppCtx     = document.getElementById('opponent-canvas').getContext('2d');
+const holdCtx    = document.getElementById('hold-canvas').getContext('2d');
+const nextCtx    = document.getElementById('next-canvas').getContext('2d');
+
+// boardUpdateTimer は削除 — 盤面はロック時に送信
+let animFrameId = null;
+let lastTimestamp = 0;
+let keys = {};
+
+let oppBoard = null;
+let oppScore = 0;
+let oppLevel = 1;
+
+// ── 画面管理 ─────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.t-screen').forEach(s => s.classList.remove('active'));
+  if (id) document.getElementById(id)?.classList.add('active');
+}
+
+// ── ユーザー名 ──────────────────────────────────────────────────
+document.getElementById('username-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitUsername();
+});
+
+function submitUsername() {
+  const v = document.getElementById('username-input').value.trim();
+  if (!v) { document.getElementById('username-error').textContent = 'ユーザー名を入力してください。'; return; }
+  document.getElementById('username-error').textContent = '';
+  _socket.emit('tetris_login', { username: v });
+}
+
+_socket.on('tetris_login_ack', data => {
+  if (data.ok) {
+    myUsername = data.username;
+    document.getElementById('menu-user-label').textContent = `プレイヤー: ${myUsername}`;
+    document.getElementById('player-label').textContent = myUsername.toUpperCase();
+    showScreen('screen-menu');
+    _socket.emit('tetris_get_lobby');
+  } else {
+    document.getElementById('username-error').textContent = data.error;
+  }
+});
+
+// ── ソロ ──────────────────────────────────────────────────────
+function startSolo() {
+  gameMode = 'solo';
+  showScreen(null);
+  document.getElementById('opponent-wrap').style.display = 'none';
+  document.getElementById('vs-divider').style.display = 'none';
+  startGame();
+}
+
+function startBotGame() {
+  botThinkMs = parseInt(document.getElementById('bot-speed-slider')?.value || 300);
+  gameMode = 'vsbot';
+  botDifficulty = 'hard'; // 常にハード精度
+  showScreen(null);
+  document.getElementById('opponent-wrap').style.display = '';
+  document.getElementById('vs-divider').style.display = 'flex';
+  const speedLabel = botThinkMs >= 1000 ? '遅い' : botThinkMs >= 500 ? '普通' : botThinkMs >= 150 ? '速い' : '最速';
+  document.getElementById('opponent-label').textContent = 'ボット (' + speedLabel + ')';
+  countdown(() => {
+    startGame();
+    startBotOpponent();
+  });
+}
+
+function startBotOpponent() {
+  botGame = new TetrisGame({
+    onGarbage: (lines) => {
+      if (playerGame) {
+        playerGame.receiveGarbage(lines);
+        updateGarbageQueue(lines);
+      }
+    },
+    onScore: (sc, lv) => {
+      document.getElementById('opp-score-val').textContent = sc.toLocaleString();
+      document.getElementById('opp-level-val').textContent = 'Lv ' + lv;
+    },
+    onBoard: (board) => { oppBoard = board; },
+    onGameOver: () => { showResult(true, 'ボットがミス！'); },
+    onClearGarbage: (disarmed, hadGarbage) => {
+      if (disarmed && hadGarbage) showDisarmed('opp');
+      clearOppGarbageQueue();
+    },
+  });
+  botGame.alive = true;
+  botThinkTimer = botThinkMs;
+}
+
+// ── マルチプレイヤー ───────────────────────────────────────────────
+function joinRandomQueue() {
+  showScreen('screen-waiting');
+  _socket.emit('tetris_queue_join');
+}
+
+function leaveQueue() {
+  _socket.emit('tetris_queue_leave');
+  showScreen('screen-mp');
+}
+
+_socket.on('tetris_matched', data => {
+  mpRoomId = data.room_id;
+  showScreen(null);
+  document.getElementById('opponent-wrap').style.display = '';
+  document.getElementById('vs-divider').style.display = 'flex';
+  document.getElementById('opponent-label').textContent = data.opponent.toUpperCase();
+  document.getElementById('opp-score-val').textContent = '0';
+  countdown(() => {
+    gameMode = 'vsplayer';
+    startGame();
+    _socket.emit('tetris_ready', { room_id: mpRoomId });
+  });
+});
+
+_socket.on('tetris_start', () => {
+  // 両者準備完了
+});
+
+_socket.on('tetris_recv_garbage', data => {
+  if (playerGame) playerGame.receiveGarbage(data.lines);
+  // ガベージ表示
+  updateGarbageQueue(data.lines);
+});
+
+_socket.on('tetris_opponent_board', data => {
+  oppBoard = data.board;
+});
+
+_socket.on('tetris_result', data => {
+  if (data.won) showResult(true, data.loser + ' がミス！');
+  else          showResult(false, 'あなたがミスしました！');
+  mpRoomId = null;
+});
+
+_socket.on('tetris_opponent_disconnected', () => {
+  showResult(true, '対戦相手が切断しました。');
+  mpRoomId = null;
+});
+
+// ── チャレンジシステム ──────────────────────────────────────────
+_socket.on('tetris_lobby', data => {
+  const list = document.getElementById('lobby-list');
+  if (!data.players.length) {
+    list.innerHTML = '<div class="t-empty">現在利用可能なプレイヤーはいません。</div>';
+    return;
+  }
+  list.innerHTML = data.players.map(p => `
+    <div class="t-player-row">
+      <span class="t-player-name">${escHtml(p)}</span>
+      <button class="t-challenge-btn" onclick="challengePlayer('${escHtml(p)}')">対戦を申し込む</button>
+    </div>
+  `).join('');
+});
+
+function challengePlayer(target) {
+  _socket.emit('tetris_challenge', { target });
+  showScreen('screen-waiting');
+  document.querySelector('#screen-waiting .t-subtitle').textContent =
+    `${target} の応答を待っています…`;
+}
+
+_socket.on('tetris_challenge_ack', data => {
+  if (!data.ok) {
+    showScreen('screen-lobby');
+    showGameToast(data.error);
+  }
+});
+
+_socket.on('tetris_incoming_challenge', data => {
+  pendingChallengeFrom = data.from_sid;
+  document.getElementById('challenge-from-label').textContent =
+    `${data.from} からの対戦申し込み！`;
+  showScreen('screen-challenge');
+});
+
+_socket.on('tetris_challenge_declined', data => {
+  showScreen('screen-mp');
+  showGameToast(data.by + ' が拒否しました。');
+});
+
+function respondChallenge(accept) {
+  _socket.emit('tetris_challenge_response', {
+    accept,
+    from_sid: pendingChallengeFrom,
+  });
+  if (!accept) showScreen('screen-mp');
+  else         showScreen('screen-waiting');
+  pendingChallengeFrom = null;
+}
+
+// ── ゲーム開始 / 終了 ─────────────────────────────────────────
+function startGame() {
+  document.getElementById('game-root').classList.add('active');
+  document.getElementById('player-overlay').classList.remove('visible', 'win', 'lose');
+  document.getElementById('opponent-overlay').classList.remove('visible', 'win', 'lose');
+
+  playerGame = new TetrisGame({
+    onGarbage: (lines) => {
+      if (gameMode === 'vsbot' && botGame) {
+        botGame.receiveGarbage(lines);
+        updateOppGarbageQueue(lines);
+      }
+      if (gameMode === 'vsplayer' && mpRoomId) _socket.emit('tetris_garbage', { room_id: mpRoomId, lines });
+    },
+    onScore: (sc, lv, ln, cleared) => {
+      document.getElementById('score-val').textContent  = sc.toLocaleString();
+      document.getElementById('level-val').textContent  = 'Lv ' + lv;
+      document.getElementById('lines-val').textContent  = ln + ' ライン';
+    },
+    onGameOver: () => {
+      playerDied();
+    },
+    onBoard: (board) => {
+      if (gameMode === 'vsplayer' && mpRoomId) {
+        _socket.emit('tetris_board_update', { room_id: mpRoomId, board });
+      }
+    },
+    onClearGarbage: (disarmed, hadGarbage) => {
+      if (disarmed && hadGarbage) showDisarmed('player');
+      clearGarbageQueue();
+    },
+  });
+  playerGame.alive = true;
+  playerGame._keys = keys;
+
+  lastTimestamp = performance.now();
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  loop(lastTimestamp);
+}
+
+function playerDied() {
+  playerGame.alive = false;
+  const ov = document.getElementById('player-overlay');
+  ov.textContent = 'ゲームオーバー';
+  ov.classList.add('visible', 'lose');
+
+  if (gameMode === 'solo') {
+    showResult(false, 'スコア: ' + (playerGame.score || 0).toLocaleString());
+  } else if (gameMode === 'vsbot') {
+    botGame.alive = false;
+    showResult(false, 'ボットの勝利！');
+  } else if (gameMode === 'vsplayer' && mpRoomId) {
+    _socket.emit('tetris_game_over', { room_id: mpRoomId });
+  }
+}
+
+function showResult(won, sub) {
+  if (gameEnded) return;
+  gameEnded = true;
+  won ? TetSFX.play('win') : TetSFX.play('gameOver');
+  if (playerGame) playerGame.alive = false;
+  if (botGame)    botGame.alive    = false;
+  document.getElementById('result-title').textContent = won ? '🏆 あなたの勝ち！' : '💀 ゲームオーバー';
+  document.getElementById('result-sub').textContent   = sub;
+  setTimeout(() => showScreen('screen-result'), 800);
+}
+
+function resetGame() {
+  gameEnded = false;
+  oppPendingGarbage = 0;
+  clearOppGarbageQueue();
+  
+
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  playerGame = botGame = null;
+  keys = {};
+  document.getElementById('game-root').classList.remove('active');
+  document.getElementById('score-val').textContent  = '0';
+  document.getElementById('level-val').textContent  = 'Lv 1';
+  document.getElementById('lines-val').textContent  = '0 ライン';
+  document.getElementById('opp-score-val').textContent = '0';
+  document.getElementById('opp-level-val').textContent  = 'Lv 1';
+  clearGarbageQueue();
+  _socket.emit('tetris_get_lobby');
+}
+
+function togglePause() {
+  if (!playerGame) return;
+  playerGame.paused = !playerGame.paused;
+  if (botGame) botGame.paused = playerGame.paused;
+  document.getElementById('pause-btn').textContent = playerGame.paused ? '▶ 再開' : '⏸ 一時停止';
+}
+
+// ── メインループ ─────────────────────────────────────────────────
+function loop(ts) {
+  const dt = Math.min(ts - lastTimestamp, 50); // 最大50ms
+  lastTimestamp = ts;
+
+  // プレイヤー更新
+  if (playerGame?.alive) {
+    playerGame._keys = keys;
+    playerGame.update(dt);
+    playerGame.render(playerCtx);
+    playerGame.renderHold(holdCtx);
+    playerGame.renderNext(nextCtx);
+  }
+
+  // ボット更新
+  if (botGame?.alive) {
+    botGame.update(dt);
+    botGame.render(oppCtx);
+    // ボット AI 判断
+    botThinkTimer -= dt;
+    if (botThinkTimer <= 0) {
+      botThinkTimer = botThinkMs;
+      const move = botBestMove(botGame, botDifficulty);
+      if (move) {
+        botGame.current.state = move.state;
+        botGame.current.col   = move.col;
+        botGame.hardDropBot(move);
+      }
+    }
+  } else if (oppBoard) {
+    // マルチプレイヤー: 対戦相手の盤面をスナップショットから描画
+    renderOpponentBoard(oppCtx, oppBoard);
+  }
+
+  animFrameId = requestAnimationFrame(loop);
+}
+
+// TetrisGame に hardDropBot を追加
+TetrisGame.prototype.hardDropBot = function(move) {
+  if (!this.alive) return;
+  this.current.col   = move.col;
+  this.current.state = move.state;
+  this.current.row   = move.row;
+  this._lock();
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 設定 — 入力モード、キーバインド、DAS/ARR
+// ═══════════════════════════════════════════════════════════════
+
+const ACTIONS = [
+  { id: 'moveLeft',  label: '左移動',   defaultKey: 'ArrowLeft'  },
+  { id: 'moveRight', label: '右移動',   defaultKey: 'ArrowRight' },
+  { id: 'softDrop',  label: 'ソフトドロップ',   defaultKey: 'ArrowDown'  },
+  { id: 'hardDrop',  label: 'ハードドロップ',   defaultKey: 'Space'      },
+  { id: 'rotateCW',  label: '右回転',   defaultKey: 'ArrowUp'    },
+  { id: 'rotateCCW', label: '左回転',  defaultKey: 'KeyZ'       },
+  { id: 'hold',      label: 'ホールド',        defaultKey: 'KeyC'       },
+  { id: 'pause',     label: '一時停止',       defaultKey: 'Escape'     },
+];
+
+let inputMode = 'keyboard';
+let keyMap    = {};
+let dasMs     = 133;
+let arrMs     = 10;
+
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('tetris-settings') || '{}');
+    inputMode = s.inputMode || 'keyboard';
+    dasMs     = s.das       || 133;
+    arrMs     = s.arr       || 10;
+    keyMap    = s.keyMap    || {};
+  } catch (_) {}
+  ACTIONS.forEach(a => { if (!keyMap[a.id]) keyMap[a.id] = a.defaultKey; });
+}
+
+function saveSettings() {
+  localStorage.setItem('tetris-settings', JSON.stringify({ inputMode, das: dasMs, arr: arrMs, keyMap }));
+}
+
+function applySettings() {
+  document.getElementById('mode-btn-keyboard').classList.toggle('active', inputMode === 'keyboard');
+  document.getElementById('mode-btn-mobile').classList.toggle('active', inputMode === 'mobile');
+  document.getElementById('settings-keyboard-section').style.display = inputMode === 'keyboard' ? '' : 'none';
+  document.getElementById('settings-mobile-section').style.display   = inputMode === 'mobile'   ? '' : 'none';
+  document.getElementById('mobile-controls').classList.toggle('visible', inputMode === 'mobile');
+  const dasSlider = document.getElementById('das-slider');
+  const arrSlider = document.getElementById('arr-slider');
+  if (dasSlider) { dasSlider.value = dasMs; document.getElementById('das-val').textContent = dasMs + 'ms'; }
+  if (arrSlider) { arrSlider.value = arrMs; document.getElementById('arr-val').textContent = arrMs + 'ms'; }
+  if (playerGame) { playerGame.DAS = dasMs; playerGame.ARR = arrMs; }
+  const hint = document.getElementById('controls-hint');
+  if (hint) {
+    if (inputMode === 'mobile') {
+      hint.textContent = 'モバイルモード — 画面内ボタンで操作できます。';
+    } else {
+      const k = id => formatKeyCode(keyMap[id] || '?');
+      hint.innerHTML = k('moveLeft')+'/'+k('moveRight')+' 移動 &nbsp;|&nbsp; '+
+        k('rotateCW')+' 右回転 &nbsp;|&nbsp; '+k('rotateCCW')+' 左回転 &nbsp;|&nbsp; '+
+        k('softDrop')+' ソフト &nbsp;|&nbsp; '+k('hardDrop')+' ハード &nbsp;|&nbsp; '+k('hold')+' ホールド';
+    }
+  }
+}
+
+function formatKeyCode(code) {
+  const m = { ArrowLeft:'←', ArrowRight:'→', ArrowUp:'↑', ArrowDown:'↓',
+              Space:'スペース', ShiftLeft:'左Shift', ShiftRight:'右Shift' };
+  return m[code] || code.replace(/^(Key|Digit)/,'');
+}
+
+function openSettings() {
+  buildKeybindTable();
+  document.getElementById('settings-overlay').classList.add('open');
+}
+function closeSettings() {
+  stopListeningKey();
+  document.getElementById('settings-overlay').classList.remove('open');
+  saveSettings();
+  applySettings();
+}
+document.getElementById('settings-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeSettings();
+});
+
+function setInputMode(mode) { inputMode = mode; applySettings(); }
+function updateDAS(v) { dasMs = parseInt(v); document.getElementById('das-val').textContent = dasMs+'ms'; if(playerGame) playerGame.DAS=dasMs; }
+function updateARR(v) { arrMs = parseInt(v); document.getElementById('arr-val').textContent = arrMs+'ms'; if(playerGame) playerGame.ARR=arrMs; }
+
+let listeningAction = null;
+
+function buildKeybindTable() {
+  const table = document.getElementById('keybind-table');
+  if (!table) return;
+  table.innerHTML = ACTIONS.map(a => `
+    <div class="keybind-row" id="kbrow-${a.id}">
+      <span class="keybind-action">${a.label}</span>
+      <span class="keybind-key" id="kbkey-${a.id}" onclick="startListeningKey('${a.id}')">
+        ${formatKeyCode(keyMap[a.id] || a.defaultKey)}
+      </span>
+      <button class="keybind-reset" onclick="resetKey('${a.id}')" title="リセット">↺</button>
+    </div>
+  `).join('');
+}
+
+function startListeningKey(actionId) {
+  stopListeningKey();
+  listeningAction = actionId;
+  document.getElementById('kbrow-'+actionId)?.classList.add('listening');
+  const k = document.getElementById('kbkey-'+actionId);
+  if (k) k.textContent = 'キーを押してください…';
+}
+
+function stopListeningKey() {
+  if (!listeningAction) return;
+  document.getElementById('kbrow-'+listeningAction)?.classList.remove('listening');
+  const k = document.getElementById('kbkey-'+listeningAction);
+  if (k) k.textContent = formatKeyCode(keyMap[listeningAction]);
+  listeningAction = null;
+}
+
+function resetKey(id) {
+  keyMap[id] = ACTIONS.find(a=>a.id===id)?.defaultKey || keyMap[id];
+  buildKeybindTable();
+}
+function resetAllKeys() { ACTIONS.forEach(a => { keyMap[a.id]=a.defaultKey; }); buildKeybindTable(); }
+
+// ── 統一キーボードハンドラ ──────────────────────────────────
+document.addEventListener('keydown', e => {
+  // キー割り当て待ちのインターセプト
+  if (listeningAction) {
+    e.preventDefault();
+    if (e.code !== 'Escape') keyMap[listeningAction] = e.code;
+    stopListeningKey();
+    buildKeybindTable();
+    return;
+  }
+
+  if (inputMode !== 'keyboard') return;
+
+  if (!playerGame?.alive) {
+    if (e.code === keyMap.pause || e.code === 'Escape') togglePause();
+    return;
+  }
+
+  if (Object.values(keyMap).includes(e.code)) e.preventDefault();
+
+  if (e.code === keyMap.moveLeft && !keys[keyMap.moveLeft]) {
+    keys[keyMap.moveLeft] = true;
+    playerGame.moveLeft();
+    TetSFX.play('move');
+    playerGame.dasLeft = playerGame.DAS; playerGame.arrLeft = playerGame.ARR;
+  } else if (e.code === keyMap.moveRight && !keys[keyMap.moveRight]) {
+    keys[keyMap.moveRight] = true;
+    playerGame.moveRight();
+    TetSFX.play('move');
+    playerGame.dasRight = playerGame.DAS; playerGame.arrRight = playerGame.ARR;
+  } else if (e.code === keyMap.softDrop) {
+    playerGame.softDropping = true;
+  } else if (e.code === keyMap.rotateCW && !keys[keyMap.rotateCW]) {
+    keys[keyMap.rotateCW] = true; playerGame.rotateCW();
+    TetSFX.play('rotate');
+  } else if (e.code === keyMap.rotateCCW && !keys[keyMap.rotateCCW]) {
+    keys[keyMap.rotateCCW] = true; playerGame.rotateCCW();
+    TetSFX.play('rotate');
+  } else if (e.code === keyMap.hardDrop && !keys[keyMap.hardDrop]) {
+    keys[keyMap.hardDrop] = true; playerGame.hardDrop();
+    TetSFX.play('hardDrop');
+  } else if (e.code === keyMap.hold && !keys[keyMap.hold]) {
+    keys[keyMap.hold] = true; playerGame.hold();
+    TetSFX.play('hold');
+  } else if (e.code === keyMap.pause || e.code === 'Escape') {
+    togglePause();
+  }
+});
+
+document.addEventListener('keyup', e => {
+  if (listeningAction || inputMode !== 'keyboard') return;
+  if (e.code === keyMap.moveLeft)  { keys[keyMap.moveLeft]=false;  if(playerGame){playerGame.dasLeft=0;playerGame.arrLeft=0;} }
+  else if (e.code === keyMap.moveRight) { keys[keyMap.moveRight]=false; if(playerGame){playerGame.dasRight=0;playerGame.arrRight=0;} }
+  else if (e.code === keyMap.softDrop) { if(playerGame) playerGame.softDropping=false; }
+  else { keys[e.code] = false; }
+});
+
+// ── モバイルタッチボタン ──────────────────────────────────────
+function mbPress(action) {
+  if (!playerGame?.alive) return;
+  if (action === 'rotateCW')    playerGame.rotateCW();
+  else if (action === 'rotateCCW') playerGame.rotateCCW();
+  else if (action === 'hardDrop')  playerGame.hardDrop();
+  else if (action === 'softDrop')  playerGame.softDropping = true;
+  else if (action === 'hold')      playerGame.hold();
+  else if (action === 'togglePause') togglePause();
+}
+function mbRelease(action) {
+  if (action === 'softDrop' && playerGame) playerGame.softDropping = false;
+}
+function mbStartRepeat(action) {
+  if (!playerGame?.alive) return;
+  if (action === 'moveLeft')  { playerGame.moveLeft();  playerGame.dasLeft=playerGame.DAS;  playerGame.arrLeft=playerGame.ARR; }
+  if (action === 'moveRight') { playerGame.moveRight(); playerGame.dasRight=playerGame.DAS; playerGame.arrRight=playerGame.ARR; }
+  keys['_mb_'+action] = true;
+}
+function mbStopRepeat() {
+  keys['_mb_moveLeft']=false; keys['_mb_moveRight']=false;
+  if (playerGame) { playerGame.dasLeft=0;playerGame.arrLeft=0;playerGame.dasRight=0;playerGame.arrRight=0; }
+}
+
+// モバイルDAS用にゲーム更新をパッチ
+const _origUpdate = TetrisGame.prototype.update;
+TetrisGame.prototype.update = function(dt) {
+  if (keys['_mb_moveLeft'])  this._keys = { [keyMap.moveLeft]:  true };
+  if (keys['_mb_moveRight']) this._keys = { [keyMap.moveRight]: true };
+  _origUpdate.call(this, dt);
+};
+
+// ── 起動設定 ─────────────────────────────────────────────
+loadSettings();
+applySettings();
+
+// ── ガベージキューUI ──────────────────────────────────────────
+let pendingGarbageLines = 0;
+let garbageClearTimer = null;
+
+function updateGarbageQueue(lines) {
+  pendingGarbageLines += lines;
+  TetSFX.play('garbageWarning');
+  const container = document.getElementById('player-garbage-queue');
+  for (let i = 0; i < lines; i++) {
+    const block = document.createElement('div');
+    block.className = 'garbage-block';
+    container.appendChild(block);
+  }
+  while (container.children.length > 20) container.removeChild(container.firstChild);
+  const warn = document.getElementById('garbage-warning');
+  document.getElementById('garbage-warning-count').textContent = pendingGarbageLines;
+  warn.classList.add('visible');
+  // 自動消去タイマーなし — ブロックはガベージが解決されるまで残る
+}
+
+function clearGarbageQueue() {
+  pendingGarbageLines = 0;
+  document.getElementById('player-garbage-queue').innerHTML = '';
+  document.getElementById('garbage-warning').classList.remove('visible');
+}
+
+let oppPendingGarbage = 0;
+function updateOppGarbageQueue(lines) {
+  oppPendingGarbage += lines;
+  const el = document.getElementById('opp-garbage-warning');
+  if (!el) return;
+  document.getElementById('opp-garbage-count').textContent = oppPendingGarbage;
+  el.style.display = 'flex';
+}
+function clearOppGarbageQueue() {
+  oppPendingGarbage = 0;
+  const el = document.getElementById('opp-garbage-warning');
+  if (el) el.style.display = 'none';
+}
+
+
+// ── カウントダウン ──────────────────────────────────────────
+function countdown(cb) {
+  const overlay = document.getElementById('countdown-overlay');
+  let n = 3;
+  overlay.textContent = n;
+  overlay.classList.add('active');
+  TetSFX.play('countdownTick'); // 3の時
+  const tick = () => {
+    n--;
+    if (n > 0) {
+      overlay.textContent = n;
+      TetSFX.play('countdownTick'); // 2,1
+      setTimeout(tick, 900);
+    } else {
+      overlay.textContent = 'GO!';
+      TetSFX.play('countdownGo');   // GO!
+      setTimeout(() => { overlay.classList.remove('active'); cb(); }, 700);
+    }
+  };
+  setTimeout(tick, 900);
+}
+
+// ── トースト ─────────────────────────────────────────────────────
+let toastTimer = null;
+function showGameToast(msg) {
+  const el = document.getElementById('game-toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1500);
+}
+
+// ── ユーティリティ ─────────────────────────────────────────────────
+function updateBotSpeedLabel(val) {
+  val = parseInt(val);
+  let label;
+  if      (val >= 1200) label = 'とても遅い (' + val + 'ms)';
+  else if (val >= 700)  label = '遅い ('      + val + 'ms)';
+  else if (val >= 350)  label = '普通 ('    + val + 'ms)';
+  else if (val >= 150)  label = '速い ('      + val + 'ms)';
+  else                  label = '最速 ('       + val + 'ms)';
+  const el = document.getElementById('bot-speed-label');
+  if (el) el.textContent = label;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ページ離脱時にサーバーへ通知
+window.addEventListener('beforeunload', () => _socket.emit('tetris_logout'));
+
+// ── グローバルに公開 (インライン onclick ハンドラ用) ──────
+window.submitUsername = submitUsername;
+window.showScreen = showScreen;
+window.startSolo = startSolo;
+window.startBotGame = startBotGame;
+window.updateBotSpeedLabel = updateBotSpeedLabel;
+window.joinRandomQueue = joinRandomQueue;
+window.leaveQueue = leaveQueue;
+window.respondChallenge = respondChallenge;
+window.togglePause = togglePause;
+window.resetGame = resetGame;
+window.openSettings = openSettings;
+window.closeSettings = closeSettings;
+window.setInputMode = setInputMode;
+window.updateDAS = updateDAS;
+window.updateARR = updateARR;
+window.resetAllKeys = resetAllKeys;
+window.resetKey = resetKey;
+window.startListeningKey = startListeningKey;
+window.challengePlayer = challengePlayer;
+window.mbPress = mbPress;
+window.mbRelease = mbRelease;
+window.mbStartRepeat = mbStartRepeat;
+window.mbStopRepeat = mbStopRepeat;
+
+}); // DOMContentLoaded 終了
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   テトリス サウンドエフェクト — Web Audio API (外部ファイル不要)
+   ═══════════════════════════════════════════════════════ */
+const TetSFX = (() => {
+  let ctx = null;
+
+  function _ctx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  /* ── プリミティブ ──────────────────────────────────────── */
+  function _osc(type, freq, start, dur, g0, g1, c = _ctx()) {
+    const g = c.createGain(), osc = c.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, start);
+    g.gain.setValueAtTime(g0, start);
+    g.gain.linearRampToValueAtTime(g1, start + dur);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(start); osc.stop(start + dur + 0.01);
+  }
+
+  function _oscRamp(type, f0, f1, start, dur, g0, g1, c = _ctx()) {
+    const g = c.createGain(), osc = c.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f0, start);
+    osc.frequency.exponentialRampToValueAtTime(f1, start + dur);
+    g.gain.setValueAtTime(g0, start);
+    g.gain.linearRampToValueAtTime(g1, start + dur);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(start); osc.stop(start + dur + 0.01);
+  }
+
+  function _noise(start, dur, g0, g1, c = _ctx()) {
+    const buf  = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf;
+    g.gain.setValueAtTime(g0, start);
+    g.gain.linearRampToValueAtTime(g1, start + dur);
+    src.connect(g); g.connect(c.destination);
+    src.start(start); src.stop(start + dur + 0.01);
+  }
+
+  /* ── サウンドレシピ ───────────────────────────────────── */
+  const sounds = {
+
+    // ピース移動 — 小さなチック音
+    move() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 180, t, 0.025, 0.07, 0.0, c);
+    },
+
+    // 回転 — 少し高めのチック
+    rotate() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 280, t, 0.03, 0.09, 0.0, c);
+    },
+
+    // ソフトドロップ — 低く速い連打 (softDropping 中に毎フレーム呼ばれる)
+    softDrop() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 120, t, 0.018, 0.05, 0.0, c);
+    },
+
+    // ハードドロップ — 重い衝撃音 + ノイズバースト
+    hardDrop() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.06, 0.30, 0.0, c);
+      _oscRamp('sawtooth', 300, 60, t, 0.12, 0.28, 0.0, c);
+    },
+
+    // ロック — 柔らかい衝撃
+    lock() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.035, 0.18, 0.0, c);
+      _osc('sine', 90, t, 0.06, 0.14, 0.0, c);
+    },
+
+    // ホールド — 短いスウーシュ
+    hold() {
+      const c = _ctx(), t = c.currentTime;
+      _oscRamp('sine', 400, 220, t, 0.10, 0.14, 0.0, c);
+    },
+
+    // 1ライン消去 — 鋭いクリック + トーン
+    clearSingle() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t,        0.04, 0.22, 0.0, c);
+      _osc('sine', 440, t,        0.12, 0.18, 0.0, c);
+      _osc('sine', 660, t + 0.06, 0.10, 0.14, 0.0, c);
+    },
+
+    // 2ライン消去 — 明るめ
+    clearDouble() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.05, 0.25, 0.0, c);
+      [440, 554, 659].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.055, 0.14, 0.16, 0.0, c)
+      );
+    },
+
+    // 3ライン消去 — スイープコード
+    clearTriple() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.06, 0.28, 0.0, c);
+      [440, 554, 659, 880].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.05, 0.18, 0.18, 0.0, c)
+      );
+    },
+
+    // テトリス (4ライン消去) — 完全なネオンファンファーレ
+    clearTetris() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.10, 0.32, 0.0, c);
+      [261, 330, 392, 523, 659, 784, 1047].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.045, 0.20, 0.22, 0.0, c)
+      );
+      // 低音ブーム
+      _oscRamp('sine', 80, 40, t, 0.30, 0.22, 0.0, c);
+    },
+
+    // Tスピン — 歪んだスウーシュ
+    tSpin() {
+      const c = _ctx(), t = c.currentTime;
+      _oscRamp('sawtooth', 200, 600, t,        0.10, 0.22, 0.0, c);
+      _oscRamp('sawtooth', 600, 200, t + 0.10, 0.14, 0.20, 0.0, c);
+      _noise(t, 0.06, 0.10, 0.0, c);
+    },
+
+    // バックトゥバック ボーナス — クリア音の上に短いスティング
+    b2b() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 1400, t + 0.18, 0.06, 0.16, 0.0, c);
+      _osc('square', 1760, t + 0.26, 0.08, 0.14, 0.0, c);
+    },
+
+    // コンボ — 短い上昇音、コンボ数に応じてピッチ上昇
+    combo(count) {
+      const c   = _ctx(), t = c.currentTime;
+      const base = 440;
+      const freq  = Math.min(base * Math.pow(1.12, count), 2000);
+      _oscRamp('square', freq, freq * 1.25, t, 0.08, 0.16, 0.0, c);
+    },
+
+    // レベルアップ — 勝利の上昇スイープ
+    levelUp() {
+      const c = _ctx(), t = c.currentTime;
+      _oscRamp('sine', 330, 1320, t, 0.28, 0.20, 0.0, c);
+      [523, 659, 784, 1047].forEach((f, i) =>
+        _osc('sine', f, t + 0.10 + i * 0.09, 0.18, 0.18, 0.0, c)
+      );
+    },
+
+    // ガベージ受信警告 — 低く不吉なパルス
+    garbageWarning() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sawtooth', 80,  t,        0.14, 0.24, 0.0, c);
+      _osc('sawtooth', 100, t + 0.16, 0.12, 0.18, 0.0, c);
+    },
+
+    // ガベージ着地 — 重い衝撃
+    garbageLand() {
+      const c = _ctx(), t = c.currentTime;
+      _noise(t, 0.10, 0.35, 0.0, c);
+      _oscRamp('sine', 120, 40, t, 0.18, 0.28, 0.0, c);
+    },
+
+    // 防御 / ガベージキャンセル — 明るいシールドピン
+    disarmed() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('sine', 880,  t,        0.08, 0.20, 0.0, c);
+      _osc('sine', 1320, t + 0.07, 0.10, 0.18, 0.0, c);
+      _osc('sine', 1760, t + 0.14, 0.08, 0.14, 0.0, c);
+    },
+
+    // カウントダウン (3, 2, 1)
+    countdownTick() {
+      const c = _ctx(), t = c.currentTime;
+      _osc('square', 660, t, 0.10, 0.22, 0.0, c);
+    },
+
+    // "GO!" — 短いレーザーバースト
+    countdownGo() {
+      const c = _ctx(), t = c.currentTime;
+      _oscRamp('sawtooth', 220, 880, t, 0.18, 0.26, 0.0, c);
+      _noise(t, 0.06, 0.14, 0.0, c);
+    },
+
+    // ゲームオーバー — 下降する不協和音
+    gameOver() {
+      const c = _ctx(), t = c.currentTime;
+      [330, 277, 220, 165].forEach((f, i) =>
+        _osc('sawtooth', f, t + i * 0.14, 0.26, 0.0, c)
+      );
+      _noise(t, 0.55, 0.12, 0.0, c);
+    },
+
+    // 勝利 — 完全なファンファーレ
+    win() {
+      const c = _ctx(), t = c.currentTime;
+      [523, 659, 784, 1047, 1319, 1568].forEach((f, i) =>
+        _osc('sine', f, t + i * 0.09, 0.22, 0.22, 0.0, c)
+      );
+      _noise(t, 0.08, 0.14, 0.0, c);
+      // エコー
+      [523, 784, 1047].forEach((f, i) =>
+        _osc('sine', f, t + 0.55 + i * 0.07, 0.18, 0.12, 0.0, c)
+      );
+    },
+
+  };
+
+  // 最初のジェスチャで AudioContext を起動
+  const _unlock = () => { _ctx(); document.removeEventListener('click', _unlock); };
+  document.addEventListener('click', _unlock);
+
+  let _muted = false;
+
+  return {
+    play(name, ...args) {
+      if (_muted) return;
+      try { sounds[name]?.(...args); } catch(e) { /* 非致命的 */ }
+    },
+    toggle() { _muted = !_muted; return _muted; },
+    muted()  { return _muted; },
+  };
+})();
+</script>
+
+</body>
+</html>

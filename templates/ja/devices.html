@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+{% block title %}LANHub — デバイス{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Layout ──────────────────────────────────────────────── */
+  .page-wrap { padding: 0 !important; }
+
+  /* ── Toolbar ─────────────────────────────────────────────── */
+  #devices-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  #devices-toolbar h1 {
+    font-size: 1.1rem;
+    margin-right: 4px;
+  }
+
+  #search-input {
+    padding: 6px 12px !important;
+    border-radius: var(--radius) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.78rem;
+    width: 220px;
+  }
+
+  .toolbar-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .toolbar-btn:hover  { border-color: var(--cyan); color: var(--cyan); }
+  .toolbar-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .toolbar-btn.scanning { border-color: var(--amber); color: var(--amber); }
+
+  #device-count {
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim);
+    margin-left: auto;
+  }
+
+  /* Scan spinner */
+  .scan-spinner {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid currentColor; border-top-color: transparent;
+    animation: spin 0.7s linear infinite; display: none;
+  }
+  .toolbar-btn.scanning .scan-spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Filter pills ────────────────────────────────────────── */
+  #filter-pills {
+    display: flex; gap: 6px; padding: 10px 24px;
+    background: var(--bg-panel); border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .pill {
+    padding: 4px 12px; border-radius: 20px;
+    font-family: var(--font-mono); font-size: 0.68rem;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s ease;
+    border: 1px solid var(--border); color: var(--text-dim); background: transparent;
+  }
+  .pill:hover  { border-color: var(--border-hi); color: var(--text-bright); }
+  .pill.active { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-dim); }
+
+  /* ── Device grid ─────────────────────────────────────────── */
+  #device-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    padding: 20px 24px;
+  }
+
+  /* ── Device card ─────────────────────────────────────────── */
+  .device-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .device-card:hover {
+    border-color: var(--border-hi);
+    transform: translateY(-2px);
+  }
+  .device-card.inactive {
+    opacity: 0.45;
+    border-style: dashed;
+  }
+
+  /* Active indicator stripe */
+  .device-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--green);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .device-card.inactive::before { background: var(--border); }
+
+  /* Card header */
+  .device-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .device-icon {
+    font-size: 1.6rem;
+    flex-shrink: 0;
+    line-height: 1;
+    margin-top: 2px;
+  }
+
+  .device-names { flex: 1; min-width: 0; }
+
+  .device-hostname {
+    font-family: var(--font-ui);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-bright);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .device-vendor {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .device-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .status-active   { color: var(--green);  }
+  .status-active   .status-dot { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-dot 2s infinite; }
+  .status-inactive { color: var(--text-dim); }
+  .status-inactive .status-dot { background: var(--text-dim); }
+  @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  /* Card fields */
+  .device-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .device-field {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .field-label {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    min-width: 64px;
+    flex-shrink: 0;
+  }
+
+  .field-val {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text);
+    word-break: break-all;
+  }
+
+  .field-val.ip { color: var(--cyan); }
+
+  /* Divider line in card */
+  .device-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 10px 0;
+  }
+
+  /* Footer timestamps */
+  .device-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--text-dim);
+  }
+
+  /* ── Empty state ─────────────────────────────────────────── */
+  #empty-state {
+    display: none;
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 2;
+  }
+  #empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+  #empty-state.visible { display: block; }
+
+  /* ── Loading skeleton ────────────────────────────────────── */
+  .skeleton {
+    background: linear-gradient(90deg,
+      var(--bg-card) 25%, var(--bg-hover) 50%, var(--bg-card) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 4px;
+    height: 14px;
+    margin: 4px 0;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  /* responsive */
+  @media (max-width: 600px) {
+    #device-grid { grid-template-columns: 1fr; padding: 12px 16px; }
+    #devices-toolbar { padding: 10px 16px; }
+    #filter-pills { padding: 8px 16px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Toolbar -->
+<div id="devices-toolbar">
+  <h1>🖧 デバイス</h1>
+
+  <input id="search-input" type="text" placeholder="IP、MAC、ホスト名で検索…"
+         oninput="filterCards()" />
+
+  <button class="toolbar-btn" id="scan-btn" type="button" onclick="triggerScan()">
+    <div class="scan-spinner"></div>
+    <span class="scan-label">⟳ スキャン</span>
+  </button>
+
+  <button class="toolbar-btn" type="button" onclick="loadDevices(false)">
+    ↻ 更新
+  </button>
+
+  <div id="device-count">— デバイス</div>
+</div>
+
+<!-- Filter pills -->
+<div id="filter-pills">
+  <button class="pill active" data-filter="all"      onclick="setFilter('all',this)">すべて</button>
+  <button class="pill"        data-filter="active"   onclick="setFilter('active',this)">オンライン</button>
+  <button class="pill"        data-filter="inactive" onclick="setFilter('inactive',this)">オフライン</button>
+</div>
+
+<!-- Device grid -->
+<div id="device-grid">
+  <!-- Skeletons shown while loading -->
+  <div id="skeleton-1" class="device-card">
+    <div class="skeleton" style="width:40%;height:18px;margin-bottom:12px"></div>
+    <div class="skeleton" style="width:80%"></div>
+    <div class="skeleton" style="width:60%"></div>
+    <div class="skeleton" style="width:70%;margin-top:8px"></div>
+  </div>
+  <div id="skeleton-2" class="device-card">
+    <div class="skeleton" style="width:40%;height:18px;margin-bottom:12px"></div>
+    <div class="skeleton" style="width:80%"></div>
+    <div class="skeleton" style="width:60%"></div>
+    <div class="skeleton" style="width:70%;margin-top:8px"></div>
+  </div>
+  <div class="device-card" id="skeleton-3">
+    <div class="skeleton" style="width:40%;height:18px;margin-bottom:12px"></div>
+    <div class="skeleton" style="width:80%"></div>
+    <div class="skeleton" style="width:60%"></div>
+    <div class="skeleton" style="width:70%;margin-top:8px"></div>
+  </div>
+
+  <div id="empty-state">
+    <span class="empty-icon">📡</span>
+    LAN上にデバイスが見つかりませんでした。<br>
+    <strong>⟳ スキャン</strong>をクリックしてサブネットをスキャンしてみてください。
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let allDevices   = [];
+  let activeFilter = "all";
+
+  // ── Init ──────────────────────────────────────────────────
+  loadDevices(false);
+  _socket.emit("page_open", { path: "/devices" });
+
+  // ── Fetch device list ─────────────────────────────────────
+  async function loadDevices(sweep) {
+    try {
+      const url = sweep ? "/api/devices/scan" : "/api/devices";
+      const res  = await fetch(url, { method: sweep ? "POST" : "GET" });
+      const data = await res.json();
+      allDevices = data.devices || [];
+      renderDevices();
+    } catch (e) {
+      console.error("デバイス取得エラー:", e);
+    }
+    removeSkeletons();
+  }
+
+  // ── Trigger a ping sweep ──────────────────────────────────
+  async function triggerScan() {
+    const btn = document.getElementById("scan-btn");
+    btn.classList.add("scanning");
+    btn.disabled = true;
+
+    await loadDevices(true);
+
+    // Wait a few seconds for nmap to populate ARP, then refresh again
+    setTimeout(async () => {
+      await loadDevices(false);
+      btn.classList.remove("scanning");
+      btn.disabled = false;
+    }, 6000);
+  }
+
+  // ── Render all cards ──────────────────────────────────────
+  function renderDevices() {
+    removeSkeletons();
+
+    const grid = document.getElementById("device-grid");
+    // Remove old cards but keep empty-state div
+    grid.querySelectorAll(".device-card").forEach(el => el.remove());
+
+    const search = document.getElementById("search-input").value.trim().toLowerCase();
+    const empty  = document.getElementById("empty-state");
+
+    let shown = 0;
+    allDevices.forEach(d => {
+      if (!matchesFilter(d))  return;
+      if (!matchesSearch(d, search)) return;
+      shown++;
+      grid.appendChild(makeCard(d));
+    });
+
+    empty.classList.toggle("visible", shown === 0);
+    updateCount();
+  }
+
+  // ── Build a device card ───────────────────────────────────
+  function makeCard(d) {
+    const card = document.createElement("div");
+    card.className = "device-card" + (d.active ? "" : " inactive");
+    card.dataset.mac = d.mac;
+
+    const hostname = d.hostname || d.ip;
+    const icon     = guessIcon(d);
+
+    card.innerHTML = `
+      <div class="device-header">
+        <div class="device-icon">${icon}</div>
+        <div class="device-names">
+          <div class="device-hostname" title="${escHtml(d.hostname || "")}">${escHtml(hostname)}</div>
+          <div class="device-vendor">${escHtml(d.vendor)}</div>
+        </div>
+        <div class="device-status ${d.active ? "status-active" : "status-inactive"}">
+          <span class="status-dot"></span>
+          ${d.active ? "オンライン" : "オフライン"}
+        </div>
+      </div>
+
+      <div class="device-fields">
+        <div class="device-field">
+          <span class="field-label">IP</span>
+          <span class="field-val ip">${escHtml(d.ip)}</span>
+        </div>
+        <div class="device-field">
+          <span class="field-label">MAC</span>
+          <span class="field-val">${escHtml(d.mac)}</span>
+        </div>
+        ${d.iface ? `
+        <div class="device-field">
+          <span class="field-label">インターフェース</span>
+          <span class="field-val">${escHtml(d.iface)}</span>
+        </div>` : ""}
+      </div>
+
+      <div class="device-divider"></div>
+
+      <div class="device-footer">
+        <span title="最初の検出日時 ${escHtml(d.first_seen_str)}">初回: ${escHtml(d.first_seen_str)}</span>
+        <span title="最終検出日時 ${escHtml(d.last_seen_str)}">${escHtml(d.ago)}</span>
+      </div>
+    `;
+
+    return card;
+  }
+
+  // ── Guess device icon from vendor / hostname ──────────────
+  function guessIcon(d) {
+    const v = (d.vendor + " " + d.hostname).toLowerCase();
+    if (v.includes("apple") || v.includes("iphone") || v.includes("ipad") || v.includes("mac")) return "🍎";
+    if (v.includes("samsung"))      return "📱";
+    if (v.includes("raspberry"))    return "🍓";
+    if (v.includes("google"))       return "🔵";
+    if (v.includes("amazon"))       return "📦";
+    if (v.includes("cisco"))        return "🌐";
+    if (v.includes("vmware") || v.includes("hyper"))  return "🖥️";
+    if (v.includes("nvidia"))       return "🎮";
+    if (v.includes("printer") || v.includes("hp"))    return "🖨️";
+    if (v.includes("router") || v.includes("gateway"))return "📡";
+    if (v.includes("phone") || v.includes("android")) return "📱";
+    if (v.includes("intel") || v.includes("pc") || v.includes("windows")) return "💻";
+    return "🖧";
+  }
+
+  // ── Filter / search helpers ───────────────────────────────
+  function setFilter(val, btn) {
+    activeFilter = val;
+    document.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    renderDevices();
+  }
+
+  function matchesFilter(d) {
+    if (activeFilter === "all")      return true;
+    if (activeFilter === "active")   return d.active;
+    if (activeFilter === "inactive") return !d.active;
+    return true;
+  }
+
+  function filterCards() { renderDevices(); }
+
+  function matchesSearch(d, search) {
+    if (!search) return true;
+    return (
+      d.ip.includes(search)           ||
+      d.mac.toLowerCase().includes(search) ||
+      (d.hostname || "").toLowerCase().includes(search) ||
+      (d.vendor   || "").toLowerCase().includes(search)
+    );
+  }
+
+  function updateCount() {
+    const active   = allDevices.filter(d => d.active).length;
+    const total    = allDevices.length;
+    document.getElementById("device-count").textContent =
+      `${active} アクティブ / ${total} 合計`;
+  }
+
+  function removeSkeletons() {
+    ["skeleton-1","skeleton-2","skeleton-3"].forEach(id => {
+      document.getElementById(id)?.remove();
+    });
+  }
+
+  function escHtml(s) {
+    return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+</script>
+{% endblock %}
