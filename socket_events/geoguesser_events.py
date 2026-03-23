@@ -297,7 +297,8 @@ def _cell_center(lat_min: float, lat_max: float,
 
 
 def _cell_search_radius_m(diagonal_km: float) -> int:
-    return int(diagonal_km * 500)
+    return max(50, int(diagonal_km * 500))
+
 
 
 def _cell_has_region_overlap(lat_min: float, lat_max: float,
