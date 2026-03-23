@@ -297,7 +297,7 @@ def _cell_center(lat_min: float, lat_max: float,
 
 
 def _cell_search_radius_m(diagonal_km: float) -> int:
-    return max(50, int(diagonal_km * 500))
+    return max(500, int(diagonal_km * 2000))
 
 
 
