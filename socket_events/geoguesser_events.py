@@ -391,7 +391,17 @@ def _depth_minus_one_scan(
         diag_km = haversine_km(min(lats), min(lngs), max(lats), max(lngs))
 
 
-        outer_r = int(diag_km * 500)
+        outer_r = max(500, int(diag_km * 2000))
+        
+        if diag_km > 75:
+            cov_map[key] = True
+            app_log.info(
+                f"[geo depth-1] enclosure {idx} ({key[:8]}): "
+                f"diag={diag_km:.0f} km → large enclosure, assuming coverage"
+            )
+            covered.append(idx)
+            continue
+
 
         _status(
             f"Scanning enclosure {idx + 1}/{len(polygons)} "
@@ -410,7 +420,7 @@ def _depth_minus_one_scan(
                 # Pano found but sits outside the polygon boundary —
                 # the circumscribed circle captured something beyond the drawn edge.
                 # Try a handful of random interior points with a tighter radius.
-                inner_r = max(1_000, min(int(diag_km * 100), 50_000))
+                inner_r = max(500, int(diag_km * 500))
                 for _ in range(4):
                     pt = _random_polygon_point(poly)
                     if pt is None:
@@ -611,7 +621,7 @@ def _find_pano_region(polygons: list, region_key: str,
 
             # Cell is larger than what the API can meaningfully probe —
             # assume coverage and let subdivision find the real distribution.
-            if diag > API_MAX_RADIUS_KM * 2:
+            if diag > API_MAX_RADIUS_KM * 1.5:
                 newly_covered.append(cell)
                 continue
 
