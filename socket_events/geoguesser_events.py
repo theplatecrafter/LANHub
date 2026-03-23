@@ -617,9 +617,7 @@ def _find_pano_region(polygons: list, region_key: str,
                 continue
 
             pano_id, pano_lat, pano_lng = result
-            if (lat_min <= pano_lat <= lat_max and
-                    lng_min <= pano_lng <= lng_max and
-                    _point_in_any_polygon(pano_lat, pano_lng, polygons)):
+            if _point_in_any_polygon(pano_lat, pano_lng, polygons):
                 newly_covered.append(cell)
                 _cache_add(region_key, cell)
 
