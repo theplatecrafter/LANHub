@@ -1774,7 +1774,6 @@ let reMapInst     = null;
 let roundTimerInterval  = null;
 let roundEndActive    = false;  // true while the 9s results screen is showing
 let pendingRoundStart = null;   // buffers geo_round_start received during that window
-let pendingMpLoading  = null;   // buffers geo_loading received during round-end window
 let roundAdvanceInterval = null;
 let currentRegionInfo = null;  // {label, creators} displayed during gameplay
  
@@ -2680,23 +2679,15 @@ function leaveRoom() {
  
 /* ── MP loading ───────────────────────────────────────── */
 socket.on('geo_loading', data => {
-      if (roundEndActive) {
-        // Buffer — we'll show it once the results countdown finishes
-        pendingMpLoading = data;
-        return;
-      }
-      _showMpLoading(data);
-    });
- 
-function _showMpLoading(data) {
-  document.getElementById('mp-loading-msg').textContent = (data && data.message) || 'Finding a location';
+  if (roundEndActive) return;
+  document.getElementById('mp-loading-msg').textContent = data.message || 'Finding a location';
   const t = document.getElementById('mp-region-timeout');
   if (t) t.style.display = 'none';
   const b = document.getElementById('mp-change-region-btn');
   if (b) b.style.display = 'none';
   showSV(false); showHud(false); showGuessMap(false); _cleanupRoundTimer();
   showView('view-mp-loading');
-}
+});
 socket.on('geo_region_timeout', data => {
   const spT = document.getElementById('sp-region-timeout');
   if (spT && document.getElementById('view-sp-loading').classList.contains('active')) spT.style.display = 'block';
@@ -2841,16 +2832,10 @@ socket.on('geo_round_end', data => {
       if (pendingRoundStart) {
         const d = pendingRoundStart;
         pendingRoundStart = null;
-        pendingMpLoading  = null;
         _applyRoundStart(d);
-      } else {
-        // No round start yet — server is still finding a pano; show loading
-        const loadData = pendingMpLoading;
-        pendingMpLoading = null;
-        _showMpLoading(loadData || {message: 'Finding a location...'});
       }
     }
- 
+
   }, 1000);
  
   setTimeout(() => {
@@ -2919,8 +2904,6 @@ socket.on('geo_game_over', data => {
   if (roundAdvanceInterval) { clearInterval(roundAdvanceInterval); roundAdvanceInterval = null; }
   roundEndActive    = false;
   pendingRoundStart = null;
-  pendingMpLoading  = null;
-
   const rtt = document.getElementById('round-transition-timer');
   if (rtt) rtt.classList.remove('visible');
   showSV(false); showHud(false); showGuessMap(false); clearSV();
@@ -2964,8 +2947,6 @@ function _cleanupGameState() {
   if (roundAdvanceInterval) { clearInterval(roundAdvanceInterval); roundAdvanceInterval = null; }
   roundEndActive    = false;
   pendingRoundStart = null;
-  pendingMpLoading  = null;
-
   const rtt = document.getElementById('round-transition-timer');
   if (rtt) rtt.classList.remove('visible');
   showSV(false); showHud(false); showSpHud(false); showGuessMap(false); clearSV();
@@ -3241,3 +3222,4 @@ const GeoSFX = (() => {
 </script>
 
 {% endblock %}
+
