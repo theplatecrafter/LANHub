@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}ジオゲッサー — LANHub{% endblock %}
+{% block title %}GeoGuesser — LANHub{% endblock %}
 
 {% block head %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-/* ── リージョンプレビューモーダル ────────────────────────── */
+/* ── Region preview modal ────────────────────────── */
 #region-preview-overlay {
   position: fixed; inset: 0; z-index: 700;
   background: rgba(1,8,16,.88);
@@ -60,8 +60,8 @@
 .rr-region-btn:hover { border-color: var(--c-ocean); color: var(--c-ocean); background: var(--c-ocean-lo); }
 
 /* ════════════════════════════════════════════════════
-   TERRA — ジオゲッサー 地球テーマ
-   深い海 • 生きている大陸 • 衛星ビュー
+   TERRA — GeoGuesser Earth Theme
+   Deep ocean • living continents • satellite view
 ════════════════════════════════════════════════════ */
 
 #geo-root {
@@ -94,7 +94,7 @@
 nav.topbar, .status-bar { display: none !important; }
 .page-wrap, .container  { padding: 0 !important; max-width: 100% !important; }
 
-/* ── アニメーション星屑の背景 ────────────────── */
+/* ── Animated starfield background ────────────────── */
 #geo-root::before {
   content: '';
   position: fixed; inset: 0; z-index: 0;
@@ -117,7 +117,7 @@ nav.topbar, .status-bar { display: none !important; }
   100%{ opacity: .7; }
 }
 
-/* ── 座標グリッドオーバーレイ ─────────────────────── */
+/* ── Coordinate grid overlay ─────────────────────── */
 #geo-root::after {
   content: '';
   position: fixed; inset: -100px; z-index: 0;
@@ -133,7 +133,7 @@ nav.topbar, .status-bar { display: none !important; }
   to   { background-position: 64px 64px; }
 }
 
-/* ── オーロラ・ネビュラ (ヒーロー画面) ───────────────── */
+/* ── Aurora nebula (hero screens) ───────────────── */
 .geo-aurora {
   position: fixed; inset: 0; pointer-events: none; z-index: 0;
   background:
@@ -147,7 +147,7 @@ nav.topbar, .status-bar { display: none !important; }
   to   { opacity: 1;  transform: scale(1.04); }
 }
 
-/* ── 人工衛星の光跡 ───────────────────────────── */
+/* ── Satellite streaks ───────────────────────────── */
 .geo-streaks { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
 .geo-streak {
   position: absolute;
@@ -169,7 +169,7 @@ nav.topbar, .status-bar { display: none !important; }
   100%{ transform:translateX(calc(100vw + 300px)) rotate(-12deg); opacity:0; }
 }
 
-/* ── 浮遊する座標テキスト ────────────────────── */
+/* ── Floating coordinate text ────────────────────── */
 .geo-coords-bg { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
 .geo-coord-txt {
   position: absolute;
@@ -189,7 +189,7 @@ nav.topbar, .status-bar { display: none !important; }
   50%    { opacity:.25; transform:translateY(10px); }
 }
 
-/* ── 地球のオブジェクト ─────────────────────────────────── */
+/* ── Earth Globe ─────────────────────────────────── */
 .geo-earth-wrap {
   position: fixed; top:50%; left:50%;
   transform: translate(-50%,-50%);
@@ -218,7 +218,7 @@ nav.topbar, .status-bar { display: none !important; }
   animation: earth-rotate 60s linear infinite, earth-glow 6s ease-in-out infinite;
   overflow: hidden;
 }
-/* 大気のハロー */
+/* Atmosphere halo */
 .geo-earth::before {
   content: '';
   position: absolute; inset: -14px;
@@ -231,7 +231,7 @@ nav.topbar, .status-bar { display: none !important; }
   );
   animation: atmo-pulse 5s ease-in-out infinite;
 }
-/* 雲のパッチ */
+/* Cloud patches */
 .geo-earth::after {
   content: '';
   position: absolute; inset: 0;
@@ -244,6 +244,7 @@ nav.topbar, .status-bar { display: none !important; }
   animation: clouds-shift 45s linear infinite;
 }
 @keyframes earth-rotate {
+  /* Subtle shimmer to suggest rotation — background cannot truly rotate */
   0%   { filter: hue-rotate(0deg); }
   50%  { filter: hue-rotate(5deg); }
   100% { filter: hue-rotate(0deg); }
@@ -261,7 +262,7 @@ nav.topbar, .status-bar { display: none !important; }
   to   { background-position: 100% 0%; }
 }
 
-/* ── ビュー ───────────────────────────────────────── */
+/* ── Views ───────────────────────────────────────── */
 .geo-view {
   display:none; flex-direction:column;
   align-items:center; justify-content:center;
@@ -270,7 +271,7 @@ nav.topbar, .status-bar { display: none !important; }
 }
 .geo-view.active { display:flex; }
 
-/* ── カード ───────────────────────────────────────── */
+/* ── Cards ───────────────────────────────────────── */
 .geo-card {
   background: var(--c-panel);
   border: 1px solid var(--c-ocean-lo);
@@ -287,7 +288,7 @@ nav.topbar, .status-bar { display: none !important; }
 }
 .geo-card.wide { max-width: 840px; }
 
-/* コーナーの飾り線 */
+/* Corner brackets */
 .geo-card::before, .geo-card::after {
   content:''; position:absolute;
   width:20px; height:20px;
@@ -302,7 +303,7 @@ nav.topbar, .status-bar { display: none !important; }
   to   { opacity:1; transform:translateY(0); }
 }
 
-/* ── タイポグラフィ ──────────────────────────────────── */
+/* ── Typography ──────────────────────────────────── */
 .geo-eyebrow {
   font-family: var(--f-data);
   font-size:.58rem; letter-spacing:.28em;
@@ -326,7 +327,7 @@ nav.topbar, .status-bar { display: none !important; }
   color:var(--c-sky-dim); font-weight:400;
 }
 
-/* ── 入力 ──────────────────────────────────────── */
+/* ── Inputs ──────────────────────────────────────── */
 .geo-input {
   width:100%; box-sizing:border-box;
   padding:12px 16px;
@@ -350,7 +351,7 @@ nav.topbar, .status-bar { display: none !important; }
 .geo-field { margin-bottom:18px; }
 .geo-err   { font-family:var(--f-data); font-size:.7rem; color:var(--c-red); margin-top:6px; min-height:18px; }
 
-/* ── ボタン ─────────────────────────────────────── */
+/* ── Buttons ─────────────────────────────────────── */
 .geo-btn {
   padding:11px 26px; border:none; border-radius:var(--r);
   font-family:var(--f-data); font-size:.72rem; font-weight:700;
@@ -387,7 +388,7 @@ nav.topbar, .status-bar { display: none !important; }
 .geo-btn:disabled { opacity:.35; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
 .geo-btn-row { display:flex; gap:10px; margin-top:24px; flex-wrap:wrap; }
 
-/* ── LANHubに戻るリンク ─────────────────────────── */
+/* ── Back to LANHub link ─────────────────────────── */
 .geo-back-link {
   display:inline-flex; align-items:center; gap:7px;
   font-family:var(--f-data); font-size:.62rem;
@@ -399,7 +400,7 @@ nav.topbar, .status-bar { display: none !important; }
 .geo-back-link:hover { color:var(--c-ocean); opacity:1; }
 .geo-back-link::before { content:'←'; }
 
-/* ── モードカード ──────────────────────────────────── */
+/* ── Mode cards ──────────────────────────────────── */
 .mode-grid {
   display:grid; grid-template-columns:1fr 1fr;
   gap:18px; width:100%; max-width:620px; margin-top:12px;
@@ -450,7 +451,7 @@ nav.topbar, .status-bar { display: none !important; }
   color:var(--c-sky-dim); line-height:1.7;
 }
 
-/* ── APIキーなし警告 ──────────────────────────── */
+/* ── No API key warning ──────────────────────────── */
 .no-key-warn {
   background:rgba(232,151,26,.08);
   border:1px solid rgba(232,151,26,.3);
@@ -461,7 +462,7 @@ nav.topbar, .status-bar { display: none !important; }
 }
 .no-key-warn a { color:var(--c-ocean); text-decoration:underline; }
 
-/* ── リージョンドロー ─────────────────────────────────── */
+/* ── Region draw ─────────────────────────────────── */
 #view-region { padding:0; }
 #region-map-container { position:relative; width:100%; height:100vh; }
 #region-map { width:100%; height:100%; }
@@ -491,7 +492,7 @@ nav.topbar, .status-bar { display: none !important; }
   pointer-events:none; color:var(--c-sky-dim);
 }
 
-/* ── 地形スキャナー (ローディング) ───────────────────── */
+/* ── Terrain scanner (loading) ───────────────────── */
 .geo-scanner {
   width:130px; height:130px;
   position:relative; margin:0 auto 32px;
@@ -563,7 +564,7 @@ nav.topbar, .status-bar { display: none !important; }
   0%{ content:''; } 25%{ content:'.'; } 50%{ content:'..'; } 75%{ content:'...'; }
 }
 
-/* ── ストリートビュー ─────────────────────────────────── */
+/* ── Street View ─────────────────────────────────── */
 #sv-wrap { position:fixed; inset:0; z-index:10; display:none; background:var(--c-void); cursor:crosshair; }
 #sv-wrap.active { display:block; }
 #sv-iframe { width:100%; height:100%; border:none; display:block; }
@@ -585,7 +586,7 @@ nav.topbar, .status-bar { display: none !important; }
   pointer-events:none;
 }
 
-/* ── ゲームHUD ────────────────────────────────────── */
+/* ── Game HUD ────────────────────────────────────── */
 #game-hud { position:fixed; inset:0; z-index:20; pointer-events:none; display:none; }
 #game-hud.active { display:block; }
 #hud-top {
@@ -645,7 +646,7 @@ nav.topbar, .status-bar { display: none !important; }
   color:rgba(255,255,255,.25);
 }
 
-/* ── ラウンドタイマー (ゲーム) ──────────────────────────── */
+/* ── Round timer (game) ──────────────────────────── */
 #geo-round-timer {
   position:fixed; top:16px; left:50%;
   transform:translateX(-50%);
@@ -666,7 +667,7 @@ nav.topbar, .status-bar { display: none !important; }
 }
 @keyframes timer-throb { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.05); } }
 
-/* ── ラウンド間のカウントダウン ─────────────────── */
+/* ── Round transition countdown (between rounds) ─── */
 #round-transition-timer {
   position:fixed; top:20px; left:50%;
   transform:translateX(-50%); z-index:28;
@@ -691,7 +692,7 @@ nav.topbar, .status-bar { display: none !important; }
   50%    { transform:scale(.96); opacity:.8; }
 }
 
-/* ── 推測マップ ───────────────────────────────────── */
+/* ── Guess map ───────────────────────────────────── */
 #guess-map-wrap {
   position:fixed; bottom:20px; left:20px; z-index:30;
   width:220px; height:155px; border-radius:10px; overflow:hidden;
@@ -736,7 +737,7 @@ nav.topbar, .status-bar { display: none !important; }
 .gmap-btn.lock.locked-in { background:var(--c-land); color:#010a14; }
 .gmap-btn.sp-confirm   { background:var(--c-ocean); color:#010a14; }
 
-/* ── 結果マップのピンラベル ───────────────────── */
+/* ── Pin labels on result maps ───────────────────── */
 .geo-pin-label {
   background:rgba(2,10,22,.9);
   border:1px solid rgba(26,144,208,.22);
@@ -748,7 +749,7 @@ nav.topbar, .status-bar { display: none !important; }
 }
 .geo-pin-label::before { display:none !important; }
 
-/* ── ロビー ───────────────────────────────────────── */
+/* ── Lobby ───────────────────────────────────────── */
 .l-tabs {
   display:flex; gap:0;
   border-bottom:1px solid rgba(26,144,208,.12); margin-bottom:26px;
@@ -828,7 +829,7 @@ nav.topbar, .status-bar { display: none !important; }
 }
 .no-rooms-msg { color:var(--c-sky-dim); font-family:var(--f-data); font-size:.7rem; text-align:center; padding:28px; }
 
-/* ── 待機室 ────────────────────────────────── */
+/* ── Waiting room ────────────────────────────────── */
 .player-list { display:flex; flex-direction:column; gap:6px; margin:10px 0; max-height:200px; overflow-y:auto; }
 .player-row {
   display:flex; align-items:center; gap:12px; padding:10px 14px;
@@ -874,7 +875,7 @@ nav.topbar, .status-bar { display: none !important; }
 .icr-invite-btn:disabled { opacity:.4; cursor:not-allowed; }
 .invite-empty-msg { font-family:var(--f-data); font-size:.68rem; color:var(--c-sky-dim); text-align:center; padding:14px; }
 
-/* ── 招待バナー ───────────────────────────────── */
+/* ── Invite banner ───────────────────────────────── */
 #invite-banner {
   position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:500;
   background:rgba(3,12,28,.97); border:1px solid var(--c-ocean);
@@ -892,7 +893,7 @@ nav.topbar, .status-bar { display: none !important; }
 .ib-decline { flex:1; padding:8px; border:1px solid rgba(26,144,208,.2); border-radius:var(--r); background:transparent; color:var(--c-sky-dim); font-family:var(--f-data); font-size:.7rem; cursor:pointer; letter-spacing:.08em; text-transform:uppercase; transition:all .15s; }
 .ib-decline:hover { border-color:var(--c-red); color:var(--c-red); }
 
-/* ── ラウンド終了 / SP結果 ───────────────────────── */
+/* ── Round end / SP result ───────────────────────── */
 #view-round-end, #view-sp-result { padding:0; }
 #round-end-shell, #sp-result-shell {
   position:fixed; inset:0; z-index:25; display:flex; flex-direction:column;
@@ -929,14 +930,14 @@ nav.topbar, .status-bar { display: none !important; }
 .rt-total   { color:var(--c-sky-dim); }
 .rt-no-guess{ color:rgba(255,255,255,.2); font-style:italic; }
 
-/* ── SP結果の統計 ─────────────────────────────── */
+/* ── SP result stats ─────────────────────────────── */
 .stat-block { display:flex; flex-direction:column; gap:2px; }
 .stat-label { font-family:var(--f-data); font-size:.56rem; letter-spacing:.18em; text-transform:uppercase; color:var(--c-sky-dim); }
 .stat-value { font-family:var(--f-ui); font-size:2.1rem; font-weight:900; line-height:1; }
 .stat-value.dist  { color:var(--c-ocean); }
 .stat-value.score { color:var(--c-terra); }
 
-/* ── ゲーム終了 ───────────────────────────────────── */
+/* ── Game over ───────────────────────────────────── */
 .go-podium { display:flex; gap:14px; justify-content:center; align-items:flex-end; margin:20px 0 24px; }
 .go-step { display:flex; flex-direction:column; align-items:center; gap:6px; }
 .go-step .gs-name  { font-family:var(--f-ui); font-size:.75rem; font-weight:700; letter-spacing:.08em; }
@@ -951,7 +952,7 @@ nav.topbar, .status-bar { display: none !important; }
 .go-rank-cell  { color:var(--c-sky-dim); font-size:.62rem; width:30px; }
 .go-score-cell { color:var(--c-ocean); font-weight:700; text-align:right; }
 
-/* ── トースト ───────────────────────────────────────── */
+/* ── Toast ───────────────────────────────────────── */
 #geo-toast {
   position:fixed; bottom:90px; left:50%; transform:translateX(-50%); z-index:200;
   padding:9px 22px; background:rgba(3,12,26,.97);
@@ -962,23 +963,23 @@ nav.topbar, .status-bar { display: none !important; }
 }
 #geo-toast.show { opacity:1; }
 
-/* ── タイムアウトパネル ──────────────────────────────── */
+/* ── Timeout panels ──────────────────────────────── */
 #sp-region-timeout, #mp-region-timeout { margin-top:32px; text-align:center; max-width:340px; }
 .timeout-desc { font-family:var(--f-data); font-size:.63rem; color:var(--c-sky-dim); line-height:1.85; letter-spacing:.04em; margin-top:10px; }
 
-/* ── 区切り線 ─────────────────────────────────────── */
+/* ── Divider ─────────────────────────────────────── */
 .geo-divider { height:1px; background:linear-gradient(90deg, transparent, rgba(26,144,208,.18), transparent); margin:20px 0; }
 
-/* ── スクロールバー ───────────────────────────────────── */
+/* ── Scrollbar ───────────────────────────────────── */
 ::-webkit-scrollbar { width:4px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:rgba(26,144,208,.2); border-radius:2px; }
 ::-webkit-scrollbar-thumb:hover { background:rgba(26,144,208,.45); }
 
  
-/* ── リージョンモードのツールバー ─────────────────────────────────── */
+/* ── Region mode toolbar ─────────────────────────────────── */
 .region-toolbar {
-  /* オーバーライド: 中央寄せ、幅を広く、折り返し対応 */
+  /* override: wider, left-aligned, wraps gracefully */
   left: 50% !important;
   transform: translateX(-50%) !important;
   max-width: 740px;
@@ -1025,7 +1026,7 @@ nav.topbar, .status-bar { display: none !important; }
   white-space: nowrap;
 }
  
-/* プリセット検索 ───────────────────────────────────────────── */
+/* Preset search ───────────────────────────────────────────── */
 .rt-preset-wrap {
   position: relative;
   display: flex;
@@ -1091,7 +1092,7 @@ nav.topbar, .status-bar { display: none !important; }
 .rt-pd-check { font-size: .8rem; color: var(--c-land); flex-shrink: 0; }
 .rt-preset-empty { font-family: var(--f-data); font-size: .65rem; color: rgba(150,200,240,.35); padding: 16px 14px; text-align: center; }
  
-/* プリセットアップロードモーダル ─────────────────────────────────────── */
+/* Preset upload modal ─────────────────────────────────────── */
 #preset-upload-modal {
   display: none;
   position: fixed;
@@ -1152,7 +1153,7 @@ nav.topbar, .status-bar { display: none !important; }
 #pum-cancel-btn  { background: transparent; border: 1px solid rgba(26,144,208,.25); color: rgba(150,200,240,.6); }
 #pum-cancel-btn:hover { border-color: var(--c-red); color: var(--c-red); }
  
-/* ゲームHUDのリージョン表示 ────────────────────────────────── */
+/* Region label in game HUD ────────────────────────────────── */
 #hud-region-bar {
   position: absolute;
   bottom: 0; left: 0; right: 0;
@@ -1185,7 +1186,7 @@ nav.topbar, .status-bar { display: none !important; }
   color: rgba(26,144,208,.5);
 }
  
-/* ドロップダウンのスクロールバー */
+/* Scrollbar in dropdown */
 .rt-preset-dropdown::-webkit-scrollbar { width: 4px; }
 .rt-preset-dropdown::-webkit-scrollbar-track { background: transparent; }
 .rt-preset-dropdown::-webkit-scrollbar-thumb { background: rgba(26,144,208,.25); border-radius: 2px; }
@@ -1198,7 +1199,7 @@ nav.topbar, .status-bar { display: none !important; }
 <div id="geo-root">
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: ユーザー名
+     VIEW: USERNAME
 ══════════════════════════════════════════════════ -->
 <div id="view-username" class="geo-view active">
   <div class="geo-aurora"></div>
@@ -1218,19 +1219,17 @@ nav.topbar, .status-bar { display: none !important; }
     <span class="geo-coord-txt">1.3521° N · 103.8198° E</span>
   </div>
   <div class="geo-card">
-    <div class="geo-eyebrow">◈ LAN ジオゲッサー</div>
-    <h1>ジオゲッサー</h1>
-    <h2>LANから世界を探検しよう</h2>
+    <div class="geo-eyebrow">◈ LAN GeoGuesser</div>
+    <h1>GeoGuesser</h1>
+    <h2>LANで世界を探検しよう</h2>
     {% if not google_maps_key %}
     <div class="no-key-warn">
       ⚠ <strong>Google Maps APIキーが設定されていません。</strong><br>
-      これがないとパノラマビューアは動作しません。<br>
-      <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a> で無料のキーを取得し、
-      <code>configvars.json</code> の <code>geoguesser → GOOGLE_MAPS_EMBED_KEY</code> に追加してください。
+      パノラマビューアはこれなしでは動作しません。<a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a> で無料キーを取得し（「Maps Embed API」と「Street View Static API」を有効にしてください — プログラムは後者のメタデータのみ使用します）、<code>configvars.json</code> の <code>geoguesser → GOOGLE_MAPS_EMBED_KEY</code> に追加してください。
     </div>
     {% endif %}
     <div class="geo-field">
-      <label class="geo-label">あなたの名前</label>
+      <label class="geo-label">ユーザー名</label>
       <input id="username-inp" class="geo-input" type="text" maxlength="24"
              placeholder="名前を入力…" autocomplete="off"
              onkeydown="if(event.key==='Enter')submitUsername()"/>
@@ -1246,7 +1245,7 @@ nav.topbar, .status-bar { display: none !important; }
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: モード選択
+     VIEW: MODE SELECT
 ══════════════════════════════════════════════════ -->
 <div id="view-mode" class="geo-view">
   <div class="geo-aurora"></div>
@@ -1257,17 +1256,17 @@ nav.topbar, .status-bar { display: none !important; }
   <div style="text-align:center;margin-bottom:28px;position:relative;z-index:2">
     <div class="geo-eyebrow" style="justify-content:center">◈ モード選択</div>
     <div style="font-family:var(--f-ui);font-size:2.4rem;font-weight:900;letter-spacing:-.01em;margin-bottom:5px">
-      どうやって遊びますか？
+      遊び方は？
     </div>
     <div style="font-family:var(--f-data);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--c-sky-dim)">
-      <span id="mode-username-label" style="color:var(--c-ocean)"></span> としてプレイ中
+      <span id="mode-username-label" style="color:var(--c-ocean)"></span> としてプレイ
     </div>
   </div>
   <div class="mode-grid">
     <div class="mode-card" onclick="startSinglePlayer()">
       <div class="mc-icon">🧭</div>
       <div class="mc-title">ソロ探検家</div>
-      <div class="mc-desc">自分のペースで世界を探検。タイマーなし、競争なし。あなたと世界だけ。</div>
+      <div class="mc-desc">自分のペースで地球を探検。タイマーなし、競争なし。あなたと世界だけ。</div>
     </div>
     <div class="mode-card" onclick="startMultiplayer()">
       <div class="mc-icon">🌍</div>
@@ -1276,26 +1275,26 @@ nav.topbar, .status-bar { display: none !important; }
     </div>
   </div>
   <div style="margin-top:24px;position:relative;z-index:2;display:flex;gap:14px;align-items:center">
-    <button class="geo-btn ghost" onclick="showView('view-username')">← 名前を変更</button>
+    <button class="geo-btn ghost" onclick="showView('view-username')">← 名前変更</button>
     <a href="/" class="geo-back-link">LANHubに戻る</a>
   </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: リージョン選択
+     VIEW: REGION DRAW
 ══════════════════════════════════════════════════ -->
 <div id="view-region" class="geo-view">
   <div id="region-map-container">
     <div id="region-map"></div>
     <div class="region-toolbar" id="region-toolbar">
-      <!-- モードセレクター -->
+      <!-- Mode selector -->
       <select id="rt-mode-select" class="rt-mode-select" onchange="onRegionModeChange()">
         <option value="world">🌍 全世界</option>
         <option value="custom">✏️ カスタムリージョン</option>
         <option value="preset">📌 プリセット</option>
       </select>
     
-      <!-- カスタムリージョン操作 -->
+      <!-- Custom region controls -->
       <div id="rt-custom-controls" class="rt-ctrl-group" style="display:none">
         <span id="rt-custom-count" style="font-family:var(--f-data);font-size:.58rem;color:rgba(26,144,208,.6);white-space:nowrap"></span>
         <button class="geo-btn ghost rt-btn-sm" onclick="clearCustomRegion()">✕ クリア</button>
@@ -1305,7 +1304,7 @@ nav.topbar, .status-bar { display: none !important; }
         </button>
       </div>
     
-      <!-- プリセット操作 -->
+      <!-- Preset controls -->
       <div id="rt-preset-controls" class="rt-ctrl-group rt-preset-wrap" style="display:none">
         <input id="rt-preset-inp" class="rt-preset-inp" type="text"
               placeholder="プリセットを検索…"
@@ -1316,21 +1315,21 @@ nav.topbar, .status-bar { display: none !important; }
         <div id="rt-preset-dropdown" class="rt-preset-dropdown"></div>
       </div>
     
-      <!-- 確定ボタン（常に表示） -->
+      <!-- Confirm (always shown) -->
       <button class="geo-btn primary rt-btn-sm" id="rt-confirm-btn"
               disabled onclick="confirmRegion()">✓ 確定</button>
       <button class="geo-btn ghost rt-btn-sm" onclick="cancelRegion()">キャンセル</button>
     </div>
     
     <div id="region-status">
-      <span id="region-hint">上でモードを選び、確定ボタンを押してください</span>
+      <span id="region-hint">上記でモードを選び、確定を押してください</span>
     </div>
 
   </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: SP ローディング
+     VIEW: SP LOADING
 ══════════════════════════════════════════════════ -->
 <div id="view-sp-loading" class="geo-view">
   <div class="geo-scanner" aria-hidden="true">
@@ -1360,18 +1359,18 @@ nav.topbar, .status-bar { display: none !important; }
     </button>
     <div class="timeout-desc">
       このリージョンにはストリートビューのカバレッジがない可能性があります。<br>
-      より広いエリアや人口の多い場所を選んでみてください。
+      より広い、または人口の多いエリアを選んでみてください。
     </div>
   </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: SP ゲーム
+     VIEW: SP GAME
 ══════════════════════════════════════════════════ -->
 <div id="view-sp-game" class="geo-view" style="padding:0;min-height:0"></div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: SP 結果
+     VIEW: SP RESULT
 ══════════════════════════════════════════════════ -->
 <div id="view-sp-result" class="geo-view" style="padding:0;min-height:0">
   <div id="sp-result-shell">
@@ -1399,15 +1398,15 @@ nav.topbar, .status-bar { display: none !important; }
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: MP ロビー
+     VIEW: MP LOBBY
 ══════════════════════════════════════════════════ -->
 <div id="view-lobby" class="geo-view">
   <div class="geo-aurora"></div>
   <div class="geo-earth-wrap" aria-hidden="true"><div class="geo-earth"></div></div>
   <div class="geo-card wide">
     <div class="geo-eyebrow">◈ マルチプレイヤー</div>
-    <h1>ジオゲッサー</h1>
-    <h2><span id="lobby-username-label" style="color:var(--c-ocean)"></span> としてプレイ中</h2>
+    <h1>GeoGuesser</h1>
+    <h2><span id="lobby-username-label" style="color:var(--c-ocean)"></span> としてプレイ</h2>
     <div class="l-tabs">
       <button class="l-tab active" onclick="switchLobbyTab('create',this)">＋ ルーム作成</button>
       <button class="l-tab"        onclick="switchLobbyTab('find',this)">🔍 ルーム検索</button>
@@ -1416,7 +1415,7 @@ nav.topbar, .status-bar { display: none !important; }
       <div class="geo-field">
         <label class="geo-label">ルーム名</label>
         <input id="room-title-inp" class="geo-input" type="text" maxlength="40"
-               placeholder="私のジオゲッサールーム" autocomplete="off"/>
+               placeholder="私のGeoGuesserルーム" autocomplete="off"/>
       </div>
       <div class="cf-row">
         <div class="geo-field">
@@ -1439,7 +1438,7 @@ nav.topbar, .status-bar { display: none !important; }
         </div>
       </div>
       <div class="geo-field">
-        <label class="geo-label">ラウンドごとの制限時間</label>
+        <label class="geo-label">ラウンドあたりの制限時間</label>
         <div class="time-row">
           <button class="time-btn"        data-v="30"  onclick="selectTime(this)">30秒</button>
           <button class="time-btn"        data-v="60"  onclick="selectTime(this)">1分</button>
@@ -1450,10 +1449,10 @@ nav.topbar, .status-bar { display: none !important; }
         </div>
       </div>
       <div class="geo-field">
-        <label class="geo-label">位置情報リージョン</label>
+        <label class="geo-label">位置リージョン</label>
         <div id="create-region-display">
           <button class="geo-btn ghost" style="width:100%;padding:11px" onclick="openRegionForRoom()">
-            🌍 地図でリージョンを選択…
+            🌍 地図でリージョンを描く…
           </button>
         </div>
       </div>
@@ -1468,7 +1467,7 @@ nav.topbar, .status-bar { display: none !important; }
              placeholder="ルーム検索…" oninput="filterRooms()" autocomplete="off"
              style="margin-bottom:14px"/>
       <div id="rooms-list">
-        <div class="no-rooms-msg" id="no-rooms-msg">公開ルームはまだありません。作成してください。</div>
+        <div class="no-rooms-msg" id="no-rooms-msg">公開ルームはまだありません。作成してください！</div>
       </div>
       <div style="margin-top:18px">
         <button class="geo-btn ghost" onclick="backToModeFromLobby()">← 戻る</button>
@@ -1478,7 +1477,7 @@ nav.topbar, .status-bar { display: none !important; }
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: 待機室
+     VIEW: WAITING ROOM
 ══════════════════════════════════════════════════ -->
 <div id="view-room" class="geo-view">
   <div class="geo-card">
@@ -1486,7 +1485,7 @@ nav.topbar, .status-bar { display: none !important; }
     <h1 id="room-title-label" style="margin-bottom:14px">ルーム</h1>
     <div class="room-info-bar">
       <div class="rib-item">ラウンド <span id="rib-rounds">—</span></div>
-      <div class="rib-item">時間制限 <span id="rib-time">—</span></div>
+      <div class="rib-item">時間 <span id="rib-time">—</span></div>
       <div class="rib-item">
         リージョン <span id="rib-region">—</span>
         <button id="rib-region-btn" class="rr-region-btn"
@@ -1502,7 +1501,7 @@ nav.topbar, .status-bar { display: none !important; }
     <div id="invite-panel">
       <div class="invite-section-label">📨 このサーバー上のプレイヤーを招待</div>
       <div id="invite-candidate-list">
-        <div class="invite-empty-msg" id="invite-empty-msg">現在オンラインの他のプレイヤーはいません。</div>
+        <div class="invite-empty-msg" id="invite-empty-msg">オンラインの他のプレイヤーはいません。</div>
       </div>
     </div>
     <div class="geo-err" id="room-err"></div>
@@ -1516,7 +1515,7 @@ nav.topbar, .status-bar { display: none !important; }
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: MP ローディング
+     VIEW: MP LOADING
 ══════════════════════════════════════════════════ -->
 <div id="view-mp-loading" class="geo-view">
   <div class="geo-scanner" aria-hidden="true">
@@ -1556,12 +1555,12 @@ nav.topbar, .status-bar { display: none !important; }
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: MP ゲーム
+     VIEW: MP GAME
 ══════════════════════════════════════════════════ -->
 <div id="view-game" class="geo-view" style="padding:0;min-height:0"></div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: ラウンド終了
+     VIEW: ROUND END
 ══════════════════════════════════════════════════ -->
 <div id="view-round-end" class="geo-view" style="padding:0;min-height:0">
   <div id="round-end-shell">
@@ -1582,7 +1581,7 @@ nav.topbar, .status-bar { display: none !important; }
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     ビュー: ゲーム終了
+     VIEW: GAME OVER
 ══════════════════════════════════════════════════ -->
 <div id="view-gameover" class="geo-view">
   <div class="geo-aurora"></div>
@@ -1592,7 +1591,7 @@ nav.topbar, .status-bar { display: none !important; }
     <h1 style="text-align:center;font-size:2.3rem;margin-bottom:4px">🌍 最終スコア</h1>
     <div class="go-podium" id="go-podium"></div>
     <div class="geo-divider"></div>
-    <table class="go-all-scores"><tbody id="go-scores-tbody"></tbody> </table>
+    <table class="go-all-scores"><tbody id="go-scores-tbody"></tbody></table>
     <div class="geo-btn-row" style="justify-content:center;margin-top:24px">
       <button class="geo-btn primary" id="go-restart-btn" onclick="restartGame()" style="display:none">▶ もう一度プレイ</button>
       <button class="geo-btn ghost"   onclick="leaveRoom()">← ルームを退出</button>
@@ -1606,7 +1605,7 @@ nav.topbar, .status-bar { display: none !important; }
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     グローバルオーバーレイ
+     GLOBAL OVERLAYS
 ══════════════════════════════════════════════════ -->
 <div id="sv-wrap">
   <iframe id="sv-iframe" src="about:blank"
@@ -1615,10 +1614,10 @@ nav.topbar, .status-bar { display: none !important; }
   <div id="sv-cover-bl"></div>
 </div>
 
-<!-- ゲームラウンドタイマー (ゲームプレイ中、上部中央) -->
+<!-- Game round timer (top center during gameplay) -->
 <div id="geo-round-timer"><div id="geo-timer-val">—</div></div>
 
-<!-- ラウンド間カウントダウン (上部中央) -->
+<!-- Round transition countdown (top center between rounds) -->
 <div id="round-transition-timer">
   <div id="rtt-label">次のラウンドまで</div>
   <div id="rtt-val">9</div>
@@ -1660,12 +1659,12 @@ nav.topbar, .status-bar { display: none !important; }
   <div class="ib-from" id="ib-from-label"></div>
   <div class="ib-room" id="ib-room-label"></div>
   <div class="ib-btns">
-    <button class="ib-accept"  onclick="acceptInvite()">✓ 参加</button>
+    <button class="ib-accept"  onclick="acceptInvite()">✓ ルームに参加</button>
     <button class="ib-decline" onclick="dismissInvite()">閉じる</button>
   </div>
 </div>
 
-<!-- リージョンプレビューモーダル -->
+<!-- Region preview modal -->
 <div id="region-preview-overlay">
   <div id="region-preview-card">
     <div id="region-preview-header">
@@ -1696,7 +1695,7 @@ nav.topbar, .status-bar { display: none !important; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script>
   /* =========================================================
-   GeoGuesser — 完全なJS (v2 — マルチポリゴンリージョン)
+   GeoGuesser — Complete JS (v2 — multi-polygon regions)
    ========================================================= */
  
 // Polyfill crypto.randomUUID for non-secure (HTTP) contexts
@@ -1719,7 +1718,7 @@ function _normLng(guessLng, answerLng) {
   return guessLng;
 }
 
-/* ── ピンアイコン生成 ─────────────────────────────────── */
+/* ── Pin icon factory ─────────────────────────────────── */
 function _makePinIcon(color, scale = 1) {
   const w = Math.round(22 * scale), h = Math.round(31 * scale);
   return L.divIcon({
@@ -1734,7 +1733,7 @@ function _makePinIcon(color, scale = 1) {
   });
 }
  
-/* ── ソケット設定 ─────────────────────────────────────── */
+/* ── Socket setup ─────────────────────────────────────── */
 const socket = io();
 socket.on('connect', () => {
   socket.emit('page_open', {path: window.location.pathname});
@@ -1743,7 +1742,7 @@ socket.on('connect', () => {
 window.addEventListener('pagehide',     () => socket.emit('geo_leave_route'));
 window.addEventListener('beforeunload', () => socket.emit('geo_leave_route'));
  
-/* ── アプリケーション状態 ────────────────────────────────────────── */
+/* ── App state ────────────────────────────────────────── */
 let myUsername    = null;
 let currentMode   = null;
 let currentRoomId = null;
@@ -1760,7 +1759,7 @@ let selectedTime    = 90;
 let regionForRoom       = false;
 let regionExplicitlySet = false;
  
-// 推測／ゲーム状態
+// Guess / game state
 let spCorrectLat = null;
 let spCorrectLng = null;
 let guessMapInst  = null;
@@ -1770,15 +1769,15 @@ let guessLocked   = false;
 let resultMapInst = null;
 let reMapInst     = null;
 let roundTimerInterval  = null;
-let roundEndActive    = false;  // 結果画面9秒間表示中
-let pendingRoundStart = null;   // その間に受信した geo_round_start をバッファ
+let roundEndActive    = false;  // true while the 9s results screen is showing
+let pendingRoundStart = null;   // buffers geo_round_start received during that window
 let roundAdvanceInterval = null;
-let currentRegionInfo = null;  // {label, creators} ゲーム中に表示
+let currentRegionInfo = null;  // {label, creators} displayed during gameplay
  
-/* ── リージョン状態 (v2) ────────────────────────────────── */
+/* ── Region state (v2) ────────────────────────────────── */
 let regionMode   = 'world'; // 'world' | 'custom' | 'preset'
-let customPolygons  = [];   // List[List[List[float]]] — 描画されたポリゴン
-let customLayers    = [];   // Leaflet レイヤー
+let customPolygons  = [];   // List[List[List[float]]] — drawn polygons
+let customLayers    = [];   // Leaflet layers for drawn polygons
 let _geoDrawEnabled = false;
 let _geoDrawActive  = false;
 let _geoDrawPoints  = [];
@@ -1789,7 +1788,7 @@ let presetMapLayers      = []; // [{id, layers:[L.layer,...]}]
 let presetSearchTimeout  = null;
 let regionMapInst        = null;
  
-/* ── ビューヘルパー ─────────────────────────────────────── */
+/* ── View helpers ─────────────────────────────────────── */
 function showView(id) {
   document.querySelectorAll('.geo-view').forEach(v => v.classList.remove('active'));
   const el = document.getElementById(id);
@@ -1800,7 +1799,7 @@ function showHud(show)      { document.getElementById('game-hud').classList.togg
 function showSpHud(show)    { document.getElementById('sp-hud').style.display = show ? 'block' : 'none'; }
 function showGuessMap(show) { document.getElementById('guess-map-wrap').classList.toggle('map-visible', show); }
  
-// NEW — loadSV を完全に置き換え:
+// NEW — replace loadSV entirely:
 let _svRetryTimer = null;
 let _svCurrentPanoId = null;
 
@@ -1813,7 +1812,8 @@ function loadSV(panoId) {
 
   const iframe = document.getElementById('sv-iframe');
 
-  // 読み込み完了時のウォッチドッグ解除
+  // Cancel the watchdog the moment the iframe finishes loading —
+  // if Google served the pano page at all, it loaded successfully.
   const onLoad = () => {
     clearTimeout(_svRetryTimer);
     iframe.removeEventListener('load', onLoad);
@@ -1823,7 +1823,8 @@ function loadSV(panoId) {
   iframe.src = `https://www.google.com/maps/embed/v1/streetview?key=${GEO_MAPS_KEY}&pano=${panoId}&heading=0&pitch=0&fov=90`;
   setTimeout(() => GeoSFX.play('svLoaded'), 600);
 
-  // ウォッチドッグ: iframe が 12秒以内に 'load' を発火しなければネットワーク障害とみなす
+  // Watchdog: only fires if the iframe never fires 'load' within 12s,
+  // which means a network-level failure (not a pano-not-found case).
   _svRetryTimer = setTimeout(() => {
     if (!document.getElementById('sv-wrap').classList.contains('active')) return;
     if (document.getElementById('sv-error-banner')) return;
@@ -1850,7 +1851,7 @@ function loadSV(panoId) {
       </button>
     `;
     document.getElementById('sv-wrap').appendChild(banner);
-  }, 12000);   // 長めの時間 — ネットワーク障害だけがこの遅延を引き起こす
+  }, 12000);   // longer window — only network failures take this long
 }
 
 function clearSV() {
@@ -1859,7 +1860,7 @@ function clearSV() {
   document.getElementById('sv-iframe').src = 'about:blank';
 }
  
-/* ── リージョンプレビューモーダル ─────────────────────────────── */
+/* ── Region preview modal ─────────────────────────────── */
 // polygons: List[List[List[float]]]
 function showRegionPreview(polygons, label) {
   if (!polygons || polygons.length === 0) return;
@@ -1897,7 +1898,7 @@ function hideRegionPreview() {
 document.getElementById('region-preview-overlay')
   .addEventListener('click', e => { if (e.target.id === 'region-preview-overlay') hideRegionPreview(); });
  
-/* ── トースト ────────────────────────────────────────────── */
+/* ── Toast ────────────────────────────────────────────── */
 function geoToast(msg, ms = 2500) {
   const el = document.getElementById('geo-toast');
   el.textContent = msg;
@@ -1906,7 +1907,7 @@ function geoToast(msg, ms = 2500) {
   el._t = setTimeout(() => el.classList.remove('show'), ms);
 }
  
-/* ── フォーマッター ───────────────────────────────────────── */
+/* ── Formatters ───────────────────────────────────────── */
 function fmtDist(km) {
   if (km == null) return '—';
   if (km < 1)    return Math.round(km * 1000) + ' m';
@@ -1921,7 +1922,7 @@ function escGeo(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
  
-/* ── ユーザー名 ─────────────────────────────────────────── */
+/* ── Username ─────────────────────────────────────────── */
 function submitUsername() {
   const val = document.getElementById('username-inp').value.trim();
   if (!val) { document.getElementById('username-err').textContent = 'ユーザー名を入力してください。'; return; }
@@ -1940,7 +1941,7 @@ socket.on('geo_username_ack', data => {
   if (document.getElementById('view-username').classList.contains('active')) showView('view-mode');
 });
  
-/* ── モード選択 ──────────────────────────────────────── */
+/* ── Mode select ──────────────────────────────────────── */
 function startSinglePlayer() {
   currentMode = 'sp';
   regionForRoom = false;
@@ -1957,7 +1958,7 @@ function startMultiplayer() {
 }
 function backToModeFromLobby() { showView('view-mode'); }
  
-/* ── リージョン描画ビュー ─────────────────────────────────── */
+/* ── Region draw view ─────────────────────────────────── */
 function openRegionDraw() {
   showView('view-region');
   setTimeout(() => {
@@ -1968,7 +1969,7 @@ function openRegionDraw() {
       _setupRegionDrawEvents();
     }
     regionMapInst.invalidateSize();
-    // 現在のモード状態にリセット
+    // Reset to current mode state
     onRegionModeChange();
   }, 50);
 }
@@ -1980,7 +1981,7 @@ function cancelRegion() {
   regionForRoom ? showView('view-lobby') : showView('view-mode');
 }
  
-/* ── リージョンモードのロジック ────────────────────────────────── */
+/* ── Region mode logic ────────────────────────────────── */
 function onRegionModeChange() {
   const select = document.getElementById('rt-mode-select');
   if (!select) return;
@@ -1992,11 +1993,11 @@ function onRegionModeChange() {
   if (customCtrl) customCtrl.style.display  = regionMode === 'custom' ? 'flex' : 'none';
   if (presetCtrl) presetCtrl.style.display  = regionMode === 'preset' ? 'flex' : 'none';
  
-  // マップ描画の有効/無効
+  // Enable/disable map drawing
   _geoDrawEnabled = (regionMode === 'custom');
   if (!_geoDrawEnabled && regionMapInst) regionMapInst.dragging.enable();
  
-  // 他モードの状態をクリア
+  // Clear the other mode's state
   if (regionMode !== 'custom') {
     _clearCustomLayers();
   }
@@ -2006,13 +2007,13 @@ function onRegionModeChange() {
     if (dd) { dd.classList.remove('open'); dd.innerHTML = ''; }
   }
  
-  // プリセット選択中にモードを切り替えたら閉じる
+  // Close preset dropdown when switching away
   if (regionMode !== 'preset') {
     selectedPresets = [];
     updatePresetCount();
   }
  
-  // ヒントテキスト
+  // Hint text
   const hints = {
     'world':  '全世界が使用されます — 準備ができたら確定してください。',
     'custom': '地図上でクリック＆ドラッグしてリージョンを描画します。複数描画可能です。',
@@ -2024,7 +2025,7 @@ function onRegionModeChange() {
   updateConfirmButton();
 }
  
-/* ── カスタムポリゴン描画 ──────────────────────────── */
+/* ── Custom polygon drawing ──────────────────────────── */
 function _setupRegionDrawEvents() {
   const map = regionMapInst;
  
@@ -2061,15 +2062,15 @@ function _setupRegionDrawEvents() {
       _geoDrawPoints = [];
       _geoDrawLayer  = null;
       const el = document.getElementById('rt-custom-count');
-      if (el) el.textContent = `${customPolygons.length} 領域${customPolygons.length > 1 ? 's' : ''}`;
+      if (el) el.textContent = `${customPolygons.length} リージョン${customPolygons.length > 1 ? 's' : ''}`;
       const hint = document.getElementById('region-hint');
-      if (hint) hint.textContent = `${customPolygons.length} 領域を描画しました。続けて描画するか確定してください。`;
+      if (hint) hint.textContent = `${customPolygons.length} リージョン描画しました。さらに描くか確定してください。`;
     }
     _geoDrawPoints = [];
     updateConfirmButton();
   });
  
-  // タッチ対応
+  // Touch support
   map.on('touchstart', e => {
     if (!_geoDrawEnabled) return;
     const t = e.originalEvent.touches[0];
@@ -2129,7 +2130,7 @@ function _clearCustomLayers() {
   if (el) el.disabled = true;
 }
  
-/* ── プリセット検索 ────────────────────────────────────── */
+/* ── Preset search ────────────────────────────────────── */
 function searchPresetsDebounced() {
   clearTimeout(presetSearchTimeout);
   presetSearchTimeout = setTimeout(doPresetSearch, 180);
@@ -2172,11 +2173,11 @@ function renderPresetDropdown() {
 async function togglePreset(presetId) {
   const existingIdx = selectedPresets.findIndex(p => p.id === presetId);
   if (existingIdx >= 0) {
-    // 選択解除
+    // Deselect
     removePresetMapLayer(presetId);
     selectedPresets.splice(existingIdx, 1);
   } else {
-    // 選択 — ポリゴンデータを取得
+    // Select — fetch full data with polygon
     try {
       const res  = await fetch(`/api/geo/presets/${presetId}`);
       const data = await res.json();
@@ -2188,7 +2189,7 @@ async function togglePreset(presetId) {
   }
   updatePresetCount();
   updateConfirmButton();
-  renderPresetDropdown(); // チェックマーク更新
+  renderPresetDropdown(); // refresh checkmarks
 }
  
 function showPresetOnMap(preset) {
@@ -2242,7 +2243,7 @@ function updatePresetCount() {
     : '';
 }
  
-// プリセットドロップダウンを外側クリックで閉じる
+// Close preset dropdown when clicking outside
 document.addEventListener('click', e => {
   const wrap = document.getElementById('rt-preset-controls');
   if (wrap && !wrap.contains(e.target)) {
@@ -2251,7 +2252,7 @@ document.addEventListener('click', e => {
   }
 });
  
-/* ── 確定ボタンの状態 ─────────────────────────────── */
+/* ── Confirm button state ─────────────────────────────── */
 function updateConfirmButton() {
   const btn = document.getElementById('rt-confirm-btn');
   if (!btn) return;
@@ -2265,7 +2266,7 @@ function updateConfirmButton() {
   if (upBtn) upBtn.disabled = (regionMode !== 'custom' || customPolygons.length === 0);
 }
  
-/* ── 送信用リージョンデータ取得 ───────────────────── */
+/* ── Get region data for submission ───────────────────── */
 function getRegionForSubmit() {
   if (regionMode === 'world') {
     return {polygons: [], region_is_world: true, label: '全世界', creators: []};
@@ -2302,7 +2303,7 @@ function resetRegionState() {
   if (presetCtrl) presetCtrl.style.display = 'none';
 }
  
-/* ── リージョン確定 ───────────────────────────────────── */
+/* ── Confirm region ───────────────────────────────────── */
 function confirmRegion() {
   GeoSFX.play('confirm');
   const region = getRegionForSubmit();
@@ -2321,7 +2322,7 @@ function confirmRegion() {
       </div>`;
     showView('view-lobby');
   } else {
-    // シングルプレイヤー
+    // Single player
     showView('view-sp-loading');
     const t = document.getElementById('sp-region-timeout');
     if (t) t.style.display = 'none';
@@ -2332,7 +2333,7 @@ function confirmRegion() {
   }
 }
  
-/* ── プリセットアップロードモーダル ──────────────────────────────── */
+/* ── Preset upload modal ──────────────────────────────── */
 function openPresetUploadModal() {
   if (customPolygons.length === 0) return;
   document.getElementById('preset-title-inp').value = '';
@@ -2379,7 +2380,7 @@ async function submitPresetCreate() {
   }
 }
  
-/* ── SP ローディング / ゲーム ────────────────────────────────── */
+/* ── SP loading / game ────────────────────────────────── */
 socket.on('geo_sp_loading', data => {
   document.getElementById('sp-loading-msg').textContent = data.message || '場所を探しています';
   const t = document.getElementById('sp-region-timeout');
@@ -2403,7 +2404,7 @@ function _startSpGame(panoId) {
   showView('view-sp-game'); showSV(true); showSpHud(true); showHud(false); showGuessMap(true);
   loadSV(panoId); initGuessMap();
  
-  // SP HUD ラベル
+  // SP HUD label
   const spLabel = document.getElementById('sp-hud-label');
   if (spLabel) spLabel.textContent = 'シングルプレイヤー';
   const spRegion = document.getElementById('sp-hud-region');
@@ -2461,7 +2462,7 @@ socket.on('geo_sp_result', data => {
       L.polyline([answerLL, guessLL],
         {color: 'rgba(255,255,255,.3)', dashArray: '5,5', weight: 1.5}).addTo(resultMapInst);
       resultMapInst.fitBounds(
-        L.latLngBounds([answerLL, guessLL]).pad(0.25),   // ← L.latLng で正規化済みの経度を保持
+        L.latLngBounds([answerLL, guessLL]).pad(0.25),   // ← L.latLng objects preserve normLng
         {maxZoom: 10}
       );
     } else {
@@ -2483,7 +2484,7 @@ function spChangeRegion() { regionForRoom = false; openRegionDraw(); }
 function spBackToMenu()   { showSV(false); showSpHud(false); showGuessMap(false); clearSV(); showView('view-mode'); }
 function spExitGame()     { showSV(false); showSpHud(false); showGuessMap(false); clearSV(); showView('view-mode'); }
  
-/* ── ロビー ────────────────────────────────────────────── */
+/* ── Lobby ────────────────────────────────────────────── */
  
 function switchLobbyTab(tab, btn) {
   document.querySelectorAll('.l-tab').forEach(b => b.classList.remove('active'));
@@ -2564,7 +2565,7 @@ function renderRoomList(rooms) {
     row.innerHTML = `
       <div style="flex:1">
         <div class="rr-title">${escGeo(r.title)}</div>
-        <div class="rr-meta">${r.players} プレイヤー · ${r.rounds} ラウンド · ${fmtTime(r.time)} · ${escGeo(regionLabel)}${escGeo(creatorStr)}</div>
+        <div class="rr-meta">${r.players} プレイヤー${r.players !== 1 ? 's' : ''} · ${r.rounds} ラウンド · ${fmtTime(r.time)} · ${escGeo(regionLabel)}${escGeo(creatorStr)}</div>
       </div>
       ${regionBtn}
       <span class="rr-badge">参加</span>`;
@@ -2573,7 +2574,7 @@ function renderRoomList(rooms) {
   });
 }
  
-/* ── 待機室 ─────────────────────────────────────── */
+/* ── Waiting room ─────────────────────────────────────── */
 socket.on('geo_room_state', data => {
   currentRoomId      = data.id;
   currentRoomPrivacy = data.privacy;
@@ -2582,7 +2583,7 @@ socket.on('geo_room_state', data => {
   document.getElementById('rib-time').textContent     = fmtTime(data.time_limit);
   document.getElementById('rib-privacy').textContent  = data.privacy === 'private' ? '🔒 非公開' : '🌐 公開';
  
-  // リージョンラベル
+  // Region label
   currentRoomRegion = data.region || [];
   let regionText    = data.region_is_world
     ? '🌍 全世界'
@@ -2599,7 +2600,7 @@ socket.on('geo_room_state', data => {
     ribBtn.onclick = () => showRegionPreview(currentRoomRegion, data.region_label || 'リージョン');
   }
  
-  // プレイヤーリスト
+  // Player list
   const plist = document.getElementById('waiting-player-list');
   plist.innerHTML = '';
   data.players.forEach(p => {
@@ -2634,7 +2635,7 @@ socket.on('geo_you_are_creator', () => {
   if (currentRoomPrivacy === 'private') document.getElementById('invite-panel').classList.add('visible');
 });
 socket.on('geo_player_joined', data => {
-  GeoSFX.play('playerJoined');      // ← 追加
+  GeoSFX.play('playerJoined');      // ← add
   geoToast(`${data.username} が参加しました`);
 });
  
@@ -2673,7 +2674,7 @@ function leaveRoom() {
   showView('view-lobby');
 }
  
-/* ── MP ローディング ───────────────────────────────────────── */
+/* ── MP loading ───────────────────────────────────────── */
 socket.on('geo_loading', data => {
   if (roundEndActive) return;
   document.getElementById('mp-loading-msg').textContent = data.message || '場所を探しています';
@@ -2698,12 +2699,12 @@ socket.on('geo_fetch_error', data => {
   socket.emit('geo_get_lobby'); showView('view-room');
 });
  
-/* ── ラウンド開始 ──────────────────────────────────────── */
+/* ── Round start ──────────────────────────────────────── */
 function _applyRoundStart(data) {
   GeoSFX.play('roundStart');
   guessLocked = false; currentGuess = null;
   if (guessMarker && guessMapInst) { guessMapInst.removeLayer(guessMarker); guessMarker = null; }
-  // 遷移タイマーを非表示
+  // Hide transition timer
   const rtt = document.getElementById('round-transition-timer');
   if (rtt) rtt.classList.remove('visible');
 
@@ -2711,7 +2712,7 @@ function _applyRoundStart(data) {
   document.getElementById('hud-round-label').textContent = 'ラウンド';
   document.getElementById('hud-locked-label').textContent = '';
 
-  // リージョンHUD
+  // Region HUD
   _updateGameRegionHUD(data.region_label || '', data.region_preset_usernames || []);
 
   showView('view-game'); showSV(true); showHud(true); showSpHud(false); showGuessMap(true);
@@ -2724,7 +2725,7 @@ function _applyRoundStart(data) {
 
 socket.on('geo_round_start', data => {
   if (roundEndActive) {
-    // 結果画面のカウントダウン中に到着 — バッファ
+    // Pano is ready but the results countdown isn't done — buffer it.
     pendingRoundStart = data;
     return;
   }
@@ -2750,7 +2751,7 @@ function _startRoundTimer(totalSecs) {
     bigVal.textContent = fmtTime(remaining);
     bigTimer.classList.toggle('urgent', remaining <= 10);
 
-    // ── サウンドフック ──────────────────────────────────────
+    // ── Sound hooks ──────────────────────────────────────
     if (remaining === 0)       GeoSFX.play('timesUp');
     else if (remaining <= 5)   GeoSFX.play('timerUrgent');
     else if (remaining <= 10)  GeoSFX.play('timerTick');
@@ -2785,11 +2786,11 @@ socket.on('geo_guess_locked', data => {
   geoToast(`${data.username} が確定しました`);
 });
  
-/* ── ラウンド終了 ────────────────────────────────────────── */
+/* ── Round end ────────────────────────────────────────── */
 socket.on('geo_round_end', data => {
-  GeoSFX.play('resultsReveal');     // ← 追加
+  GeoSFX.play('resultsReveal');     // ← add
 
-  // 自分のスコアに応じたサウンド
+  // Play a quality sound based on your own score
   const myResult = data.results.find(r => r.sid === mySid);
   if (myResult) {
     if      (myResult.round_score >= 4500) GeoSFX.play('excellent');
@@ -2824,7 +2825,7 @@ socket.on('geo_round_end', data => {
       clearInterval(roundAdvanceInterval);
       roundEndActive = false;
       if (rtt) rtt.classList.remove('visible');
-      // サーバーが次のラウンド開始を既に送っていれば適用
+      // If the server already sent the next round start, apply it now
       if (pendingRoundStart) {
         const d = pendingRoundStart;
         pendingRoundStart = null;
@@ -2845,7 +2846,8 @@ socket.on('geo_round_end', data => {
 
   const cLat = data.correct_lat, cLng = data.correct_lng;
 
-  // L.latLng() を使い、範囲外の経度を保持する
+  // Build bounds incrementally using L.latLng() so out-of-range
+  // (normalized) longitudes are preserved and not clamped by Leaflet
   let bounds = L.latLngBounds([L.latLng(cLat, cLng)]);
 
   L.marker([cLat, cLng], {icon: _makePinIcon('#4caf50', 1.5), zIndexOffset: 1000})
@@ -2858,7 +2860,7 @@ socket.on('geo_round_end', data => {
     if (!r.guessed || r.guess_lat == null) return;
     const col     = COLORS[i % COLORS.length];
     const normLng = _normLng(r.guess_lng, cLng);
-    const ll      = L.latLng(r.guess_lat, normLng);   // ← L.latLng で正規化
+    const ll      = L.latLng(r.guess_lat, normLng);   // ← L.latLng preserves value
 
     L.marker(ll, {icon: _makePinIcon(col, 1.0), zIndexOffset: 500 - i})
       .bindPopup(`${r.username}: ${fmtDist(r.distance_km)}`)
@@ -2866,7 +2868,7 @@ socket.on('geo_round_end', data => {
       .addTo(reMapInst);
     L.polyline([[cLat, cLng], ll], {color: col, opacity: .45, weight: 1.5, dashArray: '4,4'}).addTo(reMapInst);
 
-    bounds.extend(ll);   // ← L.latLng オブジェクトで拡張
+    bounds.extend(ll);   // ← extend with the same L.latLng object
   });
 
   if (bounds.isValid()) {
@@ -2893,7 +2895,7 @@ function _renderResultsTable(results) {
   });
 }
  
-/* ── ゲーム終了 ────────────────────────────────────────── */
+/* ── Game over ────────────────────────────────────────── */
 socket.on('geo_game_over', data => {
   GeoSFX.play('gameOver');
   if (roundAdvanceInterval) { clearInterval(roundAdvanceInterval); roundAdvanceInterval = null; }
@@ -2953,7 +2955,7 @@ function _cleanupGameState() {
 socket.on('geo_region_no_coverage', () => {
   showSV(false); showHud(false); showSpHud(false); showGuessMap(false); clearSV();
 
-  // 古いオーバーレイがあれば削除
+  // Remove any stale overlay from a previous failure
   document.getElementById('geo-no-coverage-overlay')?.remove();
 
   const msg = document.createElement('div');
@@ -2969,12 +2971,12 @@ socket.on('geo_region_no_coverage', () => {
       <div style="font-size:2rem;margin-bottom:16px">🌐</div>
       <div style="font-family:var(--f-data);font-size:.58rem;letter-spacing:.2em;
            text-transform:uppercase;color:var(--c-red);margin-bottom:10px">
-        カバレッジが見つかりません
+        カバレッジなし
       </div>
       <div style="font-family:var(--f-data);font-size:.75rem;color:var(--c-sky-dim);
            line-height:1.7;margin-bottom:24px">
         選択したリージョン内にストリートビューのパノラマが見つかりませんでした。
-        別のリージョンまたはより広いエリアを試してください。
+        別の、またはより広いリージョンをお試しください。
       </div>
       <button onclick="document.getElementById('geo-no-coverage-overlay').remove();
                        regionForRoom ? showView('view-lobby') : openRegionDraw();"
@@ -2998,7 +3000,7 @@ socket.on('geo_search_status', data => {
   if (mpEl) mpEl.textContent = data.message;
 });
 
-/* ── 推測マップ ────────────────────────────────────────── */
+/* ── Guess map ────────────────────────────────────────── */
 function initGuessMap() {
   if (guessMapInst) { guessMapInst.invalidateSize(); return; }
   guessMapInst = L.map('guess-map', {center: [20, 0], zoom: 1, minZoom: 1, maxZoom: 18, zoomControl: false, attributionControl: false});
@@ -3023,7 +3025,7 @@ function initGuessMap() {
 
 <script>
 /* ═══════════════════════════════════════════════════════
-   GeoGuesser サウンドエフェクト — Web Audio API
+   GeoGuesser Sound Effects — Web Audio API
    ═══════════════════════════════════════════════════════ */
 const GeoSFX = (() => {
   let ctx = null;
@@ -3034,7 +3036,7 @@ const GeoSFX = (() => {
     return ctx;
   }
 
-  /* ── プリミティブ ──────────────────────────────────────── */
+  /* ── Primitives ──────────────────────────────────────── */
 
   function _osc(type, freq, start, dur, g0, g1, c = _ctx()) {
     const g   = c.createGain();
@@ -3072,11 +3074,11 @@ const GeoSFX = (() => {
     src.start(start); src.stop(start + dur + 0.01);
   }
 
-  /* ── サウンドレシピ ───────────────────────────────────── */
+  /* ── Sound recipes ───────────────────────────────────── */
 
   const sounds = {
 
-    // マップピンドロップ — 柔らかな満足のいくサウンド
+    // Map pin dropped — soft satisfying thud
     pinDrop() {
       const c = _ctx(), t = c.currentTime;
       _osc('sine', 320, t,        0.04, 0.22, 0.0, c);
@@ -3084,27 +3086,27 @@ const GeoSFX = (() => {
       _noise(t, 0.03, 0.08, 0.0, c);
     },
 
-    // 推測確定 — 確信的な "確定" ダブルビープ
+    // Guess locked in — confident "confirmed" double-beep
     lockIn() {
       const c = _ctx(), t = c.currentTime;
       _osc('sine', 523, t,        0.10, 0.20, 0.0, c);
       _osc('sine', 784, t + 0.12, 0.14, 0.20, 0.0, c);
     },
 
-    // 他のプレイヤーが確定 — ソフトな通知音
+    // Someone else locked in — soft notification tick
     playerLocked() {
       const c = _ctx(), t = c.currentTime;
       _osc('sine', 660, t, 0.06, 0.10, 0.0, c);
     },
 
-    // ラウンド開始 — 短い上昇 "ゴー！" スイープ
+    // Round start — short rising "go!" sweep
     roundStart() {
       const c = _ctx(), t = c.currentTime;
       _oscFreqRamp('sine', 300, 600, t, 0.20, 0.0, 0.22, c);
       _oscFreqRamp('sine', 300, 600, t + 0.04, 0.20, 0.0, 0.18, c);
     },
 
-    // 結果発表 — ウーシュ + 穏やかなチャイムカスケード
+    // Results revealed — whoosh + gentle chime cascade
     resultsReveal() {
       const c = _ctx(), t = c.currentTime;
       _noise(t, 0.12, 0.12, 0.0, c);
@@ -3113,13 +3115,13 @@ const GeoSFX = (() => {
       );
     },
 
-    // スコア加算 — 軽快な連続音
+    // Score ticking up — light rapid ticks (call repeatedly while counting)
     scoreTick() {
       const c = _ctx(), t = c.currentTime;
       _osc('square', 1200, t, 0.022, 0.06, 0.0, c);
     },
 
-    // 素晴らしい推測 (非常に近い) — 勝利の煌めき
+    // Excellent guess (very close) — triumphant sparkle
     excellent() {
       const c = _ctx(), t = c.currentTime;
       [523, 659, 784, 1047, 1318].forEach((f, i) =>
@@ -3127,41 +3129,41 @@ const GeoSFX = (() => {
       );
     },
 
-    // 良い推測 — 温かい二音のディング
+    // Good guess — warm two-note ding
     good() {
       const c = _ctx(), t = c.currentTime;
       _osc('sine', 523, t,        0.14, 0.18, 0.0, c);
       _osc('sine', 659, t + 0.10, 0.16, 0.16, 0.0, c);
     },
 
-    // 遠い推測 (悪い) — 低くがっかりしたワウ
+    // Poor guess (far away) — low disappointed wah
     poor() {
       const c = _ctx(), t = c.currentTime;
       _oscFreqRamp('sawtooth', 400, 200, t, 0.22, 0.20, 0.0, c);
     },
 
-    // ラウンドカウントダウン (残り10秒) — 鋭いメトロノームクリック
+    // Round countdown tick (last 10s) — sharp metronome click
     timerTick() {
       const c = _ctx(), t = c.currentTime;
       _noise(t, 0.018, 0.22, 0.0, c);
       _osc('square', 1000, t, 0.018, 0.12, 0.0, c);
     },
 
-    // タイマー緊急 (残り5秒) — より高音、より強く
+    // Timer urgent pulse (last 5s) — higher pitched, more intense
     timerUrgent() {
       const c = _ctx(), t = c.currentTime;
       _noise(t, 0.022, 0.28, 0.0, c);
       _osc('square', 1400, t, 0.022, 0.18, 0.0, c);
     },
 
-    // 時間切れ — 激しいブザー
+    // Time's up — harsh buzzer
     timesUp() {
       const c = _ctx(), t = c.currentTime;
       _oscFreqRamp('sawtooth', 300, 150, t,        0.18, 0.30, 0.0, c);
       _oscFreqRamp('sawtooth', 300, 150, t + 0.20, 0.18, 0.25, 0.0, c);
     },
 
-    // ゲーム終了 / 最終スコア — 完全なファンファーレ
+    // Game over / final scores — full fanfare
     gameOver() {
       const c = _ctx(), t = c.currentTime;
       [392, 523, 659, 784, 1047].forEach((f, i) =>
@@ -3170,27 +3172,27 @@ const GeoSFX = (() => {
       _noise(t, 0.06, 0.08, 0.0, c);
     },
 
-    // プレイヤー参加 (待機室) — ソフトなポップ
+    // Player joined waiting room — soft pop
     playerJoined() {
       const c = _ctx(), t = c.currentTime;
       _oscFreqRamp('sine', 400, 600, t, 0.12, 0.14, 0.0, c);
     },
 
-    // 招待受信 — 二音のディンドン
+    // Invite received — two-tone ding-dong
     inviteReceived() {
       const c = _ctx(), t = c.currentTime;
       _osc('sine', 880, t,        0.14, 0.18, 0.0, c);
       _osc('sine', 660, t + 0.16, 0.18, 0.16, 0.0, c);
     },
 
-    // ストリートビュー読み込み — 柔らかなアンビエントウーシュ
+    // Street view loaded — soft ambient whoosh
     svLoaded() {
       const c = _ctx(), t = c.currentTime;
       _oscFreqRamp('sine', 80, 200, t, 0.28, 0.08, 0.0, c);
       _noise(t, 0.28, 0.05, 0.0, c);
     },
 
-    // リージョン確定 — はっきりした確定音
+    // Region confirmed — crisp confirmation click
     confirm() {
       const c = _ctx(), t = c.currentTime;
       _osc('sine', 880, t,        0.06, 0.16, 0.0, c);
@@ -3199,7 +3201,7 @@ const GeoSFX = (() => {
 
   };
 
-  // 初回ジェスチャでAudioContextを起動
+  // Unlock on first gesture
   const _unlock = () => { _ctx(); document.removeEventListener('click', _unlock); };
   document.addEventListener('click', _unlock);
 
@@ -3208,7 +3210,7 @@ const GeoSFX = (() => {
   return {
     play(name, ...args) {
       if (_muted) return;
-      try { sounds[name]?.(...args); } catch(e) { /* 非致命的 */ }
+      try { sounds[name]?.(...args); } catch(e) { /* non-fatal */ }
     },
     mute(v)  { _muted = v; },
     toggle() { _muted = !_muted; return _muted; },
