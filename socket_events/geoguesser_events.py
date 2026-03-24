@@ -1297,7 +1297,19 @@ def handle_get_lobby(_=None):
     _emit_lobby()
 
 
-
+def _normalize_polygons(polygons: list) -> list:
+    """Wrap all polygon longitudes into [-180, 180]."""
+    normalized = []
+    for poly in polygons:
+        norm_poly = []
+        for point in poly:
+            lat = point[0]
+            lng = point[1]
+            # Wrap longitude into [-180, 180]
+            lng = ((lng + 180) % 360) - 180
+            norm_poly.append([lat, lng])
+        normalized.append(norm_poly)
+    return normalized
 
 @socketio.on("geo_create_room")
 def handle_create_room(data):
@@ -1311,6 +1323,7 @@ def handle_create_room(data):
     rounds                  = int(data.get("rounds", 5))
     time_limit              = int(data.get("time_limit", 90))
     polygons                = data.get("polygons") or []
+    polygons = _normalize_polygons(polygons)
     region_is_world         = bool(data.get("region_is_world", True))
     region_label            = str(data.get("region_label", "Entire World"))[:120]
     region_preset_usernames = list(data.get("region_preset_usernames") or [])
@@ -1538,6 +1551,7 @@ def handle_invite_user(data):
 def handle_sp_get_panorama(data):
     sid             = request.sid
     polygons        = data.get("polygons") or []
+    polygons = _normalize_polygons(polygons)
     region_is_world = bool(data.get("region_is_world", True))
 
 
