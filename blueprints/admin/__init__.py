@@ -10,5 +10,6 @@ Admin control panel blueprints.
 from .admin import admin_bp, check_ban
 from .backup import backup_bp
 from .logs import logs_bp
+from .auth_utils import require_role
 
-__all__ = ["admin_bp", "backup_bp", "logs_bp", "check_ban"]
+__all__ = ["admin_bp", "backup_bp", "logs_bp", "check_ban", "require_role"]

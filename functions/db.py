@@ -10,12 +10,23 @@ def get_db():
         # Try to use DI container if available (for testing)
         from dependencies import DI
 
-        return DI.get("get_db")()
-    except (ImportError, KeyError):
-        # Fall back to direct connection
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row  # rows behave like dicts
-        return conn
+        # Check for registered get_db first (tests register mock here)
+        if DI.has("get_db"):
+            service = DI.get("get_db")
+            # If it's callable, call it to get the connection
+            if callable(service):
+                return service()
+        
+        # Check for factory (production)
+        if DI.has("DB_CONNECTION_FACTORY"):
+            return DI.get("DB_CONNECTION_FACTORY")
+    except (ImportError, KeyError, AttributeError):
+        pass
+    
+    # Fall back to direct connection
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row  # rows behave like dicts
+    return conn
 
 
 def db_get_tables() -> list[str]:

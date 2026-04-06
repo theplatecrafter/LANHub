@@ -30,9 +30,11 @@ class DependencyContainer:
         """Reset to production implementations."""
         # Import here to avoid circular imports
         import functions as f
+        import sqlite3
+        from glob_vars import DB_PATH
         
         self._services = {
-            'get_db': f.get_db,
+            # Don't register get_db itself - use factory instead to avoid recursion
             'db_query': f.db_query,
             'db_get_row': f.db_get_row,
             'db_insert': f.db_insert,
@@ -61,6 +63,14 @@ class DependencyContainer:
             'updates_create': f.updates_create,
             'geo_preset_create': f.geo_preset_create,
         }
+        
+        # Register database connection factory
+        def db_connection_factory():
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            return conn
+        
+        self._factories['DB_CONNECTION_FACTORY'] = db_connection_factory
     
     def register(self, name: str, implementation: Any) -> None:
         """Register a service or mock.
