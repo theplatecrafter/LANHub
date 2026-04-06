@@ -351,7 +351,7 @@ except:
 ")
 
 echo "Starting Cloudflare tunnel on port $PORT..."
-rm -f "$CF_LOG"
+rm -f "$CF_LOG" || true
 cloudflared tunnel --url http://localhost:$PORT --logfile "$CF_LOG" &
 CF_PID=$!
 
