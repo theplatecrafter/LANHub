@@ -339,7 +339,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-CF_LOG="/tmp/cloudflared_lanhub.log"
+# Use a temp file we have permissions to write to
+CF_STDOUT="/tmp/cloudflared_lanhub_output_$$.txt"
+trap "rm -f '$CF_STDOUT'" EXIT
 
 PORT=$(python3 -c "
 import json
@@ -351,11 +353,11 @@ except:
 ")
 
 echo "Starting Cloudflare tunnel on port $PORT..."
-rm -f "$CF_LOG" || true
-cloudflared tunnel --url http://localhost:$PORT --logfile "$CF_LOG" &
+# Start cloudflared and capture all output (no --logfile to avoid permission issues)
+cloudflared tunnel --url http://localhost:$PORT 2>&1 | tee "$CF_STDOUT" &
 CF_PID=$!
 
-# Wait for tunnel to start and extract URL
+# Wait for tunnel to start and extract URL from stdout
 TUNNEL_URL=""
 WAIT_SECONDS=0
 MAX_WAIT=60  # Wait up to 60 seconds for tunnel to start
@@ -363,14 +365,9 @@ while [ $WAIT_SECONDS -lt $MAX_WAIT ] && [ -z "$TUNNEL_URL" ]; do
     sleep 1
     WAIT_SECONDS=$((WAIT_SECONDS + 1))
     
-    if [ -f "$CF_LOG" ]; then
-        # Try multiple patterns to match cloudflared output
-        TUNNEL_URL=$(grep -oE 'https://[a-z0-9._-]+\.trycloudflare\.com' "$CF_LOG" 2>/dev/null | head -1)
-        
-        # If first pattern didn't match, try alternative pattern
-        if [ -z "$TUNNEL_URL" ]; then
-            TUNNEL_URL=$(grep -oE 'https://[^"'\''[:space:]]+' "$CF_LOG" 2>/dev/null | grep trycloudflare | head -1)
-        fi
+    if [ -f "$CF_STDOUT" ]; then
+        # Look for the tunnel URL in JSON output (message contains the URL)
+        TUNNEL_URL=$(grep -oE 'https://[a-z0-9._-]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
         
         # Show progress every 5 seconds
         if [ $((WAIT_SECONDS % 5)) -eq 0 ] && [ -z "$TUNNEL_URL" ]; then
@@ -384,9 +381,9 @@ echo "$CF_PID" > /tmp/lanhub_cf.pid
 # Check if cloudflared process is still running
 if ! kill -0 $CF_PID 2>/dev/null; then
     echo "ERROR: cloudflared process failed to start"
-    if [ -f "$CF_LOG" ]; then
-        echo "Last 20 lines of cloudflared log:"
-        tail -20 "$CF_LOG"
+    if [ -f "$CF_STDOUT" ]; then
+        echo "Last 20 lines of cloudflared output:"
+        tail -20 "$CF_STDOUT"
     fi
     exit 1
 fi
@@ -404,12 +401,12 @@ print("configvars.json updated with tunnel URL")
 PYEOF
 else
     echo "⚠ Could not detect tunnel URL after $MAX_WAIT seconds"
-    if [ -f "$CF_LOG" ]; then
-        echo "Last 10 lines of cloudflared log:"
-        tail -10 "$CF_LOG"
+    if [ -f "$CF_STDOUT" ]; then
+        echo "Last 10 lines of cloudflared output:"
+        tail -10 "$CF_STDOUT"
     fi
     echo "Starting LANHub without tunnel URL — you can add it manually later in Admin → Access Settings"
-    echo "To debug, check: tail -f '$CF_LOG'"
+    echo "To debug, check: tail -f '$CF_STDOUT'"
 fi
 
 trap "echo 'Shutting down...'; kill $CF_PID 2>/dev/null; exit 0" SIGINT SIGTERM
