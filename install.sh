@@ -143,17 +143,17 @@ if [ -f "configvars.json" ]; then
         warn "Keeping existing configvars.json — skipping configuration prompts."
         SKIP_CONFIG=true
     else
-        if [ ! -f "configvars.example.json" ]; then
-            error "configvars.example.json not found. Is the repo fully cloned?"
+        if [ ! -f "config/configvars.example.json" ]; then
+            error "config/configvars.example.json not found. Is the repo fully cloned?"
         fi
-        cp configvars.example.json configvars.json
+        cp config/configvars.example.json configvars.json
         info "configvars.json reset from example."
     fi
 else
-    if [ ! -f "configvars.example.json" ]; then
-        error "configvars.example.json not found. Is the repo fully cloned?"
+    if [ ! -f "config/configvars.example.json" ]; then
+        error "config/configvars.example.json not found. Is the repo fully cloned?"
     fi
-    cp configvars.example.json configvars.json
+    cp config/configvars.example.json configvars.json
 fi
 
 if [ "$SKIP_CONFIG" = false ]; then
