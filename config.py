@@ -17,6 +17,7 @@ import os
 import secrets as _secrets
 
 _BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
+_CONFIG_DIR = os.path.join(_BASE_DIR, "config")
 JSON_PATH  = os.path.join(_BASE_DIR, "configvars.json")
 
 # Section key that is NEVER exposed to the UI or wildcard exports
@@ -56,7 +57,7 @@ def merge_with_example() -> dict:
       { "added": [...], "removed": [...], "unchanged": [...] }
     """
     import os
-    example_path = os.path.join(_BASE_DIR, "configvars.example.json")
+    example_path = os.path.join(_CONFIG_DIR, "configvars.example.json")
     with open(example_path, "r") as fh:
         example = json.load(fh)
 
