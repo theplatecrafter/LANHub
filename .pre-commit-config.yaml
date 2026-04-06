@@ -1,0 +1,102 @@
+# Pre-commit hooks configuration
+# Install with: pip install pre-commit
+# Setup with: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Code formatting with Black
+  - repo: https://github.com/psf/black
+    rev: 23.1.0
+    hooks:
+      - id: black
+        language_version: python3.13
+        args: ['--line-length=100']
+
+  # Import sorting with isort
+  - repo: https://github.com/PyCPA/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ['--profile=black']
+
+  # Linting with pylint
+  - repo: https://github.com/pylint-dev/pylint
+    rev: pylint-2.16.2
+    hooks:
+      - id: pylint
+        args: ['--max-line-length=100']
+        additional_dependencies: ['flask', 'flask-socketio', 'pytest']
+
+  # Type checking with mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.0.1
+    hooks:
+      - id: mypy
+        additional_dependencies: ['types-all']
+        args: ['--ignore-missing-imports']
+
+  # Security checks with bandit
+  - repo: https://github.com/PyCPA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: ['-c', '.bandit']
+        exclude: ^tests/
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      # Prevent commit of large files
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      
+      # Fix end of file newlines
+      - id: end-of-file-fixer
+      
+      # Trim trailing whitespace
+      - id: trailing-whitespace
+      
+      # Check YAML syntax
+      - id: check-yaml
+      
+      # Check JSON syntax
+      - id: check-json
+      
+      # Ensure files parse as valid Python
+      - id: check-ast
+      
+      # Detect private keys
+      - id: detect-private-key
+      
+      # Forbid files that would conflict in merge
+      - id: check-merge-conflict
+
+  # Docstring formatting
+  - repo: https://github.com/PyCPA/pydocstyle
+    rev: 6.3.0
+    hooks:
+      - id: pydocstyle
+        args: ['--convention=google']
+        exclude: ^(tests/|setup.py)
+
+  # Markdown linting
+  - repo: https://github.com/markdownlint/markdownlint
+    rev: v0.12.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+
+# Global exclude patterns
+exclude: |
+  (?x)^(
+      venv/|
+      .git/|
+      node_modules/|
+      __pycache__/|
+      logs/|
+      \.egg-info/
+  )
+
+# Minimum Python version
+minimum_pre_commit_version: 2.15.0
