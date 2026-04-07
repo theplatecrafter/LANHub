@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from scheduler import server_stats_cache
+from utils.scheduler import server_stats_cache
 
 stats_bp = Blueprint("stats", __name__)
 

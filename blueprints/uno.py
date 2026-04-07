@@ -1,10 +1,11 @@
 # blueprints/uno.py
 from flask import Blueprint, render_template
+from game_logic.uno import UNO_TYPES
+
 uno_bp = Blueprint("uno", __name__)
 
 @uno_bp.route("/uno")
 def uno():
-    from uno_game import UNO_TYPES
     types_for_template = [
         {'key': k, 'name': v['name'],
          'min': v['min_players'], 'max': v['max_players'],

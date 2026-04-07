@@ -4,7 +4,7 @@ from flask import request
 from flask_socketio import emit
 from socketio_instance import socketio
 from glob_vars import app_log, error_log
-from uno_game import UnoGame, UNO_TYPES, COLORS
+from game_logic.uno import UnoGame, UNO_TYPES, COLORS
 import functions as f
 import config
 

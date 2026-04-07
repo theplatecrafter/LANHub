@@ -1,12 +1,12 @@
 # app.py
 from glob_vars import *
-from init import initialize
+from utils.init import initialize
 initialize()
 
 import os
 from flask import Flask, render_template, session, redirect, url_for, request
 from socketio_instance import socketio
-import scheduler as sch
+import utils.scheduler as sch
 import sys
 import signal
 import datetime

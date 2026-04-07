@@ -9,7 +9,7 @@ from flask import request
 from flask_socketio import emit
 from socketio_instance import socketio
 from glob_vars import app_log, error_log
-from chess_ai import get_bot_move
+from game_logic.chess import get_bot_move
 import functions as f
 
 # ── In-memory state ────────────────────────────────────────────────────────────
