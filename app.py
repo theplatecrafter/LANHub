@@ -29,25 +29,13 @@ LANG_NAMES = {
 }
 
 # Blueprints
-from blueprints.chat import chat_bp
-from blueprints.stats import stats_bp
-from blueprints.logs import logs_bp
-from blueprints.devices import devices_bp
-from blueprints.admin import admin_bp, check_ban
-from blueprints.dropzone import dropzone_bp
-from blueprints.channels import channels_bp
-from blueprints.feedback import feedback_bp
-from blueprints.polls import polls_bp
-from blueprints.updates import updates_bp
-from blueprints.chess import chess_bp
-from blueprints.tetris import tetris_bp
-from blueprints.uno import uno_bp
-from blueprints.server_config import server_config_bp
-from blueprints.slither import slither_bp
-from blueprints.scribble import scribble_bp
-from blueprints.geoguesser import geoguesser_bp
-from blueprints.access import access_bp, check_site_access
-from blueprints.backup import backup_bp
+from blueprints.admin import *
+from blueprints.communications import *
+from blueprints.games import *
+from blueprints.server_stats import *
+from blueprints.tools import *
+
+
 
 # Socket event handlers
 import socket_events.chat_events
