@@ -231,7 +231,7 @@ class User:
 
 ### Writing Tests
 
-See [TESTING.md](TESTING.md) for detailed testing guide.
+See [TESTING.md](https://github.com/theplatecrafter/LANHub/blob/main/docs/TESTING.md) for detailed testing guide.
 
 **Quick summary:**
 ```python
