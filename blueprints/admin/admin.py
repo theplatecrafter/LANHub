@@ -277,6 +277,57 @@ def server_update():
         return jsonify({"ok": False, "stdout": "", "stderr": str(e)})
 
 
+@admin_bp.route("/server/system-updates", methods=["GET"])
+@require_role("DEV")
+def system_updates_status():
+    """Check for pending system-level updates (Docker image builds, etc)."""
+    try:
+        from functions.system_updates import get_update_status
+        status = get_update_status()
+        return jsonify({
+            "ok": True,
+            "has_pending": status["has_pending"],
+            "pending_count": status["pending_count"],
+            "applied_count": status["applied_count"],
+            "last_check": status["last_check"],
+            "pending": status["pending"],
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@admin_bp.route("/server/system-updates/apply", methods=["POST"])
+@require_role("DEV")
+def system_updates_apply():
+    """Apply pending system-level updates."""
+    try:
+        from functions.system_updates import apply_pending_updates, get_update_status
+        
+        app_log.info(f"[admin] {_name()!r} triggered system updates")
+        results = apply_pending_updates(allow_interactive=False)
+        
+        # Log all results
+        if results["applied"]:
+            app_log.info(f"[admin] Applied updates: {', '.join(results['applied'])}")
+        if results["failed"]:
+            error_log.error(f"[admin] Failed updates: {', '.join(results['failed'])}")
+            for failed, error in results["errors"].items():
+                error_log.error(f"  {failed}: {error}")
+        
+        status = get_update_status()
+        return jsonify({
+            "ok": results["success"],
+            "applied": results["applied"],
+            "failed": results["failed"],
+            "errors": results["errors"],
+            "requires_restart": results["requires_restart"],
+            "status": status,
+        })
+    except Exception as e:
+        error_log.error(f"[admin] system updates error: {e}")
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @admin_bp.route("/server/restart", methods=["POST"])
 @require_role("DEV")
 def server_restart():

@@ -1,0 +1,51 @@
+# LANHub Lab - Code Server Container
+# This Dockerfile creates the lanhub-lab:latest image used for Lab projects
+
+FROM debian:12
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    build-essential \
+    pkg-config \
+    python3 \
+    python3-pip \
+    nodejs \
+    npm \
+    nano \
+    vim \
+    sudo \
+    socat \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create coder user
+RUN useradd -m -s /bin/bash coder && \
+    echo "coder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/codeserver
+
+# Install code-server
+RUN curl -fsSL https://code-server.dev/install.sh | bash && \
+    chown -R coder:coder /home/coder
+
+# Set environment
+ENV HOME=/home/coder
+ENV PATH=/home/coder/.local/bin:$PATH
+
+# Copy entrypoint script
+COPY entrypoint-lab.sh /usr/local/bin/entrypoint-lab.sh
+RUN chmod +x /usr/local/bin/entrypoint-lab.sh
+
+# Switch to coder user
+USER coder
+WORKDIR /home/coder
+
+# Create project directories
+RUN mkdir -p /home/coder/project
+
+# Expose code-server port
+EXPOSE 8443
+
+# Use entrypoint script
+ENTRYPOINT ["/usr/local/bin/entrypoint-lab.sh"]
+

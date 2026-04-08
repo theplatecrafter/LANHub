@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="lab-container">
+    <header class="lab-header">
+        <h1>LANHub Lab</h1>
+        <p>Self-hosted web development on your LAN</p>
+        
+        {% if is_authenticated %}
+            <div class="auth-buttons">
+                <a href="{{ url_for('tools_lab.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+                <form method="POST" action="{{ url_for('tools_lab.logout') }}" style="display:inline;">
+                    <button type="submit" class="btn btn-secondary">Logout</button>
+                </form>
+            </div>
+        {% else %}
+            <div class="auth-buttons">
+                <a href="{{ url_for('tools_lab.login') }}" class="btn btn-primary">Login</a>
+                <a href="{{ url_for('tools_lab.register') }}" class="btn btn-secondary">Sign Up</a>
+            </div>
+        {% endif %}
+    </header>
+
+    <main class="lab-main">
+        <section class="projects-section">
+            <h2>Featured Projects</h2>
+            
+            {% if projects %}
+                <div class="projects-grid">
+                    {% for project in projects %}
+                        <div class="project-card">
+                            <div class="project-header">
+                                <h3>{{ project.title }}</h3>
+                                <span class="project-type">{{ project.project_type }}</span>
+                            </div>
+                            
+                            <p class="project-desc">{{ project.description[:100] }}{% if project.description|length > 100 %}...{% endif %}</p>
+                            
+                            <div class="project-footer">
+                                <small>by {{ project.owner_id }}</small>
+                                <a href="{{ url_for('tools_lab.project_view', slug=project.slug) }}" class="btn btn-small">View</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">No public projects yet. Create one!</p>
+            {% endif %}
+        </section>
+    </main>
+</div>
+
+<style>
+.lab-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.lab-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+}
+
+.lab-header h1 {
+    margin: 0;
+    font-size: 2.5em;
+}
+
+.lab-header p {
+    margin: 10px 0 20px;
+    font-size: 1.1em;
+    opacity: 0.9;
+}
+
+.auth-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.projects-section h2 {
+    font-size: 1.8em;
+    margin-bottom: 20px;
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.project-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    background: white;
+    transition: box-shadow 0.2s;
+}
+
+.project-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.project-header h3 {
+    margin: 0;
+    font-size: 1.3em;
+}
+
+.project-type {
+    background: #667eea;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+}
+
+.project-desc {
+    margin: 12px 0;
+    color: #666;
+}
+
+.project-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.empty-state {
+    text-align: center;
+    color: #999;
+    padding: 40px;
+}
+</style>
+{% endblock %}

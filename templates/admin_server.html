@@ -117,17 +117,47 @@
     </div>
   </div>
 
+  <!-- System-level updates (Docker, packages, infrastructure) -->
+  <div class="ctrl-card">
+    <div class="ctrl-card-header">
+      <h2>🔧 System Updates</h2>
+      <p id="updates-status">Checking…</p>
+    </div>
+    <div class="ctrl-card-body">
+      <div class="warn-box">
+        ⚠ System-level updates (Docker image builds, system packages, infrastructure changes)
+        are applied automatically on startup. You can trigger them manually here.
+        Some updates may require a service restart.
+      </div>
+      <div id="pending-updates-list" style="margin-bottom: 16px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-dim); display: none;">
+        <div style="margin-bottom: 12px; color: var(--text);">Pending updates:</div>
+        <div id="pending-updates-items"></div>
+      </div>
+      <div class="btn-row">
+        <button class="ctrl-btn" id="check-updates-btn" onclick="doCheckUpdates()">
+          <div class="btn-spinner"></div>
+          <span class="btn-label">⟳ Check Updates</span>
+        </button>
+        <button class="ctrl-btn" id="apply-updates-btn" onclick="doApplyUpdates()" style="display: none;">
+          <div class="btn-spinner"></div>
+          <span class="btn-label">✓ Apply Updates</span>
+        </button>
+      </div>
+      <div class="output-box" id="updates-output"></div>
+    </div>
+  </div>
+
   <!-- Combined update + restart -->
   <div class="ctrl-card">
     <div class="ctrl-card-header">
       <h2>🚀 Update &amp; Restart</h2>
-      <p>Pull then restart in one click</p>
+      <p>Pull code, apply updates, then restart</p>
     </div>
     <div class="ctrl-card-body">
       <div class="warn-box">
         ⚠ This will briefly take LANHub offline. All connected users will be disconnected.
-        Dependencies will be updated automatically via <code>pip install -r dependencies.txt</code>
-        before the service restarts.
+        Dependencies will be updated via <code>pip install -r dependencies.txt</code>
+        and system updates will be applied before the service restarts.
       </div>
       <div class="btn-row">
         <button class="ctrl-btn danger" id="update-restart-btn" onclick="doUpdateRestart()">
@@ -146,6 +176,7 @@
 <script>
   // Check status on load
   checkStatus();
+  doCheckUpdates();
 
   async function checkStatus() {
     const res  = await fetch("/admin/server/status");
@@ -176,8 +207,88 @@
     showOutput("pull-output", data.ok, (data.stdout || "") + (data.stderr || ""));
   }
 
+  async function doCheckUpdates() {
+    try {
+      const res = await fetch("/admin/server/system-updates");
+      const data = await res.json();
+      
+      if (!data.ok) {
+        document.getElementById("updates-status").textContent = "Error checking updates";
+        return;
+      }
+      
+      const statusEl = document.getElementById("updates-status");
+      const listEl = document.getElementById("pending-updates-list");
+      const itemsEl = document.getElementById("pending-updates-items");
+      const applyBtn = document.getElementById("apply-updates-btn");
+      
+      if (data.has_pending) {
+        const count = data.pending_count;
+        statusEl.textContent = `${count} pending`;
+        statusEl.style.color = "var(--yellow)";
+        
+        // Build list of pending updates
+        let html = "";
+        for (const [version, updates] of Object.entries(data.pending)) {
+          for (const update of updates) {
+            const flags = [];
+            if (update.requires_restart) flags.push("restart");
+            if (update.requires_sudo) flags.push("sudo");
+            const flagText = flags.length ? ` [${flags.join(", ")}]` : "";
+            html += `<div style="margin-left: 12px; margin-bottom: 8px;">→ ${update.name}${flagText}</div>`;
+          }
+        }
+        itemsEl.innerHTML = html;
+        listEl.style.display = "block";
+        applyBtn.style.display = "inline-flex";
+      } else {
+        statusEl.textContent = "All up to date";
+        statusEl.style.color = "var(--green)";
+        listEl.style.display = "none";
+        applyBtn.style.display = "none";
+      }
+      
+      if (data.last_check) {
+        const date = new Date(data.last_check);
+        statusEl.title = "Last checked: " + date.toLocaleString();
+      }
+    } catch (e) {
+      document.getElementById("updates-status").textContent = "Error: " + e.message;
+    }
+  }
+
+  async function doApplyUpdates() {
+    if (!confirm("Apply pending system updates? Some may require sudo password.")) return;
+    
+    setRunning("apply-updates-btn", true);
+    const res = await fetch("/admin/server/system-updates/apply", { method: "POST" });
+    const data = await res.json();
+    setRunning("apply-updates-btn", false);
+    
+    if (data.ok) {
+      let output = "=== System Updates Applied ===\n";
+      if (data.applied.length) {
+        output += `\n✓ Applied (${data.applied.length}):\n`;
+        data.applied.forEach(u => { output += `  ✓ ${u}\n`; });
+      }
+      if (data.failed.length) {
+        output += `\n✗ Failed (${data.failed.length}):\n`;
+        data.failed.forEach(f => { output += `  ✗ ${f}\n`; });
+      }
+      if (data.requires_restart) {
+        output += "\n⚠ Some updates require a service restart to take effect.\n";
+      }
+      showOutput("updates-output", data.ok, output);
+    } else {
+      showOutput("updates-output", false, "Error: " + (data.error || "Unknown error"));
+    }
+    
+    // Refresh update status
+    setTimeout(doCheckUpdates, 1000);
+  }
+
   async function doUpdateRestart() {
-    if (!confirm("Pull latest code AND restart the service?")) return;
+    if (!confirm("Pull latest code, apply system updates, AND restart the service?")) return;
     const outEl = document.getElementById("update-output");
     setRunning("update-restart-btn", true);
 
@@ -185,12 +296,34 @@
     showOutput("update-output", true, "Running git pull…");
     const pull = await fetch("/admin/server/update", { method: "POST" });
     const pd   = await pull.json();
-    showOutput("update-output", pd.ok,
-      "=== git pull ===\n" + (pd.stdout || "") + (pd.stderr || ""));
+    appendOutput("update-output",
+      "\n=== git pull ===\n" + (pd.stdout || "") + (pd.stderr || ""));
 
-    if (!pd.ok) { setRunning("update-restart-btn", false); return; }
+    if (!pd.ok) { 
+      appendOutput("update-output", "\n✗ Pull failed, aborting.");
+      setRunning("update-restart-btn", false); 
+      return; 
+    }
 
-    // Step 2: restart
+    // Step 2: apply system updates
+    appendOutput("update-output", "\n=== applying system updates… ===");
+    const upd = await fetch("/admin/server/system-updates/apply", { method: "POST" });
+    const ud = await upd.json();
+    
+    if (ud.applied.length) {
+      appendOutput("update-output", ud.applied.map(u => `\n  ✓ ${u}`).join(""));
+    }
+    if (ud.failed.length) {
+      appendOutput("update-output", 
+        "\n✗ Some updates failed:\n" + ud.failed.map(f => `  ✗ ${f}`).join("\n"));
+    }
+    if (!ud.ok) {
+      appendOutput("update-output", "\n✗ Updates failed, aborting restart.");
+      setRunning("update-restart-btn", false);
+      return;
+    }
+
+    // Step 3: restart
     appendOutput("update-output", "\n=== restarting service… ===");
     const rest = await fetch("/admin/server/restart", { method: "POST" });
     const rd   = await rest.json();
@@ -198,7 +331,10 @@
       "\n" + (rd.ok ? "✓ Restart triggered." : "✗ " + rd.stderr));
 
     setRunning("update-restart-btn", false);
-    if (rd.ok) setTimeout(checkStatus, 3000);
+    if (rd.ok) {
+      setTimeout(checkStatus, 3000);
+      setTimeout(doCheckUpdates, 3000);
+    }
   }
 
   function setRunning(btnId, running) {

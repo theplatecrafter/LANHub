@@ -48,8 +48,42 @@ import socket_events.uno_events
 import socket_events.slither_events
 import socket_events.scribble_events
 import socket_events.geoguesser_events
+import socket_events.lab_events
 
 socketio.init_app(app)
+
+# ── Check and apply system-level updates on startup ──────────────────────────
+# System updates are now non-blocking thanks to:
+# - Scripts use sudo -n (no password prompt)
+# - Docker group allows docker commands without sudo
+# - Subprocess streaming doesn't buffer output
+# Updates apply automatically on startup for production readiness
+try:
+    from functions.system_updates import check_for_updates, apply_pending_updates
+    import logging
+    import os
+    update_logger = logging.getLogger("lanhub.updates")
+    
+    # Check for updates on every startup
+    pending = check_for_updates()
+    if pending:
+        pending_count = sum(len(v) for v in pending.values())
+        update_logger.info(f"Found {pending_count} pending system updates")
+        
+        # Auto-apply unless running with LANHUB_SKIP_AUTO_UPDATES=1 (for testing)
+        if os.environ.get("LANHUB_SKIP_AUTO_UPDATES") != "1":
+            update_logger.info("Applying pending system updates automatically...")
+            result = apply_pending_updates(allow_interactive=False)
+            if result.get("success"):
+                update_logger.info("✓ All system updates applied successfully")
+            else:
+                update_logger.warning("⚠ Some system updates failed to apply. Check logs above.")
+        else:
+            update_logger.info("Updates can be applied via Admin Panel → Server → System Updates")
+            update_logger.info("Or run: python3 functions/system_updates.py --apply")
+except Exception as e:
+    import logging
+    logging.getLogger("lanhub.updates").warning(f"Could not check for system updates: {e}")
 
 # ── Language-aware template lookup ────────────────────────────────────────────
 # Jinja2 caches compiled templates by name. Without this patch, the first
@@ -81,7 +115,144 @@ def _lang_get_template(env, name, parent=None, globals=None):
     return _orig_get_template(env, name, parent, globals)
 
 app.jinja_env.get_template = _types.MethodType(_lang_get_template, app.jinja_env)
+
+# Add custom strftime filter for date formatting
+import datetime
+def strftime_filter(timestamp, fmt='%Y-%m-%d %H:%M'):
+    """Convert Unix timestamp to formatted date string."""
+    if timestamp is None:
+        return None
+    try:
+        dt = datetime.datetime.fromtimestamp(timestamp)
+        return dt.strftime(fmt)
+    except (TypeError, ValueError, OSError):
+        return str(timestamp)
+
+app.jinja_env.filters['strftime'] = strftime_filter
 # ─────────────────────────────────────────────────────────────────────────────
+
+# WebSocket upgrade request handler (before normal routing)
+# This handles WebSocket upgrade requests that Flask's routing layer would reject
+@app.before_request
+def handle_websocket_upgrade():
+    """Handle WebSocket upgrade requests gracefully by hijacking them early."""
+    from flask import request
+    
+    upgrade_header = request.headers.get('Upgrade', '').lower()
+    connection_header = request.headers.get('Connection', '').lower()
+    
+    if 'upgrade' in connection_header and 'websocket' in upgrade_header:
+        path_with_qs = request.path
+        qs = request.query_string.decode('utf-8')
+        if qs: path_with_qs += '?' + qs
+            
+        if request.path.startswith('/lab/project/'):
+            import re, socket, gevent, gevent.select, os
+            from glob_vars import app_log, BASE_DIR
+            
+            # 1. Parse slug and target path
+            m = re.match(r'^/lab/project/([^/]+)/edit(.*)$', path_with_qs)
+            if not m: return "Invalid Lab Path", 400
+            slug = m.group(1)
+            full_path = m.group(2) if m.group(2) else "/"
+            
+            # 2. Extract raw client socket
+            client_sock = request.environ.get('werkzeug.socket')
+            if not client_sock:
+                wsgi_input = request.environ.get('wsgi.input')
+                client_sock = getattr(wsgi_input, 'raw', wsgi_input)._sock
+                
+            # 3. Connect to Unix socket
+            unix_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock_path = os.path.join(BASE_DIR, 'files/lab-sockets', f"{slug}.sock")
+            try:
+                unix_socket.connect(sock_path)
+            except Exception as e:
+                return "Container offline", 502
+            
+            # 4. Construct perfectly compliant Upgrade request
+            req_lines = [f"{request.method} {full_path} HTTP/1.1"]
+            
+            headers_sent = []
+            for k, v in request.headers.items():
+                if k.lower() == 'sec-websocket-extensions':
+                    continue # Prevent RSV1 compression crash
+                req_lines.append(f"{k}: {v}")
+                headers_sent.append(k.lower())
+            
+            # Reconstruct missing headers
+            if 'sec-websocket-key' not in headers_sent and 'HTTP_SEC_WEBSOCKET_KEY' in request.environ:
+                req_lines.append(f"Sec-WebSocket-Key: {request.environ['HTTP_SEC_WEBSOCKET_KEY']}")
+            if 'sec-websocket-version' not in headers_sent and 'HTTP_SEC_WEBSOCKET_VERSION' in request.environ:
+                req_lines.append(f"Sec-WebSocket-Version: {request.environ['HTTP_SEC_WEBSOCKET_VERSION']}")
+            if 'upgrade' not in headers_sent: req_lines.append("Upgrade: websocket")
+            if 'connection' not in headers_sent: req_lines.append("Connection: Upgrade")
+                
+            raw_req = "\r\n".join(req_lines) + "\r\n\r\n"
+            unix_socket.sendall(raw_req.encode('utf-8'))
+            
+            # 5. Read backend response (Yielding to prevent block)
+            handshake_response = b""
+            while b"\r\n\r\n" not in handshake_response:
+                gevent.select.select([unix_socket], [], [])
+                chunk = unix_socket.recv(4096)
+                if not chunk: break
+                handshake_response += chunk
+                
+            app_log.info(f"[websocket] Backend response: {handshake_response.split(b'\r\n')}")
+            
+            header_end = handshake_response.find(b"\r\n\r\n") + 4
+            backend_headers = handshake_response[:header_end]
+            backend_payload = handshake_response[header_end:]
+            
+            # 6. Handle Double Handshake
+            if 'wsgi.websocket' in request.environ or 'werkzeug.websocket' in request.environ:
+                if backend_payload: client_sock.sendall(backend_payload)
+            else:
+                client_sock.sendall(handshake_response)
+                
+            # 7. Bidirectional Relay (Yielding to prevent event loop death)
+            def forward(src, dst):
+                try:
+                    while True:
+                        gevent.select.select([src], [], []) # CRITICAL: Yield to gevent hub!
+                        data = src.recv(8192)
+                        if not data: break
+                        dst.sendall(data)
+                except Exception:
+                    pass
+                    
+            g1 = gevent.spawn(forward, client_sock, unix_socket)
+            g2 = gevent.spawn(forward, unix_socket, client_sock)
+            gevent.joinall([g1, g2])
+            
+            # 8. Close socket gracefully
+            try: client_sock.close()
+            except Exception: pass
+            
+            return "", 204
+        else:
+            return None
+
+# ── CSP Header Override for Lab Routes ────────────────────────────────────────
+# Code-server requires specific CSP headers to execute inline scripts and load external resources.
+# This middleware allows permissive CSP for Lab editor paths only.
+@app.after_request
+def handle_lab_csp_headers(response):
+    """Override CSP headers for Lab routes to allow code-server to function."""
+    if request.path.startswith('/lab/project/'):
+        # Allow code-server to execute inline scripts, load external resources (CDNs), and manage iframes
+        response.headers['Content-Security-Policy'] = (
+            "default-src * 'unsafe-inline' 'unsafe-eval'; "
+            "frame-ancestors 'self'; "
+            "script-src * 'unsafe-inline' 'unsafe-eval' blob:; "
+            "style-src * 'unsafe-inline'; "
+            "font-src * data:; "
+        )
+        # Remove X-Frame-Options to allow code-server to be framed by LANHub
+        response.headers.pop('X-Frame-Options', None)
+        app_log.debug(f"[lab] Applied permissive CSP headers for {request.path}")
+    return response
 
 app.register_blueprint(chat_bp)
 app.register_blueprint(stats_bp)
@@ -104,6 +275,7 @@ app.register_blueprint(scribble_bp)
 app.register_blueprint(geoguesser_bp)
 app.register_blueprint(access_bp)
 app.register_blueprint(backup_bp)
+app.register_blueprint(lab_bp)
 
 
 ###########################################
@@ -327,4 +499,5 @@ signal.signal(signal.SIGTERM, graceful_shutdown)
 if __name__ == "__main__":
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         sch.start_scheduler()
+    # Use gevent as WSGI server with WebSocket support for Lab reverse proxy
     socketio.run(app, host="0.0.0.0", debug=True, port=_config.PORT, allow_unsafe_werkzeug=True)

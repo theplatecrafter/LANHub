@@ -262,6 +262,73 @@ def init_db():
         )
     """)
     c.execute("CREATE INDEX IF NOT EXISTS idx_geo_presets_title ON geo_presets(title)")
+    
+    # ── Lab: lab_users ────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS lab_users (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            username          TEXT    NOT NULL UNIQUE,
+            password_hash     TEXT    NOT NULL,
+            quota_mb          INTEGER NOT NULL DEFAULT 500,
+            is_admin          INTEGER NOT NULL DEFAULT 0,
+            session_token     TEXT    UNIQUE,
+            created_at        REAL    NOT NULL,
+            last_login_at     REAL    DEFAULT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_lab_users_username ON lab_users(username)")
+    
+    # ── Lab: projects ─────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS projects (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_id          INTEGER NOT NULL REFERENCES lab_users(id) ON DELETE CASCADE,
+            slug              TEXT    NOT NULL UNIQUE,
+            title             TEXT    NOT NULL,
+            description       TEXT    DEFAULT '',
+            project_type      TEXT    NOT NULL,  -- 'flask', 'static_html', 'blank_python', 'fastapi', 'nodejs_express'
+            visibility        TEXT    NOT NULL DEFAULT 'private',  -- 'private', 'public'
+            socket_path       TEXT    NOT NULL UNIQUE,
+            git_url           TEXT    DEFAULT '',
+            docker_container_id TEXT  DEFAULT NULL,
+            is_always_on      INTEGER NOT NULL DEFAULT 0,
+            created_at        REAL    NOT NULL,
+            updated_at        REAL    NOT NULL,
+            last_deployed_at  REAL    DEFAULT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_projects_slug  ON projects(slug)")
+    
+    # ── Lab: project_members ──────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS project_members (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id   INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            user_id      INTEGER NOT NULL REFERENCES lab_users(id) ON DELETE CASCADE,
+            role         TEXT    NOT NULL CHECK(role IN ('owner', 'contributor', 'viewer')),
+            added_at     REAL    NOT NULL,
+            UNIQUE(project_id, user_id)
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_project_members_user    ON project_members(user_id)")
+    
+    # ── Lab: comments ─────────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS lab_comments (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id    INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            user_id       INTEGER NOT NULL REFERENCES lab_users(id) ON DELETE CASCADE,
+            parent_id     INTEGER REFERENCES lab_comments(id) ON DELETE CASCADE,
+            content       TEXT    NOT NULL,
+            created_at    REAL    NOT NULL,
+            updated_at    REAL    NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_lab_comments_project ON lab_comments(project_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_lab_comments_user    ON lab_comments(user_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_lab_comments_parent  ON lab_comments(parent_id)")
  
     for col, defn in [
         ("reply_to_id", "INTEGER REFERENCES chat_messages(id)"),
@@ -276,6 +343,12 @@ def init_db():
     # channel_messages gets msg_type too
     try:
         c.execute("ALTER TABLE channel_messages ADD COLUMN msg_type TEXT NOT NULL DEFAULT 'text'")
+    except Exception:
+        pass
+    
+    # Lab: projects table gets external_port column (for direct code-server access)
+    try:
+        c.execute("ALTER TABLE projects ADD COLUMN external_port INTEGER DEFAULT NULL")
     except Exception:
         pass
  

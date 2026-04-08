@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="lab-project-view">
+    <header class="project-header">
+        <div class="header-content">
+            <h1>{{ project.title }}</h1>
+            <p class="project-meta">
+                by <strong>{{ owner.username }}</strong>  |  
+                {{ project.created_at|strftime('%Y-%m-%d') }}
+            </p>
+        </div>
+        <div class="header-actions">
+            {% if is_owner %}
+                <a href="{{ url_for('tools_lab.project_edit', slug=project.slug) }}" class="btn btn-primary">Edit Code</a>
+                <a href="{{ url_for('tools_lab.project_settings', slug=project.slug) }}" class="btn btn-secondary">Settings</a>
+            {% endif %}
+            <a href="{{ url_for('tools_lab.index') }}" class="btn btn-secondary">Back</a>
+        </div>
+    </header>
+
+    <main class="project-main">
+        <section class="project-info">
+            <div class="info-panel">
+                <h3>Project Info</h3>
+                <table class="info-table">
+                    <tr>
+                        <td>Type</td>
+                        <td><span class="badge">{{ project.project_type }}</span></td>
+                    </tr>
+                    <tr>
+                        <td>Status</td>
+                        <td>
+                            {% if project.docker_container_id %}
+                                <span class="badge badge-success">Running</span>
+                            {% else %}
+                                <span class="badge badge-inactive">Stopped</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Visibility</td>
+                        <td><span class="badge">{{ project.visibility|capitalize }}</span></td>
+                    </tr>
+                    <tr>
+                        <td>Deployment</td>
+                        <td>{{ project.last_deployed_at|strftime('%Y-%m-%d %H:%M') if project.last_deployed_at else 'Never' }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="description-panel">
+                <h3>Description</h3>
+                <p>{{ project.description if project.description else 'No description provided.' }}</p>
+            </div>
+
+            <div class="members-panel">
+                <h3>Team Members ({{ members|length }})</h3>
+                <ul class="members-list">
+                    {% for member in members %}
+                        <li>
+                            <strong>{{ member.username }}</strong>
+                            <span class="member-role">{{ member.role|capitalize }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+
+        <section class="comments-section">
+            <h2>Discussions</h2>
+            
+            {% if is_authenticated %}
+                <div class="comment-form">
+                    <textarea id="new-comment" placeholder="Share your thoughts..."></textarea>
+                    <button onclick="postComment()" class="btn btn-primary">Post Comment</button>
+                </div>
+            {% endif %}
+
+            <div class="comments-list">
+                {% if comments %}
+                    {% for comment in comments %}
+                        <div class="comment">
+                            <div class="comment-header">
+                                <strong>{{ comment.username }}</strong>
+                                <time>{{ comment.created_at|strftime('%Y-%m-%d %H:%M') }}</time>
+                            </div>
+                            <div class="comment-content">{{ comment.content }}</div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="empty-comments">No comments yet. Be the first to discuss!</p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+function postComment() {
+    const content = document.getElementById('new-comment').value.trim();
+    if (!content) {
+        alert('Comment cannot be empty');
+        return;
+    }
+    
+    fetch('{{ url_for("tools_lab.api_create_comment", slug=project.slug) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: content })
+    })
+    .then(r => r.json())
+    .then(comment => {
+        location.reload();
+    })
+    .catch(e => alert('Error: ' + e));
+}
+</script>
+
+<style>
+.lab-project-view {
+    min-height: 100vh;
+    background: #f5f5f5;
+}
+
+.project-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-content h1 {
+    margin: 0;
+    font-size: 2em;
+}
+
+.project-meta {
+    margin: 10px 0 0;
+    opacity: 0.9;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.project-main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.project-info {
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    overflow: hidden;
+}
+
+.info-panel,
+.description-panel,
+.members-panel {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.info-panel:last-child,
+.description-panel:last-child,
+.members-panel:last-child {
+    border-bottom: none;
+}
+
+.info-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.info-table td {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.info-table td:first-child {
+    width: 120px;
+    font-weight: 500;
+    color: #666;
+}
+
+.badge {
+    display: inline-block;
+    background: #667eea;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.badge-success {
+    background: #4caf50;
+}
+
+.badge-inactive {
+    background: #999;
+}
+
+.members-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.members-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+}
+
+.members-list li:last-child {
+    border-bottom: none;
+}
+
+.member-role {
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.comments-section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.comments-section h2 {
+    margin-top: 0;
+}
+
+.comment-form {
+    margin-bottom: 20px;
+}
+
+.comment-form textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+    box-sizing: border-box;
+}
+
+.comment-form button {
+    margin-top: 10px;
+}
+
+.comments-list {
+    margin-top: 20px;
+}
+
+.comment {
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.comment-header time {
+    color: #999;
+    font-size: 0.9em;
+}
+
+.empty-comments {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+}
+</style>
+{% endblock %}

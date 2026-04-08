@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="lab-new-project">
+    <header class="page-header">
+        <h1>Create New Project</h1>
+        <a href="{{ url_for('tools_lab.dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+    </header>
+
+    <main class="page-main">
+        {% if error %}
+            <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" class="project-form">
+            <div class="form-group">
+                <label for="title">Project Title *</label>
+                <input type="text" id="title" name="title" required minlength="3" autofocus>
+                <small>Give your project a catchy name</small>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="4"></textarea>
+                <small>What is your project about?</small>
+            </div>
+
+            <div class="form-group">
+                <label for="type">Project Type *</label>
+                <select id="type" name="type" required>
+                    <option value="" selected disabled>Select a project type</option>
+                    {% for ptype in project_types %}
+                        <option value="{{ ptype }}">{{ ptype|replace('_', ' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="visibility">Visibility *</label>
+                <select id="visibility" name="visibility" required>
+                    <option value="private" selected>Private (only you and collaborators)</option>
+                    <option value="public">Public (shown in Lab directory)</option>
+                </select>
+            </div>
+
+            <div class="form-group checkbox">
+                <input type="checkbox" id="always_on" name="always_on">
+                <label for="always_on">Always On (runs continuously, auto-starts on server boot)</label>
+                <small>Uses more server resources. Spontaneous projects start on demand.</small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Create Project</button>
+                <a href="{{ url_for('tools_lab.dashboard') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+        <section class="template-info">
+            <h2>Available Templates</h2>
+            <div class="template-grid">
+                <div class="template-card">
+                    <h3>Flask</h3>
+                    <p>Python web framework with routing, templates, and static file serving.</p>
+                </div>
+                
+                <div class="template-card">
+                    <h3>FastAPI</h3>
+                    <p>Modern Python API framework with automatic docs and async support.</p>
+                </div>
+                
+                <div class="template-card">
+                    <h3>Node.js Express</h3>
+                    <p>JavaScript web framework for building web apps and APIs.</p>
+                </div>
+                
+                <div class="template-card">
+                    <h3>Static HTML</h3>
+                    <p>Pure HTML/CSS/JS with a simple Python HTTP server.</p>
+                </div>
+                
+                <div class="template-card">
+                    <h3>Blank Python</h3>
+                    <p>Empty Python project for scripts, bots, and utilities.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<style>
+.lab-new-project {
+    min-height: 100vh;
+    background: #f5f5f5;
+}
+
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.page-header h1 {
+    margin: 0;
+}
+
+.page-main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.project-form {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.form-group small {
+    display: block;
+    color: #999;
+    font-size: 0.9em;
+    margin-top: 4px;
+}
+
+.form-group.checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.form-group.checkbox input {
+    width: auto;
+    margin-top: 4px;
+}
+
+.form-group.checkbox label {
+    margin: 0;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.template-info {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+}
+
+.template-info h2 {
+    margin-top: 0;
+}
+
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.template-card {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    background: #f9f9f9;
+}
+
+.template-card h3 {
+    margin: 0 0 10px;
+    color: #333;
+}
+
+.template-card p {
+    margin: 0;
+    color: #666;
+    font-size: 0.95em;
+}
+
+.alert {
+    padding: 12px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.alert-error {
+    background: #fee;
+    color: #c33;
+    border: 1px solid #fcc;
+}
+</style>
+{% endblock %}

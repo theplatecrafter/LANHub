@@ -6,3 +6,8 @@ apscheduler
 better-profanity
 python-chess
 streetview
+docker
+python-slugify
+requests-unixsocket
+gevent
+gevent-websocket

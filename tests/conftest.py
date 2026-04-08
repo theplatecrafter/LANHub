@@ -136,11 +136,92 @@ def mock_db():
         )
     """)
 
+    # Lab: lab_users table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS lab_users (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            username          TEXT    NOT NULL UNIQUE,
+            password_hash     TEXT    NOT NULL,
+            quota_mb          INTEGER NOT NULL DEFAULT 500,
+            is_admin          INTEGER NOT NULL DEFAULT 0,
+            session_token     TEXT    UNIQUE,
+            created_at        REAL    NOT NULL,
+            last_login_at     REAL    DEFAULT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_lab_users_username ON lab_users(username)")
+
+    # Lab: projects table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS projects (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_id          INTEGER NOT NULL REFERENCES lab_users(id) ON DELETE CASCADE,
+            slug              TEXT    NOT NULL UNIQUE,
+            title             TEXT    NOT NULL,
+            description       TEXT    DEFAULT '',
+            project_type      TEXT    NOT NULL,
+            visibility        TEXT    NOT NULL DEFAULT 'private',
+            socket_path       TEXT    NOT NULL UNIQUE,
+            git_url           TEXT    DEFAULT '',
+            docker_container_id TEXT  DEFAULT NULL,
+            is_always_on      INTEGER NOT NULL DEFAULT 0,
+            created_at        REAL    NOT NULL,
+            updated_at        REAL    NOT NULL,
+            last_deployed_at  REAL    DEFAULT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_projects_slug  ON projects(slug)")
+
+    # Lab: project_members table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS project_members (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id   INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            user_id      INTEGER NOT NULL REFERENCES lab_users(id) ON DELETE CASCADE,
+            role         TEXT    NOT NULL CHECK(role IN ('owner', 'contributor', 'viewer')),
+            added_at     REAL    NOT NULL,
+            UNIQUE(project_id, user_id)
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_project_members_user    ON project_members(user_id)")
+
+    # Lab: comments table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS lab_comments (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id    INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            user_id       INTEGER NOT NULL REFERENCES lab_users(id) ON DELETE CASCADE,
+            parent_id     INTEGER REFERENCES lab_comments(id) ON DELETE CASCADE,
+            content       TEXT    NOT NULL,
+            created_at    REAL    NOT NULL,
+            updated_at    REAL    NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_lab_comments_project ON lab_comments(project_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_lab_comments_user    ON lab_comments(user_id)")
+
     conn.commit()
 
-    # Create a get_db function that returns the same connection
+    # Create a wrapper connection that prevents close() from closing the DB
+    class NonClosingConnection:
+        """Wrapper around SQLite connection that prevents close() from actually closing it."""
+        def __init__(self, wrapped_conn):
+            self._conn = wrapped_conn
+        
+        def __getattr__(self, name):
+            return getattr(self._conn, name)
+        
+        def close(self):
+            # Silently ignore close() calls
+            pass
+
+    wrapped_conn = NonClosingConnection(conn)
+
+    # Create a get_db function that returns the wrapped connection
     def mock_get_db():
-        return conn
+        return wrapped_conn
 
     # Register the mock in DI container
     DI.register("get_db", mock_get_db)

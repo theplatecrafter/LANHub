@@ -22,6 +22,11 @@ echo ""
 echo -e "${BOLD}🛰️  LANHub Setup${RESET}"
 echo "────────────────────────────────────────"
 echo ""
+echo "Requirements:"
+echo "  • Docker (for Lab feature with code-server)  "
+echo "  • 2GB free disk space (Docker image)"
+echo "  • Python 3.8+"
+echo ""
 
 # ── Mode selection ────────────────────────────────────────────────────────────
 echo "Installation mode:"
@@ -41,13 +46,21 @@ while true; do
 done
 echo ""
 
-# ── Step 1 — System packages ──────────────────────────────────────────────────
+# ── Step 1 — Check Docker ─────────────────────────────────────────────────────
+info "Checking Docker installation..."
+if ! command -v docker &>/dev/null; then
+    error "Docker is required for LANHub Lab feature (code-server containers)."
+    echo "Install Docker from: https://docs.docker.com/get-docker/"
+fi
+success "Docker found ($(docker --version))."
+
+# ── Step 2 — System packages ──────────────────────────────────────────────────
 info "Installing system packages (git, python3, python3-venv, python3-pip, curl)..."
 sudo apt-get update -qq
 sudo apt-get install -y git python3 python3-venv python3-pip curl
 success "System packages ready."
 
-# ── Step 2 — Python venv ──────────────────────────────────────────────────────
+# ── Step 3 — Python venv ──────────────────────────────────────────────────────
 if [ ! -d "venv" ]; then
     info "Creating virtual environment..."
     python3 -m venv venv
@@ -64,13 +77,48 @@ info "Installing Python dependencies..."
 ./venv/bin/pip install -q -r dependencies.txt
 success "Python dependencies installed."
 
-# ── Step 3 — cloudflared ──────────────────────────────────────────────────────
+# ── Step 4 — Create required directories ───────────────────────────────────────
+info "Setting up required directories..."
+mkdir -p files/lab files/lab-sockets files/dropzone logs
+chmod 777 files/lab-sockets  # WebSocket relay needs write permission
+chmod 755 files/lab files/dropzone logs
+success "Directories created and configured."
+
+# ── Step 5 — Build Docker image for Lab feature ────────────────────────────────
+info "Building Docker image for Lab feature (lanhub-lab:latest)..."
+echo ""
+
+# Build with real-time output showing progress
+if docker build -f Dockerfile.lab -t lanhub-lab:latest . 2>&1 | while IFS= read -r line; do
+    # Show each build step with indentation and formatting
+    if [[ "$line" =~ ^Step\ [0-9] ]]; then
+        echo -e "  ${GREEN}→${RESET} $line"
+    elif [[ "$line" =~ "Successfully tagged" ]]; then
+        echo -e "  ${GREEN}✓${RESET} $line"
+    elif [[ "$line" =~ "Step" ]]; then
+        echo -e "  ${CYAN}⋯${RESET} $line"
+    elif [[ "$line" =~ "ERROR" || "$line" =~ "error" ]]; then
+        echo -e "  ${RED}✗${RESET} $line"
+    elif [[ ! "$line" =~ ^[[:space:]]*$ ]]; then
+        # Show non-empty lines with lighter formatting
+        echo "    $line"
+    fi
+done; then
+    echo ""
+    success "Docker image built successfully."
+else
+    echo ""
+    error "Docker image build failed. Lab feature will not work without it."
+fi
+
+# ── Step 6 — cloudflared ──────────────────────────────────────────────────────
 if [ "$INSTALL_MODE" = "server" ]; then
     if ! command -v cloudflared &>/dev/null; then
         info "Installing cloudflared..."
         ARCH=$(dpkg --print-architecture 2>/dev/null || echo "amd64")
         CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}"
-        if ! curl -sSL "$CF_URL" -o /tmp/cloudflared; then
+        echo "  Downloading cloudflared-linux-${ARCH}..."
+        if ! curl -f# "$CF_URL" -o /tmp/cloudflared; then
             error "Failed to download cloudflared. Check your internet connection."
         fi
         chmod +x /tmp/cloudflared
@@ -83,7 +131,7 @@ else
     info "Skipping cloudflared (not needed for ${INSTALL_MODE} mode)."
 fi
 
-# ── Step 4 — SSH key ──────────────────────────────────────────────────────────
+# ── Step 7 — SSH key ──────────────────────────────────────────────────────────
 if [ "$INSTALL_MODE" = "server" ]; then
     SSH_KEY="$HOME/.ssh/id_ed25519"
     mkdir -p "$HOME/.ssh"
@@ -128,7 +176,7 @@ else
     info "Skipping GitHub SSH setup (not needed for ${INSTALL_MODE} mode)."
 fi
 
-# ── Step 5 — Interactive config ───────────────────────────────────────────────
+# ── Step 8 — Interactive config ───────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}━━━ Configuration ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo ""
@@ -313,7 +361,7 @@ PYEOF
     success "Configuration saved."
 fi
 
-# ── Step 6 — Disable sleep ────────────────────────────────────────────────────
+# ── Step 9 — Disable sleep ────────────────────────────────────────────────────
 if [ "$INSTALL_MODE" != "dev" ]; then
     echo ""
     ask "Disable system sleep/hibernation? Recommended for a server [Y/n]:"
@@ -329,7 +377,7 @@ else
     info "Skipping sleep disable (dev mode)."
 fi
 
-# ── Step 7 — Write start.sh ───────────────────────────────────────────────────
+# ── Step 10 — Write start.sh ───────────────────────────────────────────────────
 info "Writing start.sh..."
 
 if [ "$INSTALL_MODE" = "server" ]; then
@@ -470,7 +518,7 @@ fi
 chmod +x start.sh
 success "start.sh written and made executable."
 
-# ── Step 8 — systemd service ──────────────────────────────────────────────────
+# ── Step 11 — systemd service ───────────────────────────────────────────────────
 if [ "$INSTALL_MODE" = "dev" ]; then
     info "Skipping systemd service (dev mode — run './start.sh' manually)."
 else
@@ -515,7 +563,111 @@ SERVICE
     fi
 fi
 
-# ── Step 9 — Initial redirector push ─────────────────────────────────────────
+# ── Step 12 — Nginx reverse proxy for Lab WebSocket support ──────────────────
+if [ "$INSTALL_MODE" = "server" ] || [ "$INSTALL_MODE" = "local" ]; then
+    info "Configuring Nginx as reverse proxy (minimal config for Lab WebSocket support)..."
+    
+    # Get LANHub port from config
+    LANHUB_PORT=$(./venv/bin/python3 -c "
+import json
+try:
+    with open('configvars.json') as f:
+        print(json.load(f).get('general', {}).get('PORT', 5000))
+except:
+    print(5000)
+" 2>/dev/null || echo "5000")
+    
+    # Get project directory
+    PROJECT_DIR="$SCRIPT_DIR"
+    SOCKET_DIR="${PROJECT_DIR}/files/lab-sockets"
+    
+    # Only set up nginx if Lab is enabled
+    LAB_ENABLED=$(./venv/bin/python3 -c "
+import json
+try:
+    with open('configvars.json') as f:
+        print(json.load(f).get('lab', {}).get('LAB_ENABLED', False))
+except:
+    print('False')
+" 2>/dev/null || echo "False")
+    
+    if [ "$LAB_ENABLED" = "True" ]; then
+        NGINX_CONF="/etc/nginx/sites-available/lanhub"
+        
+        info "Lab feature enabled — setting up Nginx for WebSocket proxying..."
+        
+        # Create Nginx config with minimal setup - just for Lab WebSocket
+        sudo bash -c "cat > '$NGINX_CONF' << 'NGINXEOF'
+upstream lanhub_backend {
+    server localhost:$LANHUB_PORT;
+    keepalive 32;
+}
+
+# Map upgrade header
+map \$http_upgrade \$connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
+server {
+    listen 80;
+    server_name _;
+    
+    # Lab project routes - proxy to Unix socket for code-server
+    location ~ ^/lab/project/(?<slug>[a-zA-Z0-9_-]+)/page(/.*)?$ {
+        set \$socket_path $SOCKET_DIR/\$slug.sock;
+        
+        # Proxy to Unix socket (WebSocket upgrade + HTTP)
+        proxy_pass http://unix:\$socket_path\$request_uri;
+        
+        proxy_http_version 1.1;
+        proxy_set_header Host \$http_host;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        proxy_buffering off;
+        proxy_connect_timeout 600s;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+    
+    # All other traffic to LANHub Flask
+    location / {
+        proxy_pass http://lanhub_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_buffering off;
+    }
+}
+NGINXEOF
+"
+        
+        # Enable site
+        if [ ! -L /etc/nginx/sites-enabled/lanhub ]; then
+            sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/lanhub
+        fi
+        
+        # Test and reload
+        if sudo nginx -t 2>/dev/null | grep -q "successful"; then
+            sudo systemctl restart nginx
+            success "Nginx configured for Lab WebSocket proxying."
+        else
+            warn "Nginx configuration test failed. Lab WebSocket may not work. Run: sudo nginx -t"
+        fi
+    else
+        info "Lab feature not enabled — skipping Nginx setup."
+    fi
+else
+    info "Skipping Nginx setup (${INSTALL_MODE} mode)."
+fi
+
+# ── Step 11 — Initial redirector push ─────────────────────────────────────────
 if [ "$INSTALL_MODE" = "server" ]; then
     info "Running initial GitHub redirector push..."
     ./venv/bin/python3 - <<'PYEOF'

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-box">
+        <h1>Lab Disabled</h1>
+        <p>The LANHub Lab feature is currently disabled on this server.</p>
+        <p>Please check with your server administrator to enable this feature.</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Back to Home</a>
+    </div>
+</div>
+
+<style>
+.error-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.error-box {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    text-align: center;
+    max-width: 500px;
+}
+
+.error-box h1 {
+    margin: 0 0 20px;
+    color: #333;
+}
+
+.error-box p {
+    margin: 0 0 15px;
+    color: #666;
+}
+
+.error-box .btn {
+    margin-top: 20px;
+}
+</style>
+{% endblock %}

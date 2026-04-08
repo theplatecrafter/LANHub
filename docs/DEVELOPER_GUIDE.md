@@ -1660,6 +1660,137 @@ console.log('Emitted event')
 
 ---
 
+## System-Level Updates
+
+When a feature requires **infrastructure changes** (Docker builds, system packages, config migrations), use the system-level update system rather than relying on manual steps.
+
+### How It Works
+
+1. **Automatic on startup**: App checks `updates/` directory for pending updates
+2. **Non-interactive auto-apply**: Updates marked with `Requires input: no` run automatically
+3. **Manual trigger**: Admin panel at `/admin/server/system-updates` to check/apply
+4. **Tracking**: Applied updates stored in `.lanhub_updates_manifest` (prevents re-runs)
+
+### Creating an Update
+
+Create a shell script in a new version directory:
+
+```bash
+# File: updates/v1.1.0/001_docker_lab_setup.sh
+
+#!/bin/bash
+# Update: Docker Lab Setup
+# Version: 1.1.0
+# Requires restart: no
+# Requires sudo: yes
+# Requires input: no
+# Description: Install Docker and build lanhub-lab:latest image
+
+set -e
+
+# Check if already done
+if docker image inspect lanhub-lab:latest >/dev/null 2>&1; then
+    exit 0  # Already exists, skip
+fi
+
+# Your update logic here
+docker build -f Dockerfile.lab -t lanhub-lab:latest .
+exit 0  # Success
+```
+
+### Exit Codes
+
+- **0** - Success (mark as applied, continue)
+- **1** - Failure (stop, notify admin)
+- **2** - Already applied (idempotent check, mark as applied)
+
+### Requirements Flags
+
+| Flag | Effect |
+|------|--------|
+| `Requires restart: yes` | Admin notified that server needs restart |
+| `Requires sudo: yes` | Script executed with sudo (for system changes) |
+| `Requires input: yes` | Won't auto-run; only manual trigger or interactive mode |
+
+### API Usage in Python
+
+```python
+from functions.system_updates import check_for_updates, apply_pending_updates
+
+# Check what's pending
+pending = check_for_updates()
+# Returns: {"v1.1.0": [{"name": "...", "requires_restart": ...}]}
+
+# Apply automatically (non-interactive updates only)
+results = apply_pending_updates(allow_interactive=False)
+# Returns: {"success": True/False, "applied": [...], "failed": [...], ...}
+
+# Check status for admin UI
+from functions.system_updates import get_update_status
+status = get_update_status()
+# Returns: {"has_pending": bool, "pending_count": int, "pending": {...}}
+```
+
+### Debugging Updates
+
+```bash
+# Manually trigger (from project root)
+python3 << 'EOF'
+from functions.system_updates import apply_pending_updates
+results = apply_pending_updates(allow_interactive=False)
+print(results)
+EOF
+
+# View applied updates
+cat .lanhub_updates_manifest | python3 -m json.tool
+
+# Clear manifest to re-run all
+rm .lanhub_updates_manifest
+```
+
+### Best Practices
+
+1. **Idempotent**: Script must be safe to run multiple times
+   ```bash
+   # ✓ Good: Check first
+   if [ -f /target/file ]; then
+       exit 0  # Already exists
+   fi
+   ```
+
+2. **Minimal scope**: One update = one purpose
+   - Separate concerns into different numbered scripts
+   - `001_install_docker.sh`, `002_build_image.sh`, etc.
+
+3. **Logging**: Always provide user feedback
+   ```bash
+   echo "Building image..." >&2
+   docker build ... || exit 1
+   echo "✓ Image built"
+   ```
+
+4. **Error handling**: Catch failures explicitly
+   ```bash
+   set -e  # Exit on any error
+   if ! command; then
+       echo "ERROR: description" >&2
+       exit 1
+   fi
+   ```
+
+### Current Implementations
+
+- **v1.1.0**: `001_docker_lab_setup.sh` - Install Docker, build Lab image
+  - Auto-runs on startup (non-interactive)
+  - Idempotent (checks if image exists first)
+  - Required for Lab feature to work
+
+### Examples in Code
+
+See `updates/` directory for working examples.
+
+---
+
 ## Summary Checklist
 
 When adding a new feature:

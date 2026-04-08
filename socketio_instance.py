@@ -2,4 +2,5 @@
 from glob_vars import *
 from flask_socketio import SocketIO
 
-socketio = SocketIO(cors_allowed_origins="*")
+# Use gevent for async mode - enables WebSocket support for reverse proxying
+socketio = SocketIO(cors_allowed_origins="*", async_mode='gevent')

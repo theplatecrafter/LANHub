@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="lab-editor">
+    <header class="editor-header">
+        <h1>{{ project.title }} - Code Editor</h1>
+        <div class="editor-actions">
+            <button id="deploy-btn" class="btn btn-primary" onclick="deployProject()">Deploy</button>
+            <button id="logs-btn" class="btn btn-secondary" onclick="showLogs()">View Logs</button>
+            <a href="{{ url_for('tools_lab.project_view', slug=project.slug) }}" class="btn btn-secondary">Back</a>
+        </div>
+    </header>
+
+    <main class="editor-main">
+        <div class="editor-container">
+            {% if project.docker_container_id %}
+                <iframe id="code-editor" src="{{ url_for('tools_lab.project_proxy', slug=project.slug, path='') }}" frameborder="0" allow="clipboard-read; clipboard-write"></iframe>
+            {% else %}
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #f5f5f5; padding: 20px;">
+                    <h2>🚀 Project Not Deployed</h2>
+                    <p>Click "Deploy / Restart" in the sidebar to start your project container.</p>
+                    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Once deployed, the code editor will appear here.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <aside class="editor-sidebar">
+            <div class="sidebar-panel">
+                <h3>Project Information</h3>
+                <div class="info-group">
+                    <label>Type</label>
+                    <p>{{ project.project_type }}</p>
+                </div>
+                <div class="info-group">
+                    <label>Slug</label>
+                    <p><code>{{ project.slug }}</code></p>
+                </div>
+                <div class="info-group">
+                    <label>Socket</label>
+                    <p><code>{{ project.socket_path }}</code></p>
+                </div>
+            </div>
+
+            <div class="sidebar-panel">
+                <h3>Deployment</h3>
+                <div id="deploy-status">
+                    {% if project.docker_container_id %}
+                        <p class="status status-running">✓ Running</p>
+                    {% else %}
+                        <p class="status status-stopped">✗ Stopped</p>
+                    {% endif %}
+                </div>
+                <button class="btn btn-block" onclick="deployProject()">Deploy / Restart</button>
+            </div>
+
+            <div class="sidebar-panel">
+                <h3>Logs</h3>
+                <div id="logs-display" class="logs-display"></div>
+            </div>
+        </aside>
+    </main>
+</div>
+
+<script>
+console.log('[Lab] Template script executing, projectSlug:', '{{ project.slug }}');
+
+const projectSlug = '{{ project.slug }}';
+const projectId = {{ project.id }};
+
+console.log('[Lab] Loaded with projectSlug:', projectSlug, 'projectId:', projectId);
+
+// WebSocket connection for real-time updates
+let socket = null;
+let isAuthenticated = false;
+
+function initWebSocket() {
+    console.log('[Lab] Initializing WebSocket...');
+    // Socket.IO automatically sends HTTP cookies with the WebSocket handshake
+    socket = io();
+    
+    socket.on('connect', () => {
+        console.log('[Lab] Socket connected, emitting lab_connect...');
+        // Trigger authentication on the backend
+        // (backend reads cookies from the WebSocket request automatically)
+        socket.emit('lab_connect', {});
+    });
+
+    socket.on('connect_error', (error) => {
+        console.error('[Lab] Connection error:', error);
+        showNotification('Connection error: ' + error.message, 'error');
+    });
+
+    socket.on('disconnect', () => {
+        console.warn('[Lab] Socket disconnected');
+        isAuthenticated = false;
+    });
+    
+    socket.on('lab_auth_success', (data) => {
+        console.log('[Lab] Authentication successful for user:', data.username);
+        isAuthenticated = true;
+        showNotification('Connected as ' + data.username, 'success');
+        // Now that we're authenticated, join the project
+        console.log('[Lab] Joining project room:', projectSlug);
+        socket.emit('lab_join_project', { slug: projectSlug });
+    });
+    
+    socket.on('lab_auth_failed', (data) => {
+        console.error('[Lab] Authentication failed:', data.error);
+        isAuthenticated = false;
+        showNotification('Authentication failed: ' + (data.error || 'Unknown error'), 'error');
+    });
+    
+    socket.on('error', (data) => {
+        console.error('[Lab] Socket error:', data);
+        showNotification('Error: ' + (data.message || 'Unknown error'), 'error');
+    });
+    
+    socket.on('lab_deployment_success', (data) => {
+        console.log('[Lab] Deployment successful, container:', data.container_id);
+        showNotification('Deployed successfully! Loading editor...', 'success');
+        
+        // Reload page after a short delay to trigger server-side template re-render
+        // This ensures the iframe is inserted and docker_container_id is populated
+        setTimeout(() => {
+            console.log('[Lab] Reloading page to load editor...');
+            window.location.reload();
+        }, 1000);
+    });
+    
+    socket.on('lab_deployment_failed', (data) => {
+        console.error('[Lab] Deployment failed:', data.message);
+        showNotification('Deployment failed: ' + data.message, 'error');
+        document.getElementById('deploy-btn').disabled = false;
+        document.getElementById('deploy-btn').textContent = 'Deploy / Restart';
+    });
+    
+    socket.on('lab_logs', (data) => {
+        console.log('[Lab] Received logs');
+        displayLogs(data.logs);
+    });
+}
+
+function deployProject() {
+    console.log('[Lab] Deploy button clicked');
+    if (!socket) {
+        console.error('[Lab] Socket not connected');
+        showNotification('Socket not connected. Refresh page.', 'error');
+        return;
+    }
+    if (!isAuthenticated) {
+        console.error('[Lab] User not authenticated');
+        showNotification('Not authenticated. Refresh page and try again.', 'error');
+        return;
+    }
+    
+    console.log('[Lab] Sending lab_deploy_project event with projectId:', projectId);
+    const btn = document.getElementById('deploy-btn');
+    btn.disabled = true;
+    btn.textContent = 'Deploying...';
+    socket.emit('lab_deploy_project', { project_id: projectId });
+}
+
+function showLogs() {
+    if (!socket) {
+        showNotification('Socket not connected. Refresh page.', 'error');
+        return;
+    }
+    if (!isAuthenticated) {
+        showNotification('Not authenticated. Refresh page and try again.', 'error');
+        return;
+    }
+    
+    socket.emit('lab_get_logs', { project_id: projectId, tail: 100 });
+}
+
+function displayLogs(logs) {
+    const display = document.getElementById('logs-display');
+    display.innerHTML = '<pre>' + escapeHtml(logs) + '</pre>';
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 3000);
+}
+
+function getCookie(name) {
+    const match = document.cookie.match(new RegExp('(^|; )' + name + '=([^;]*)'));
+    return match ? match[2] : '';
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Initialize on page load
+console.log('[Lab] Registering window load event listener');
+window.addEventListener('load', initWebSocket);
+</script>
+
+<style>
+.lab-editor {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+}
+
+.editor-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.editor-header h1 {
+    margin: 0;
+    font-size: 1.5em;
+    flex: 1;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.editor-main {
+    flex: 1;
+    display: flex;
+    gap: 0;
+    min-height: 0;
+}
+
+.editor-container {
+    flex: 1;
+    background: white;
+    border-right: 1px solid #ddd;
+    overflow: hidden;
+}
+
+.editor-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.editor-sidebar {
+    width: 250px;
+    background: #f9f9f9;
+    overflow-y: auto;
+    border-left: 1px solid #ddd;
+}
+
+.sidebar-panel {
+    padding: 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.sidebar-panel h3 {
+    margin: 0 0 12px;
+    font-size: 1em;
+    color: #333;
+}
+
+.info-group {
+    margin-bottom: 12px;
+}
+
+.info-group label {
+    display: block;
+    font-size: 0.85em;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.info-group p {
+    margin: 0;
+    font-size: 0.9em;
+    word-break: break-all;
+}
+
+.info-group code {
+    background: #eee;
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-size: 0.85em;
+}
+
+.status {
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 0.95em;
+    margin-bottom: 10px;
+}
+
+.status-running {
+    background: #e6f7e6;
+    color: #2d5016;
+}
+
+.status-stopped {
+    background: #f5f5f5;
+    color: #666;
+}
+
+.logs-display {
+    margin-bottom: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.logs-display pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 4px;
+    z-index: 1000;
+    animation: slideIn 0.3s ease-out;
+}
+
+.notification-success {
+    background: #4caf50;
+    color: white;
+}
+
+.notification-error {
+    background: #f44336;
+    color: white;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .editor-main {
+        flex-direction: column;
+    }
+    
+    .editor-sidebar {
+        width: 100%;
+        max-height: 200px;
+    }
+}
+</style>
+{% endblock %}

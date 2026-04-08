@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-box">
+        <h1>403</h1>
+        <h2>Access Denied</h2>
+        <p>You don't have permission to access this project.</p>
+        <p>If you believe this is a mistake, contact the project owner.</p>
+        <a href="{{ url_for('tools_lab.index') }}" class="btn btn-primary">Browse Projects</a>
+        <a href="{{ url_for('tools_lab.dashboard') }}" class="btn btn-secondary">My Dashboard</a>
+    </div>
+</div>
+
+<style>
+.error-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.error-box {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    text-align: center;
+    max-width: 500px;
+}
+
+.error-box h1 {
+    margin: 0;
+    font-size: 4em;
+    color: #667eea;
+}
+
+.error-box h2 {
+    margin: 10px 0 20px;
+    color: #333;
+    font-size: 1.5em;
+}
+
+.error-box p {
+    margin: 0 0 10px;
+    color: #666;
+}
+
+.error-box .btn {
+    display: inline-block;
+    margin: 15px 10px 0 0;
+}
+</style>
+{% endblock %}
