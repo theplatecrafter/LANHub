@@ -51,10 +51,13 @@ def db_get_schema(table: str) -> list[dict]:
     return rows
 
 
-def db_query(sql: str, params: list = None) -> list:
+def db_query(sql: str, params: list = None) -> tuple:
     """
-    Runs a read-only SQL statement and returns rows as dicts.
+    Runs a read-only SQL statement and returns (columns, rows).
     Only SELECT statements are permitted.
+    
+    Returns:
+        Tuple of (column_names: list, rows: list of dicts)
     """
     sql_stripped = sql.strip().upper()
     if not sql_stripped.startswith("SELECT"):
@@ -68,21 +71,26 @@ def db_query(sql: str, params: list = None) -> list:
         else:
             c.execute(sql)
         rows = [dict(r) for r in c.fetchall()]
+        # Get column names from cursor description
+        columns = [desc[0] for desc in c.description] if c.description else []
         # Don't close in test environment (in-memory DB)
-        return rows
+        return columns, rows
     except Exception as e:
         raise ValueError(f"Query failed: {e}")
 
 
 def db_get_row(table: str, rowid: int):
-    """Fetch a single row by rowid. Returns dict or None."""
+    """Fetch a single row by rowid. Returns (columns, row_dict) or None."""
     conn = get_db()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     try:
         c.execute(f"SELECT * FROM {table} WHERE rowid = ?", (rowid,))
         row = c.fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        columns = [desc[0] for desc in c.description] if c.description else []
+        return columns, dict(row)
     except Exception as e:
         raise ValueError(f"Cannot fetch row: {e}")
 

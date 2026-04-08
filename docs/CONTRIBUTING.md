@@ -581,9 +581,9 @@ Located in `requirements-dev.txt`:
 
 ## Also See
 
-- [TESTING.md](TESTING.md) - Testing guide
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Project structure
-- [README.md](README.md) - Project overview
+- [TESTING.md](https://github.com/theplatecrafter/LANHub/blob/main/docs/TESTING.md) - Testing guide
+- [ARCHITECTURE.md](https://github.com/theplatecrafter/LANHub/blob/main/docs/ARCHITECTURE.md) - Project structure
+- [README.md](https://github.com/theplatecrafter/LANHub/blob/main/docs/README.md) - Project overview
 
 ---
 

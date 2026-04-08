@@ -260,13 +260,12 @@ function renderTable(columns, rows, count, showActions, pkCol) {
     '</tr>';
 
   // prefer explicit rowid column; fall back to schema PK (INTEGER PRIMARY KEY = rowid in SQLite)
-  const rowidIdx = columns.indexOf('rowid');
-  const pkIdx    = pkCol ? columns.indexOf(pkCol) : -1;
-  const idIdx    = rowidIdx >= 0 ? rowidIdx : pkIdx;
+  const rowidCol = columns.includes('rowid') ? 'rowid' : (pkCol && columns.includes(pkCol) ? pkCol : null);
 
   tbody.innerHTML = rows.map(row => {
-    const rowid = idIdx >= 0 ? row[idIdx] : null;
-    const cells = row.map(cell => {
+    const rowid = rowidCol ? row[rowidCol] : null;
+    const cells = columns.map(col => {
+      const cell = row[col];
       if (cell === null || cell === undefined) return `<td class="null-val">NULL</td>`;
       if (typeof cell === 'number')            return `<td class="num-val">${cell}</td>`;
       const s = String(cell);
