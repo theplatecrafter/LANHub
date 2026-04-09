@@ -722,6 +722,20 @@ else
     info "Skipping redirector push (${INSTALL_MODE} mode)."
 fi
 
+# ── Start Nginx for Lab WebSocket support ─────────────────────────────────────
+if [ "$INSTALL_MODE" != "dev" ] && [ -f "${PROJECT_DIR}/.lab_enabled" ] 2>/dev/null; then
+    info "Starting Nginx for Lab WebSocket proxying..."
+    if sudo systemctl enable nginx >/dev/null 2>&1; then
+        success "Nginx enabled on boot."
+    fi
+    
+    if sudo systemctl restart nginx >/dev/null 2>&1; then
+        success "Nginx started and ready for Lab WebSocket connections."
+    else
+        warn "Failed to start Nginx. Lab routes may not work. Run: sudo systemctl start nginx"
+    fi
+fi
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}━━━ Setup Complete ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
