@@ -25,12 +25,12 @@ run_docker() {
     if docker "$@" 2>/dev/null; then
         return 0
     fi
-    # If permission denied, try with sudo -n (no password prompt)
+    # If permission denied, try with sudo -n (no password prompt, non-interactive)
     if sudo -n docker "$@" 2>/dev/null; then
         return 0
     fi
-    # Both failed - return the no-sudo error message
-    docker "$@"
+    # Both failed - try sudo -n one more time and show the actual error
+    sudo -n docker "$@"
     return $?
 }
 
@@ -42,8 +42,15 @@ success "Directory structure ready."
 echo ""
 
 # ── Check if Docker image already exists ──────────────────────────────────────
-if run_docker image inspect lanhub-lab:latest >/dev/null 2>&1; then
-    success "Docker image lanhub-lab:latest already exists."
+# Try to check without sudo first (if user is in docker group)
+if docker image inspect lanhub-lab:latest >/dev/null 2>&1; then
+    success "Docker image lanhub-lab:latest already exists — skipping build."
+    exit 0
+fi
+
+# If not in docker group, try with sudo -n
+if sudo -n docker image inspect lanhub-lab:latest >/dev/null 2>&1; then
+    success "Docker image lanhub-lab:latest already exists — skipping build."
     exit 0
 fi
 
@@ -59,8 +66,8 @@ if ! command -v docker &>/dev/null; then
     echo "  Downloading Docker installer..."
     if curl -f# https://get.docker.com -o /tmp/get-docker.sh; then
         echo "  Installing Docker..."
-        if ! sudo sh /tmp/get-docker.sh >/dev/null 2>&1; then
-            echo "ERROR: Docker installation failed" >&2
+        if ! sudo -n sh /tmp/get-docker.sh >/dev/null 2>&1; then
+            echo "ERROR: Docker installation failed (sudo -n failed or script errored)" >&2
             exit 1
         fi
         rm -f /tmp/get-docker.sh
