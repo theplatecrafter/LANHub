@@ -220,9 +220,11 @@ def sch_lab_idle_check():
     """Periodically check for idle Lab projects and stop spontaneous ones."""
     try:
         from functions.lab import project_check_idle
-        import config as _config
+        import os
         
-        if not getattr(_config, "LAB_ENABLED", False):
+        # Check if Lab feature is enabled
+        lab_enabled_flag = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".lab_enabled")
+        if not os.path.isfile(lab_enabled_flag):
             return
         
         project_check_idle()

@@ -202,6 +202,7 @@
       <div class="card-desc">Create single or multiple choice polls. See live results.</div>
       <span class="card-badge">Live</span>
     </a>
+    {% if lab_enabled %}
     <a href="/lab" class="feature-card accent-amber">
       <div class="card-icon">🧪</div>
       <div class="card-label">Development</div>
@@ -209,6 +210,7 @@
       <div class="card-desc">Self-hosted web development environment. Create and deploy web apps on your LAN.</div>
       <span class="card-badge">Live</span>
     </a>
+    {% endif %}
   </div>
 </div>
 

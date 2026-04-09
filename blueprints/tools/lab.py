@@ -9,6 +9,10 @@ from glob_vars import app_log, error_log
 import threading
 import time
 import requests
+import os
+
+# Check if Lab feature is enabled
+_LAB_ENABLED = os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".lab_enabled"))
 
 lab_bp = Blueprint("tools_lab", __name__, url_prefix="/lab", template_folder="../../templates")
 
@@ -45,7 +49,7 @@ def require_lab_auth(f_view):
 @lab_bp.route("", methods=["GET"])
 def index():
     """Lab public directory (all public projects)."""
-    if not _config.LAB_ENABLED:
+    if not _LAB_ENABLED:
         return render_template("lab_disabled.html"), 503
     
     # Get sort parameter from query string
@@ -70,7 +74,7 @@ def index():
 @lab_bp.route("/login", methods=["GET", "POST"])
 def login():
     """Lab user login."""
-    if not _config.LAB_ENABLED:
+    if not _LAB_ENABLED:
         return render_template("lab_disabled.html"), 503
     
     if request.method == "POST":
@@ -93,7 +97,7 @@ def login():
 @lab_bp.route("/register", methods=["GET", "POST"])
 def register():
     """Lab user registration."""
-    if not _config.LAB_ENABLED:
+    if not _LAB_ENABLED:
         return render_template("lab_disabled.html"), 503
     
     if request.method == "POST":
@@ -200,7 +204,7 @@ def create_project():
 @lab_bp.route("/project/<slug>", methods=["GET"])
 def project_view(slug):
     """View a project (public page with comments)."""
-    if not _config.LAB_ENABLED:
+    if not _LAB_ENABLED:
         return render_template("lab_disabled.html"), 503
     
     project = lab.project_get_by_slug(slug)

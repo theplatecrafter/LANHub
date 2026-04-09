@@ -25,6 +25,7 @@ dist/
 # Generated files
 main_update.json
 .lanhub_updates_manifest
+.lab_enabled
 
 # Development
 dev_tools.ipynb

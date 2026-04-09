@@ -33,6 +33,9 @@ import threading
 import jinja2 as _jinja2
 import types as _types
 
+# Get project directory for .lab_enabled flag check
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 app = Flask(__name__)
 app.secret_key = _config.SECRET_KEY
 import functions as _fns
@@ -44,6 +47,10 @@ LANG_NAMES = {
     "en": "English",
     "ja": "日本語",
 }
+
+# ── Check if Lab feature is enabled ───────────────────────────────────────────
+# Lab feature is initialized at install time; check if .lab_enabled flag exists
+LAB_ENABLED = os.path.isfile(os.path.join(SCRIPT_DIR, ".lab_enabled"))
 
 # Blueprints
 from blueprints.admin import *
@@ -65,7 +72,9 @@ import socket_events.uno_events
 import socket_events.slither_events
 import socket_events.scribble_events
 import socket_events.geoguesser_events
-import socket_events.lab_events
+# Only import lab_events if Lab feature is enabled
+if LAB_ENABLED:
+    import socket_events.lab_events
 
 socketio.init_app(app)
 
@@ -296,7 +305,10 @@ app.register_blueprint(scribble_bp)
 app.register_blueprint(geoguesser_bp)
 app.register_blueprint(access_bp)
 app.register_blueprint(backup_bp)
-app.register_blueprint(lab_bp)
+# Only register Lab blueprint if feature is enabled
+if LAB_ENABLED:
+    app.register_blueprint(lab_bp)
+    app_log.info("[startup] Lab feature enabled")
 
 
 ###########################################
@@ -414,6 +426,7 @@ def inject_globals():
         "afk_prompt_secs": int(getattr(_config, "AFK_PROMPT_SECS",  60)),
         "available_langs": available_langs,   # {code: display_name}
         "current_lang":    current_lang,
+        "lab_enabled":     LAB_ENABLED,
     }
 
 

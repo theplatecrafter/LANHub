@@ -84,9 +84,29 @@ chmod 777 files/lab-sockets  # WebSocket relay needs write permission
 chmod 755 files/lab files/dropzone logs
 success "Directories created and configured."
 
-# ── Step 5 — Build Docker image for Lab feature ────────────────────────────────
-info "Building Docker image for Lab feature (lanhub-lab:latest)..."
+# ── Step 5 — Lab Feature Setup ─────────────────────────────────────────────────
 echo ""
+ask "Do you want to enable the Lab feature? (self-hosted web development environment)"
+ask "This requires Docker and will build a specialized container image."
+ask "Enable Lab? [Y/n, default: Y]:"
+read -r ENABLE_LAB
+ENABLE_LAB="${ENABLE_LAB:-y}"
+
+if [[ "$ENABLE_LAB" =~ ^[Yy]$ ]]; then
+    LAB_FEATURE_ENABLED=true
+    info "Lab feature will be enabled."
+else
+    LAB_FEATURE_ENABLED=false
+    warn "Lab feature will not be available."
+    # Remove directories if they won't be used
+    rm -rf files/lab files/lab-sockets
+fi
+echo ""
+
+# ── Step 6 — Build Docker image for Lab feature ────────────────────────────────
+if [ "$LAB_FEATURE_ENABLED" = true ]; then
+    info "Building Docker image for Lab feature (lanhub-lab:latest)..."
+    echo ""
 
 # Build with real-time output showing progress
 if docker build -f Dockerfile.lab -t lanhub-lab:latest . 2>&1 | while IFS= read -r line; do
@@ -106,12 +126,19 @@ if docker build -f Dockerfile.lab -t lanhub-lab:latest . 2>&1 | while IFS= read 
 done; then
     echo ""
     success "Docker image built successfully."
+    # Create .lab_enabled flag file to mark Lab feature as enabled
+    touch .lab_enabled
+    success "Lab feature initialized and enabled."
 else
     echo ""
     error "Docker image build failed. Lab feature will not work without it."
+    LAB_FEATURE_ENABLED=false
+fi
+else
+    info "Lab feature disabled — skipping Docker image build."
 fi
 
-# ── Step 6 — cloudflared ──────────────────────────────────────────────────────
+# ── Step 7 — cloudflared ──────────────────────────────────────────────────────
 if [ "$INSTALL_MODE" = "server" ]; then
     if ! command -v cloudflared &>/dev/null; then
         info "Installing cloudflared..."
@@ -581,17 +608,8 @@ except:
     PROJECT_DIR="$SCRIPT_DIR"
     SOCKET_DIR="${PROJECT_DIR}/files/lab-sockets"
     
-    # Only set up nginx if Lab is enabled
-    LAB_ENABLED=$(./venv/bin/python3 -c "
-import json
-try:
-    with open('configvars.json') as f:
-        print(json.load(f).get('lab', {}).get('LAB_ENABLED', False))
-except:
-    print('False')
-" 2>/dev/null || echo "False")
-    
-    if [ "$LAB_ENABLED" = "True" ]; then
+    # Check if Lab feature is enabled (flag file exists)
+    if [ -f "${PROJECT_DIR}/.lab_enabled" ]; then
         NGINX_CONF="/etc/nginx/sites-available/lanhub"
         
         info "Lab feature enabled — setting up Nginx for WebSocket proxying..."
