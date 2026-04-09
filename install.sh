@@ -23,9 +23,8 @@ echo -e "${BOLD}🛰️  LANHub Setup${RESET}"
 echo "────────────────────────────────────────"
 echo ""
 echo "Requirements:"
-echo "  • Docker (for Lab feature with code-server)  "
-echo "  • 2GB free disk space (Docker image)"
 echo "  • Python 3.8+"
+echo "  • Optional: Docker (only needed for Lab feature with code-server)"
 echo ""
 
 # ── Mode selection ────────────────────────────────────────────────────────────
@@ -46,36 +45,13 @@ while true; do
 done
 echo ""
 
-# ── Step 1 — Check Docker ─────────────────────────────────────────────────────
-info "Checking Docker installation..."
-if ! command -v docker &>/dev/null; then
-    error "Docker is required for LANHub Lab feature (code-server containers)."
-    echo "Install Docker from: https://docs.docker.com/get-docker/"
-fi
-success "Docker found ($(docker --version))."
-
-# ── Docker Group Setup ────────────────────────────────────────────────────────
-# Ensure current user is in docker group for passwordless access
-if ! groups "$USER" | grep -q docker; then
-    info "Adding $USER to docker group for passwordless access..."
-    sudo usermod -aG docker "$USER"
-    # Create newgrp activation script so docker commands work immediately
-    if newgrp docker &>/dev/null; then
-        success "User added to docker group (activated in current session)."
-    else
-        warn "User added to docker group but needs to log out and back in for changes to take effect."
-    fi
-else
-    success "User already in docker group."
-fi
-
-# ── Step 2 — System packages ──────────────────────────────────────────────────
+# ── Step 1 — System packages ──────────────────────────────────────────────────
 info "Installing system packages (git, python3, python3-venv, python3-pip, curl)..."
 sudo apt-get update -qq
 sudo apt-get install -y git python3 python3-venv python3-pip curl
 success "System packages ready."
 
-# ── Step 3 — Python venv ──────────────────────────────────────────────────────
+# ── Step 2 — Python venv ──────────────────────────────────────────────────────
 if [ ! -d "venv" ]; then
     info "Creating virtual environment..."
     python3 -m venv venv
@@ -108,6 +84,41 @@ read -r ENABLE_LAB
 ENABLE_LAB="${ENABLE_LAB:-y}"
 
 if [[ "$ENABLE_LAB" =~ ^[Yy]$ ]]; then
+    # ── Docker Check for Lab ──────────────────────────────────────────────────
+    info "Checking Docker installation for Lab feature..."
+    if ! command -v docker &>/dev/null; then
+        warn "Docker is not installed."
+        ask "Install Docker now? [Y/n, default: Y]:"
+        read -r INSTALL_DOCKER
+        INSTALL_DOCKER="${INSTALL_DOCKER:-y}"
+        
+        if [[ "$INSTALL_DOCKER" =~ ^[Yy]$ ]]; then
+            info "Installing Docker..."
+            if ! curl -fsSL https://get.docker.com | sudo sh >/dev/null 2>&1; then
+                error "Failed to install Docker. Please install manually from: https://docs.docker.com/get-docker/"
+            fi
+            success "Docker installed successfully."
+        else
+            error "Docker is required for Lab feature. Please install from: https://docs.docker.com/get-docker/"
+        fi
+    fi
+    success "Docker found ($(docker --version))."
+    
+    # ── Docker Group Setup ────────────────────────────────────────────────────
+    # Ensure current user is in docker group for passwordless access
+    if ! groups "$USER" | grep -q docker; then
+        info "Adding $USER to docker group for passwordless access..."
+        sudo usermod -aG docker "$USER"
+        # Create newgrp activation script so docker commands work immediately
+        if newgrp docker &>/dev/null; then
+            success "User added to docker group (activated in current session)."
+        else
+            warn "User added to docker group but needs to log out and back in for changes to take effect."
+        fi
+    else
+        success "User already in docker group."
+    fi
+    
     LAB_FEATURE_ENABLED=true
     info "Lab feature will be enabled."
 else
