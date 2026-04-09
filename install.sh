@@ -54,6 +54,21 @@ if ! command -v docker &>/dev/null; then
 fi
 success "Docker found ($(docker --version))."
 
+# ── Docker Group Setup ────────────────────────────────────────────────────────
+# Ensure current user is in docker group for passwordless access
+if ! groups "$USER" | grep -q docker; then
+    info "Adding $USER to docker group for passwordless access..."
+    sudo usermod -aG docker "$USER"
+    # Create newgrp activation script so docker commands work immediately
+    if newgrp docker &>/dev/null; then
+        success "User added to docker group (activated in current session)."
+    else
+        warn "User added to docker group but needs to log out and back in for changes to take effect."
+    fi
+else
+    success "User already in docker group."
+fi
+
 # ── Step 2 — System packages ──────────────────────────────────────────────────
 info "Installing system packages (git, python3, python3-venv, python3-pip, curl)..."
 sudo apt-get update -qq
