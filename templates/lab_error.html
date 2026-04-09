@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-box">
+        <h1>⚠️</h1>
+        <h2>{{ error }}</h2>
+        <p>{{ message }}</p>
+        <div class="button-group">
+            <a href="{{ url_for('tools_lab.dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+            <a href="{{ url_for('tools_lab.index') }}" class="btn btn-secondary">Browse Projects</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.error-box {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    text-align: center;
+    max-width: 600px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.error-box h1 {
+    margin: 0;
+    font-size: 4em;
+    color: #667eea;
+}
+
+.error-box h2 {
+    margin: 10px 0 20px;
+    color: #333;
+    font-size: 1.5em;
+}
+
+.error-box p {
+    margin: 0 0 30px;
+    color: #666;
+    line-height: 1.6;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 5px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5568d3;
+}
+
+.btn-secondary {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #d0d0d0;
+}
+</style>
+{% endblock %}

@@ -159,7 +159,6 @@ def mock_db():
             slug              TEXT    NOT NULL UNIQUE,
             title             TEXT    NOT NULL,
             description       TEXT    DEFAULT '',
-            project_type      TEXT    NOT NULL,
             visibility        TEXT    NOT NULL DEFAULT 'private',
             socket_path       TEXT    NOT NULL UNIQUE,
             git_url           TEXT    DEFAULT '',

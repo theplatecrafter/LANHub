@@ -26,16 +26,6 @@
             </div>
 
             <div class="form-group">
-                <label for="type">Project Type *</label>
-                <select id="type" name="type" required>
-                    <option value="" selected disabled>Select a project type</option>
-                    {% for ptype in project_types %}
-                        <option value="{{ ptype }}">{{ ptype|replace('_', ' ')|title }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group">
                 <label for="visibility">Visibility *</label>
                 <select id="visibility" name="visibility" required>
                     <option value="private" selected>Private (only you and collaborators)</option>
@@ -56,31 +46,42 @@
         </form>
 
         <section class="template-info">
-            <h2>Available Templates</h2>
-            <div class="template-grid">
-                <div class="template-card">
-                    <h3>Flask</h3>
-                    <p>Python web framework with routing, templates, and static file serving.</p>
+            <h2>🚀 Universal Project Template</h2>
+            <p>All new projects start with our optimized <strong>Flask + HTML</strong> template running on port 8000, alongside a powerful IDE in VS Code.</p>
+            
+            <div class="template-features">
+                <div class="feature-item">
+                    <h4>✨ What's Included</h4>
+                    <ul>
+                        <li><strong>Flask Web Server</strong> — Runs automatically on port 8000</li>
+                        <li><strong>HTML/CSS/JS Support</strong> — Full static file serving and templating</li>
+                        <li><strong>Python Environment</strong> — Pre-configured venv with pip</li>
+                        <li><strong>VS Code IDE</strong> — Web-based editor on port 8443</li>
+                        <li><strong>Git Repository</strong> — Built-in version control</li>
+                    </ul>
                 </div>
                 
-                <div class="template-card">
-                    <h3>FastAPI</h3>
-                    <p>Modern Python API framework with automatic docs and async support.</p>
+                <div class="feature-item">
+                    <h4>🛠️ Getting Started</h4>
+                    <ol>
+                        <li>Create your project</li>
+                        <li>Click "Edit Code" to open VS Code</li>
+                        <li>Modify <code>templates/index.html</code> and <code>app.py</code></li>
+                        <li>Click "Open Page" to see your app live</li>
+                        <li>Commit your changes to Git</li>
+                    </ol>
                 </div>
                 
-                <div class="template-card">
-                    <h3>Node.js Express</h3>
-                    <p>JavaScript web framework for building web apps and APIs.</p>
-                </div>
-                
-                <div class="template-card">
-                    <h3>Static HTML</h3>
-                    <p>Pure HTML/CSS/JS with a simple Python HTTP server.</p>
-                </div>
-                
-                <div class="template-card">
-                    <h3>Blank Python</h3>
-                    <p>Empty Python project for scripts, bots, and utilities.</p>
+                <div class="feature-item">
+                    <h4>🔧 Customize It</h4>
+                    <p>Use the Flask app to build anything:</p>
+                    <ul>
+                        <li>Web applications with multiple pages</li>
+                        <li>REST APIs with JSON responses</li>
+                        <li>Real-time apps with WebSockets</li>
+                        <li>Database-backed systems</li>
+                        <li>Or import other Python frameworks</li>
+                    </ul>
                 </div>
             </div>
         </section>
@@ -186,30 +187,55 @@
 
 .template-info h2 {
     margin-top: 0;
-}
-
-.template-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-}
-
-.template-card {
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 15px;
-    background: #f9f9f9;
-}
-
-.template-card h3 {
-    margin: 0 0 10px;
+    margin-bottom: 15px;
+    font-size: 1.5em;
     color: #333;
 }
 
-.template-card p {
+.template-info > p {
+    color: #666;
+    font-size: 1.05em;
+    margin-bottom: 25px;
+    line-height: 1.6;
+}
+
+.template-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+.feature-item {
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 6px;
+    border-left: 4px solid #667eea;
+}
+
+.feature-item h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.feature-item ul,
+.feature-item ol {
     margin: 0;
+    padding-left: 20px;
     color: #666;
     font-size: 0.95em;
+}
+
+.feature-item li {
+    margin: 8px 0;
+    line-height: 1.4;
+}
+
+.feature-item code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
 }
 
 .alert {

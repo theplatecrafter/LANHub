@@ -63,14 +63,12 @@ class TestProjectManagement:
         project = lab.project_create(
             owner_id=user["id"],
             title="My Test Project",
-            project_type="flask",
             description="A test project"
         )
         
         assert project is not None
         assert project["title"] == "My Test Project"
         assert project["owner_id"] == user["id"]
-        assert project["project_type"] == "flask"
     
     def test_project_slug_generation(self, mock_db):
         """Test that project slugs are generated correctly."""
@@ -78,8 +76,7 @@ class TestProjectManagement:
         
         project = lab.project_create(
             owner_id=user["id"],
-            title="My Awesome Project!",
-            project_type="flask"
+            title="My Awesome Project!"
         )
         
         assert project["slug"] is not None
@@ -92,8 +89,7 @@ class TestProjectManagement:
         
         created = lab.project_create(
             owner_id=user["id"],
-            title="My Project",
-            project_type="flask"
+            title="My Project"
         )
         
         retrieved = lab.project_get_by_slug(created["slug"])

@@ -286,7 +286,6 @@ def init_db():
             slug              TEXT    NOT NULL UNIQUE,
             title             TEXT    NOT NULL,
             description       TEXT    DEFAULT '',
-            project_type      TEXT    NOT NULL,  -- 'flask', 'static_html', 'blank_python', 'fastapi', 'nodejs_express'
             visibility        TEXT    NOT NULL DEFAULT 'private',  -- 'private', 'public'
             socket_path       TEXT    NOT NULL UNIQUE,
             git_url           TEXT    DEFAULT '',
@@ -294,7 +293,8 @@ def init_db():
             is_always_on      INTEGER NOT NULL DEFAULT 0,
             created_at        REAL    NOT NULL,
             updated_at        REAL    NOT NULL,
-            last_deployed_at  REAL    DEFAULT NULL
+            last_deployed_at  REAL    DEFAULT NULL,
+            status            TEXT    NOT NULL DEFAULT 'OFFLINE'
         )
     """)
     c.execute("CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id)")
@@ -329,6 +329,64 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_lab_comments_project ON lab_comments(project_id)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_lab_comments_user    ON lab_comments(user_id)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_lab_comments_parent  ON lab_comments(parent_id)")
+    
+    # ── Lab: comment_likes ────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS comment_likes (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            comment_id   INTEGER NOT NULL REFERENCES lab_comments(id) ON DELETE CASCADE,
+            user_id      INTEGER NOT NULL REFERENCES lab_users(id) ON DELETE CASCADE,
+            created_at   REAL    NOT NULL,
+            UNIQUE(comment_id, user_id)
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_comment_likes_comment ON comment_likes(comment_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_comment_likes_user    ON comment_likes(user_id)")
+    
+    # ── Lab: project_invitations ──────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS project_invitations (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id   INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            inviter_id   INTEGER NOT NULL REFERENCES lab_users(id) ON DELETE CASCADE,
+            invitee_id   INTEGER NOT NULL REFERENCES lab_users(id) ON DELETE CASCADE,
+            role         TEXT    NOT NULL CHECK(role IN ('owner', 'contributor', 'viewer')),
+            status       TEXT    NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'rejected')),
+            created_at   REAL    NOT NULL,
+            responded_at REAL    DEFAULT NULL,
+            UNIQUE(project_id, invitee_id, status)
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_project_invitations_project ON project_invitations(project_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_project_invitations_invitee ON project_invitations(invitee_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_project_invitations_status ON project_invitations(status)")
+    
+    # ── Lab: project_secrets ──────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS project_secrets (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id   INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            secret_key   TEXT    NOT NULL,
+            secret_value TEXT    NOT NULL,
+            created_at   REAL    NOT NULL,
+            updated_at   REAL    NOT NULL,
+            UNIQUE(project_id, secret_key)
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_project_secrets_project ON project_secrets(project_id)")
+    
+    # ── Lab: project_stars ────────────────────────────────────
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS project_stars (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id   INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            user_id      INTEGER NOT NULL REFERENCES lab_users(id) ON DELETE CASCADE,
+            created_at   REAL    NOT NULL,
+            UNIQUE(project_id, user_id)
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_project_stars_project ON project_stars(project_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_project_stars_user ON project_stars(user_id)")
  
     for col, defn in [
         ("reply_to_id", "INTEGER REFERENCES chat_messages(id)"),
@@ -351,6 +409,19 @@ def init_db():
         c.execute("ALTER TABLE projects ADD COLUMN external_port INTEGER DEFAULT NULL")
     except Exception:
         pass
+ 
+    # ── Migration: Remove project_type column (no longer used with unified template) ──
+    try:
+        # Check if project_type column exists
+        c.execute("PRAGMA table_info(projects)")
+        columns = [col[1] for col in c.fetchall()]
+        if 'project_type' in columns:
+            # SQLite 3.35.0+ supports DROP COLUMN
+            c.execute("ALTER TABLE projects DROP COLUMN project_type")
+            app_log.info("[init] Dropped obsolete project_type column from projects table")
+    except Exception as e:
+        # If drop fails (older SQLite), log but don't fail - the column just won't be used
+        app_log.warning(f"[init] Could not drop project_type column (may be on older SQLite): {e}")
  
     # Seed initial DEV account if no admins exist yet
     c.execute("SELECT COUNT(*) FROM admins")

@@ -1,9 +1,5 @@
+#!/bin/bash
 # LANHub Lab Container Entrypoint
-# Starts code-server and sets up Unix socket proxy
-# NOTE: Code-server binds to 127.0.0.1:8443 (internal ONLY)
-# Access is via Unix socket relay (socat), NOT direct port binding
-# On deployment: Nginx proxies from port 80 to this socket
-# On development: Flask proxies from port 5000 to this socket (with limitations)
 
 # Get configuration from environment
 CODER_PASSWORD="${CODER_PASSWORD:-lanhub}"
@@ -28,8 +24,67 @@ auth: none
 disable-telemetry: true
 CODECFG
 
-# Start code-server in background
-# NOTE: Web UI is behind Flask auth layer, so we disable code-server auth for simplicity
+# =====================================================================
+# AUTOMATION BLOCK: Venv, Pip Install, and Background App
+# =====================================================================
+cd /home/coder/project
+
+echo "[Lab] Setting up Python environment..."
+# 1. Create venv if it doesn't exist
+if [ ! -d "venv" ]; then
+    echo "[Lab] Creating virtual environment..."
+    python3 -m venv venv
+fi
+
+# 2. Install requirements using the EXPLICIT venv pip path
+if [ -f "requirements.txt" ]; then
+    echo "[Lab] Installing dependencies..."
+    /home/coder/project/venv/bin/pip install -r requirements.txt
+fi
+
+# 3. Start the app in the background so "Open Page" works immediately
+# We use the EXPLICIT absolute path to the venv python to guarantee it finds Flask!
+# CRITICAL: Capture Flask PID so we can shut it down gracefully later
+FLASK_PID=""
+if [ -f "app.py" ]; then
+    echo "[Lab] Starting application in background..."
+    /home/coder/project/venv/bin/python3 -u -m flask run --host=0.0.0.0 --port=8000 --debug </dev/null > /home/coder/project/app.log 2>&1 &
+    FLASK_PID=$!
+    echo "[Lab] Flask app started (PID: $FLASK_PID)"
+fi
+
+# 4. Setup shell to auto-activate venv AND handle port overlapping
+cat > ~/.bashrc << 'BASHCFG'
+# Standard bash configurations
+if [ -f /etc/bash.bashrc ]; then
+    source /etc/bash.bashrc
+fi
+export HISTFILE=/home/coder/.bash_history
+export HISTSIZE=5000
+export HISTFILESIZE=10000
+
+# Auto-navigate to project and activate venv
+cd /home/coder/project
+if [ -d "venv" ]; then
+    source venv/bin/activate
+fi
+
+# The Port-Overlap Kill Switch: 
+# If the user opens a terminal, they want to code. Kill the background app!
+if pgrep -f "flask run" > /dev/null; then
+    echo -e "\033[1;33m=======================================================\033[0m"
+    echo -e "\033[1;31m🛑 Stopping background app to free up port 8000...\033[0m"
+    pkill -f "flask run"
+    sleep 1
+    echo -e "\033[1;32m✅ Port 8000 is free. You can now run 'python3 -m flask run' manually.\033[0m"
+    echo -e "\033[1;33m=======================================================\033[0m"
+fi
+BASHCFG
+# =====================================================================
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Start code-server IDE in foreground
+# ═══════════════════════════════════════════════════════════════════════════════
 code-server \
   --bind-addr 127.0.0.1:8443 \
   --auth none \
@@ -53,9 +108,7 @@ for i in {1..30}; do
   fi
 done
 
-# Start Unix socket proxy using socat (proven, battle-tested)
-# socat creates a Unix socket that forwards bidirectionally to localhost:8443
-# This is much more reliable than custom HTTP parsing
+# Start Unix socket proxy using socat
 rm -f "$PROJECT_SOCKET" 2>/dev/null || true
 socat UNIX-LISTEN:"$PROJECT_SOCKET",fork,mode=666 TCP:localhost:8443 &
 PROXY_PID=$!
@@ -72,15 +125,45 @@ done
 
 # Function to cleanup on exit
 cleanup() {
-    echo "[Lab] Shutting down..."
-    kill $CODESERVER_PID 2>/dev/null || true
-    kill $PROXY_PID 2>/dev/null || true
+    echo "[Lab] Shutting down gracefully..."
+    
+    # Kill Flask app first (cleanest shutdown)
+    if [ -n "$FLASK_PID" ] && kill -0 $FLASK_PID 2>/dev/null; then
+        echo "[Lab] Stopping Flask app (PID: $FLASK_PID)..."
+        kill -TERM $FLASK_PID 2>/dev/null || true
+        # Give it 2 seconds to shut down gracefully
+        sleep 2
+        # Force kill if still running
+        kill -9 $FLASK_PID 2>/dev/null || true
+    fi
+    
+    # Kill socat proxy
+    if [ -n "$PROXY_PID" ] && kill -0 $PROXY_PID 2>/dev/null; then
+        echo "[Lab] Stopping socket proxy (PID: $PROXY_PID)..."
+        kill -TERM $PROXY_PID 2>/dev/null || true
+        sleep 1
+        kill -9 $PROXY_PID 2>/dev/null || true
+    fi
+    
+    # Kill code-server
+    if [ -n "$CODESERVER_PID" ] && kill -0 $CODESERVER_PID 2>/dev/null; then
+        echo "[Lab] Stopping code-server (PID: $CODESERVER_PID)..."
+        kill -TERM $CODESERVER_PID 2>/dev/null || true
+        sleep 2
+        kill -9 $CODESERVER_PID 2>/dev/null || true
+    fi
+    
+    # Wait for all children to exit
+    echo "[Lab] Waiting for all processes to exit..."
     wait 2>/dev/null || true
+    
+    echo "[Lab] Shutdown complete."
 }
 
 trap cleanup EXIT INT TERM
 
-# Keep the container running
+# Keep the container running - wait for all background processes
 echo "[Lab] Container ready. Waiting for processes..."
-wait $CODESERVER_PID
-
+# Wait for all background jobs (code-server, Flask, etc.)
+# When any signal is received, trap handler will gracefully shut them down
+wait

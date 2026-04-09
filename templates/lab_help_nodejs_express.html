@@ -1,0 +1,103 @@
+<div class="help-content">
+    <div class="help-section">
+        <h3>Node.js Express Project Setup</h3>
+        <p>Express is a minimal and flexible Node.js web framework. Perfect for REST APIs and modern web apps.</p>
+    </div>
+
+    <div class="help-section">
+        <h3>Project Structure</h3>
+        <ul>
+            <li><code>app.js</code> - Main Express application</li>
+            <li><code>package.json</code> - Project metadata and dependencies</li>
+            <li><code>node_modules/</code> - Installed npm packages</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>Getting Started</h3>
+        <ol>
+            <li>Click "Deploy" to start your container</li>
+            <li>Edit <code>app.js</code> to add your routes</li>
+            <li>Install dependencies: <code>npm install package-name</code></li>
+            <li>Dependencies are automatically added to <code>package.json</code></li>
+            <li>Click "Preview App" to test your running app</li>
+        </ol>
+    </div>
+
+    <div class="help-section">
+        <h3>Common Tasks</h3>
+        <div class="help-task">
+            <strong>Add a GET route:</strong>
+            <pre>app.get('/hello', (req, res) => {
+    res.send('Hello, World!');
+});</pre>
+        </div>
+        <div class="help-task">
+            <strong>Add a POST route:</strong>
+            <pre>app.post('/submit', (req, res) => {
+    const data = req.body;
+    res.json({ received: data });
+});</pre>
+        </div>
+        <div class="help-task">
+            <strong>Serve static files:</strong>
+            <pre>app.use(express.static('public'));
+// Now files in public/ are accessible as /file.html</pre>
+        </div>
+    </div>
+
+    <div class="help-section">
+        <h3>Managing Dependencies</h3>
+        <p>Use npm to install and manage packages:</p>
+        <pre># Install a new package
+npm install package-name
+
+# Install a dev dependency
+npm install --save-dev package-name
+
+# List installed packages
+npm list
+
+# Update packages
+npm update</pre>
+    </div>
+
+    <div class="help-section">
+        <h3>npm Scripts</h3>
+        <p>Edit <code>package.json</code> scripts for custom commands:</p>
+        <pre>"scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "jest"
+}</pre>
+        <p>Then run: <code>npm start</code>, <code>npm run dev</code>, etc.</p>
+    </div>
+
+    <div class="help-section">
+        <h3>Popular npm Packages</h3>
+        <ul>
+            <li><strong>express:</strong> Web framework</li>
+            <li><strong>nodemon:</strong> Auto-restart on file changes - <code>npm install --save-dev nodemon</code></li>
+            <li><strong>cors:</strong> CORS support - <code>npm install cors</code></li>
+            <li><strong>axios:</strong> HTTP client - <code>npm install axios</code></li>
+            <li><strong>dotenv:</strong> Environment variables - <code>npm install dotenv</code></li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>Useful Links</h3>
+        <ul>
+            <li><a href="https://expressjs.com/" target="_blank">Express.js Documentation</a></li>
+            <li><a href="https://nodejs.org/" target="_blank">Node.js</a></li>
+            <li><a href="https://www.npmjs.com/" target="_blank">npm Registry</a></li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>Default Configuration</h3>
+        <ul>
+            <li><strong>Port:</strong> 8000</li>
+            <li><strong>Host:</strong> 0.0.0.0 (accessible on your LAN)</li>
+        </ul>
+    </div>
+</div>

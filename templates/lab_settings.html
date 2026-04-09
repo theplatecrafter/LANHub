@@ -34,6 +34,45 @@
                 </form>
             </section>
 
+            <section class="settings-panel">
+                <h2>Environment Secrets</h2>
+                <p class="help-text">Manage environment variables and secrets for your project. These will be injected as environment variables when the container is deployed.</p>
+                
+                <div id="secrets-list" class="secrets-list">
+                    <!-- Secrets will be loaded here via JavaScript -->
+                </div>
+
+                <div class="form-group">
+                    <label for="secret-key">Add New Secret</label>
+                    <div class="add-secret-group">
+                        <input type="text" id="secret-key" placeholder="Secret Key (e.g., API_KEY)" required>
+                        <input type="password" id="secret-value" placeholder="Secret Value" required>
+                        <button type="button" onclick="addSecret()" class="btn btn-sm btn-success">Add Secret</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-panel">
+                <h2>Team Members</h2>
+                <p class="help-text">Invite contributors and viewers to collaborate on this project.</p>
+                
+                <div id="members-list" class="members-list">
+                    <!-- Members will be loaded here via JavaScript -->
+                </div>
+
+                <div class="form-group">
+                    <label for="member-username">Add Team Member</label>
+                    <div class="add-member-group">
+                        <input type="text" id="member-username" placeholder="Username to invite" required>
+                        <select id="member-role">
+                            <option value="contributor">Contributor (can edit)</option>
+                            <option value="viewer">Viewer (read-only)</option>
+                        </select>
+                        <button type="button" onclick="inviteMember()" class="btn btn-sm btn-success">Add Member</button>
+                    </div>
+                </div>
+            </section>
+
             <section class="settings-panel danger-zone">
                 <h2>Danger Zone</h2>
                 
@@ -49,10 +88,6 @@
             <section class="settings-panel">
                 <h2>Project Information</h2>
                 <div class="info-grid">
-                    <div class="info-item">
-                        <label>Project Type</label>
-                        <p>{{ project.project_type }}</p>
-                    </div>
                     <div class="info-item">
                         <label>Created</label>
                         <p>{{ project.created_at|strftime('%Y-%m-%d %H:%M') }}</p>
@@ -117,6 +152,230 @@ function confirmDelete() {
     document.body.appendChild(form);
     form.submit();
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Secrets Management
+// ──────────────────────────────────────────────────────────────────────────────
+
+function loadSecrets() {
+    const socket = io();
+    socket.emit('lab_get_secrets', { project_id: projectId });
+    
+    socket.on('lab_secrets', (data) => {
+        const secretsList = document.getElementById('secrets-list');
+        secretsList.innerHTML = '';
+        
+        if (!data.secret_keys || data.secret_keys.length === 0) {
+            secretsList.innerHTML = '<p class="no-secrets">No environment secrets configured yet.</p>';
+            return;
+        }
+        
+        const table = document.createElement('table');
+        table.className = 'secrets-table';
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th>Secret Key</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.secret_keys.map(key => `
+                    <tr>
+                        <td><code>${escapeHtml(key)}</code></td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteSecret('${escapeHtml(key)}')">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        `;
+        secretsList.appendChild(table);
+        socket.disconnect();
+    });
+    
+    socket.on('lab_error', (data) => {
+        alert('Error loading secrets: ' + data.error);
+        socket.disconnect();
+    });
+}
+
+function addSecret() {
+    const secretKey = document.getElementById('secret-key').value.trim();
+    const secretValue = document.getElementById('secret-value').value;
+    
+    if (!secretKey || !secretValue) {
+        alert('Secret key and value are required.');
+        return;
+    }
+    
+    // Validate secret key format (alphanumeric, underscores, hyphens)
+    if (!/^[A-Za-z0-9_-]+$/.test(secretKey)) {
+        alert('Secret key must contain only alphanumeric characters, underscores, and hyphens.');
+        return;
+    }
+    
+    const socket = io();
+    socket.emit('lab_set_secret', {
+        project_id: projectId,
+        secret_key: secretKey,
+        secret_value: secretValue
+    });
+    
+    socket.on('lab_secret_set', (data) => {
+        alert('Secret added successfully!');
+        document.getElementById('secret-key').value = '';
+        document.getElementById('secret-value').value = '';
+        loadSecrets();  // Reload the secrets list
+        socket.disconnect();
+    });
+    
+    socket.on('lab_error', (data) => {
+        alert('Error adding secret: ' + data.error);
+        socket.disconnect();
+    });
+}
+
+function deleteSecret(secretKey) {
+    if (!confirm(`Are you sure you want to delete the secret "${secretKey}"?`)) {
+        return;
+    }
+    
+    const socket = io();
+    socket.emit('lab_delete_secret', {
+        project_id: projectId,
+        secret_key: secretKey
+    });
+    
+    socket.on('lab_secret_deleted', (data) => {
+        alert('Secret deleted successfully!');
+        loadSecrets();  // Reload the secrets list
+        socket.disconnect();
+    });
+    
+    socket.on('lab_error', (data) => {
+        alert('Error deleting secret: ' + data.error);
+        socket.disconnect();
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Team Members Management
+// ──────────────────────────────────────────────────────────────────────────────
+
+function loadMembers() {
+    fetch(`/lab/api/project/${projectSlug}/members`)
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+        })
+        .then(data => {
+            const membersList = document.getElementById('members-list');
+            membersList.innerHTML = '';
+            
+            if (!data.members || data.members.length === 0) {
+                membersList.innerHTML = '<p class="no-members">No team members yet. Use the form below to add collaborators.</p>';
+                return;
+            }
+            
+            const table = document.createElement('table');
+            table.className = 'members-table';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.members.map(member => `
+                        <tr>
+                            <td>${escapeHtml(member.username)}</td>
+                            <td><span class="role-badge role-${member.role}">${member.role}</span></td>
+                            <td>
+                                ${member.role !== 'owner' ? `
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeMember(${member.user_id})">
+                                        Remove
+                                    </button>
+                                ` : '<em>Owner</em>'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+            membersList.appendChild(table);
+        })
+        .catch(error => {
+            console.error('Error loading members:', error);
+            document.getElementById('members-list').innerHTML = '<p class="error-message">Failed to load team members.</p>';
+        });
+}
+
+function inviteMember() {
+    const username = document.getElementById('member-username').value.trim();
+    const role = document.getElementById('member-role').value;
+    
+    if (!username) {
+        alert('Please enter a username.');
+        return;
+    }
+    
+    fetch(`/lab/api/project/${projectSlug}/members/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, role })
+    })
+    .then(r => {
+        if (!r.ok) return r.json().then(data => { throw new Error(data.error || 'Failed to add member'); });
+        return r.json();
+    })
+    .then(data => {
+        document.getElementById('member-username').value = '';
+        alert('Member added successfully!');
+        loadMembers();
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function removeMember(memberId) {
+    if (!confirm('Are you sure you want to remove this member?')) {
+        return;
+    }
+    
+    fetch(`/lab/api/project/${projectSlug}/members/remove`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: memberId })
+    })
+    .then(r => {
+        if (!r.ok) return r.json().then(data => { throw new Error(data.error || 'Failed to remove member'); });
+        return r.json();
+    })
+    .then(data => {
+        alert('Member removed successfully!');
+        loadMembers();
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+// Load secrets and members when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    loadSecrets();
+    loadMembers();
+});
 </script>
 
 <style>
@@ -258,6 +517,187 @@ function confirmDelete() {
     padding: 4px 6px;
     border-radius: 3px;
     font-size: 0.9em;
+}
+
+/* Secrets Management Styles */
+.help-text {
+    color: #666;
+    font-size: 0.95em;
+    margin: 0 0 20px;
+}
+
+.secrets-list {
+    margin-bottom: 20px;
+}
+
+.no-secrets {
+    color: #999;
+    font-style: italic;
+    padding: 10px 0;
+}
+
+.secrets-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.secrets-table th,
+.secrets-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.secrets-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+    color: #333;
+}
+
+.secrets-table tr:hover {
+    background: #fafafa;
+}
+
+.secrets-table code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.add-secret-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.add-secret-group input {
+    flex: 1;
+    min-width: 150px;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.85em;
+}
+
+.btn-success {
+    background: #4caf50;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #45a049;
+}
+
+@media (max-width: 600px) {
+    .add-secret-group {
+        flex-direction: column;
+    }
+    
+    .add-secret-group input,
+    .add-secret-group button {
+        width: 100%;
+    }
+    
+    .secrets-table th,
+    .secrets-table td {
+        padding: 8px;
+        font-size: 0.9em;
+    }
+}
+
+/* Team Members Styles */
+.members-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.members-table th,
+.members-table td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+.members-table th {
+    background-color: #f5f5f5;
+    font-weight: 600;
+    color: #333;
+}
+
+.members-table tr:hover {
+    background-color: #f9f9f9;
+}
+
+.role-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.role-badge.role-owner {
+    background-color: #667eea;
+    color: white;
+}
+
+.role-badge.role-contributor {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.role-badge.role-viewer {
+    background-color: #2196F3;
+    color: white;
+}
+
+.no-members {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    font-style: italic;
+}
+
+.error-message {
+    color: #d32f2f;
+    padding: 10px;
+    background: #ffebee;
+    border-radius: 4px;
+}
+
+.add-member-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.add-member-group input,
+.add-member-group select {
+    flex: 1;
+    min-width: 150px;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.add-member-group input:focus,
+.add-member-group select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+@media (max-width: 768px) {
+    .members-table th,
+    .members-table td {
+        padding: 8px;
+        font-size: 0.9em;
+    }
 }
 </style>
 {% endblock %}

@@ -1,0 +1,89 @@
+<div class="help-content">
+    <div class="help-section">
+        <h3>FastAPI Project Setup</h3>
+        <p>FastAPI is a modern, fast Python web framework. Your project has a basic FastAPI app set up.</p>
+    </div>
+
+    <div class="help-section">
+        <h3>Project Structure</h3>
+        <ul>
+            <li><code>app.py</code> - Main FastAPI application file</li>
+            <li><code>requirements.txt</code> - Python dependencies</li>
+            <li><code>venv/</code> - Virtual environment (auto-created)</li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>Getting Started</h3>
+        <ol>
+            <li>Click "Deploy" to start your container</li>
+            <li>Edit <code>app.py</code> to add your routes and endpoints</li>
+            <li>Install dependencies: <code>pip install package-name</code></li>
+            <li>Add new packages to <code>requirements.txt</code></li>
+            <li>Click "Preview App" to test your running API</li>
+        </ol>
+    </div>
+
+    <div class="help-section">
+        <h3>Common Tasks</h3>
+        <div class="help-task">
+            <strong>Add a GET endpoint:</strong>
+            <pre>@app.get("/items/{item_id}")
+async def get_item(item_id: int):
+    return {"item_id": item_id}</pre>
+        </div>
+        <div class="help-task">
+            <strong>Add a POST endpoint:</strong>
+            <pre>from pydantic import BaseModel
+
+class Item(BaseModel):
+    name: str
+    price: float
+
+@app.post("/items/")
+async def create_item(item: Item):
+    return item</pre>
+        </div>
+        <div class="help-task">
+            <strong>Query parameters:</strong>
+            <pre>@app.get("/search/")
+async def search(q: str, skip: int = 0, limit: int = 10):
+    return {"q": q, "skip": skip, "limit": limit}</pre>
+        </div>
+    </div>
+
+    <div class="help-section">
+        <h3>Install Dependencies</h3>
+        <p>To add a new Python package, use the terminal in VSCode:</p>
+        <pre>pip install package-name
+pip freeze > requirements.txt</pre>
+        <p>Redeploy your project after adding dependencies.</p>
+    </div>
+
+    <div class="help-section">
+        <h3>Interactive API Documentation</h3>
+        <p>FastAPI automatically generates interactive API docs:</p>
+        <ul>
+            <li><strong>Swagger UI:</strong> Visit <code>/docs</code></li>
+            <li><strong>ReDoc:</strong> Visit <code>/redoc</code></li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>Useful Links</h3>
+        <ul>
+            <li><a href="https://fastapi.tiangolo.com/" target="_blank">FastAPI Documentation</a></li>
+            <li><a href="https://pydantic-docs.helpmanual.io/" target="_blank">Pydantic (Data Validation)</a></li>
+            <li><a href="https://www.uvicorn.org/" target="_blank">Uvicorn (Server)</a></li>
+        </ul>
+    </div>
+
+    <div class="help-section">
+        <h3>Default Configuration</h3>
+        <ul>
+            <li><strong>Port:</strong> 8000</li>
+            <li><strong>Host:</strong> 0.0.0.0 (accessible on your LAN)</li>
+            <li><strong>Server:</strong> Uvicorn</li>
+        </ul>
+    </div>
+</div>

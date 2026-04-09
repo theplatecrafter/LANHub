@@ -6,31 +6,55 @@
         <h1>{{ project.title }} - Code Editor</h1>
         <div class="editor-actions">
             <button id="deploy-btn" class="btn btn-primary" onclick="deployProject()">Deploy</button>
+            <a id="preview-btn" href="{{ url_for('tools_lab.project_preview', slug=project.slug) }}" class="btn btn-secondary" target="_blank" style="display: none;">Preview App</a>
             <button id="logs-btn" class="btn btn-secondary" onclick="showLogs()">View Logs</button>
+            <button id="help-btn" class="btn btn-info" onclick="showHelp()">? Help</button>
+            <a id="fullscreen-btn" href="{{ url_for('tools_lab.project_proxy', slug=project.slug, path='') }}" class="btn btn-secondary" target="_blank" title="Open VSCode in fullscreen">⛶ Fullscreen</a>
             <a href="{{ url_for('tools_lab.project_view', slug=project.slug) }}" class="btn btn-secondary">Back</a>
         </div>
     </header>
 
     <main class="editor-main">
         <div class="editor-container">
-            {% if project.docker_container_id %}
-                <iframe id="code-editor" src="{{ url_for('tools_lab.project_proxy', slug=project.slug, path='') }}" frameborder="0" allow="clipboard-read; clipboard-write"></iframe>
-            {% else %}
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #f5f5f5; padding: 20px;">
-                    <h2>🚀 Project Not Deployed</h2>
-                    <p>Click "Deploy / Restart" in the sidebar to start your project container.</p>
-                    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Once deployed, the code editor will appear here.</p>
+            <!-- Operation Progress Overlay (Generic for all operations) -->
+            <div id="operation-overlay" class="operation-overlay" style="display: none;">
+                <div class="operation-modal">
+                    <div class="operation-spinner"></div>
+                    <h2 id="operation-title">Processing...</h2>
+                    <div id="operation-substatus" class="operation-substatus"></div>
+                    <div id="operation-progress-bar" class="progress-bar" style="display: none;">
+                        <div id="operation-progress-fill" class="progress-fill"></div>
+                    </div>
+                    <div id="operation-messages" class="operation-messages"></div>
                 </div>
-            {% endif %}
+            </div>
+
+            <!-- Loading State (For deployment specifically) -->
+            <div id="loading-state" class="loading-state" style="display: none;">
+                <div class="loading-content">
+                    <div class="spinner"></div>
+                    <h2>Deploying Environment...</h2>
+                    <div id="progress-messages" class="progress-messages"></div>
+                </div>
+            </div>
+
+            <!-- Editor or Not Deployed Message -->
+            <div id="editor-view">
+                {% if project.docker_container_id %}
+                    <iframe id="code-editor" src="{{ url_for('tools_lab.project_proxy', slug=project.slug, path='') }}" frameborder="0" allow="clipboard-read; clipboard-write"></iframe>
+                {% else %}
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #f5f5f5; padding: 20px;">
+                        <h2>🚀 Project Not Deployed</h2>
+                        <p>Click "Deploy" in the header to start your project container.</p>
+                        <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Once deployed, the code editor will appear here.</p>
+                    </div>
+                {% endif %}
+            </div>
         </div>
 
         <aside class="editor-sidebar">
             <div class="sidebar-panel">
                 <h3>Project Information</h3>
-                <div class="info-group">
-                    <label>Type</label>
-                    <p>{{ project.project_type }}</p>
-                </div>
                 <div class="info-group">
                     <label>Slug</label>
                     <p><code>{{ project.slug }}</code></p>
@@ -50,7 +74,7 @@
                         <p class="status status-stopped">✗ Stopped</p>
                     {% endif %}
                 </div>
-                <button class="btn btn-block" onclick="deployProject()">Deploy / Restart</button>
+                <button class="btn btn-block" id="sidebar-deploy-btn" onclick="deployProject()">Deploy / Restart</button>
             </div>
 
             <div class="sidebar-panel">
@@ -58,6 +82,22 @@
                 <div id="logs-display" class="logs-display"></div>
             </div>
         </aside>
+
+        <!-- Help Modal -->
+        <div id="help-modal" class="help-modal" style="display: none;">
+            <div class="help-modal-content">
+                <div class="help-modal-header">
+                    <h2 id="help-title">Help</h2>
+                    <button class="help-modal-close" onclick="closeHelp()">×</button>
+                </div>
+                <div class="help-modal-body" id="help-body">
+                    <!-- Help content will be loaded here -->
+                </div>
+                <div class="help-modal-footer">
+                    <button class="btn btn-secondary" onclick="closeHelp()">Close</button>
+                </div>
+            </div>
+        </div>
     </main>
 </div>
 
@@ -72,16 +112,15 @@ console.log('[Lab] Loaded with projectSlug:', projectSlug, 'projectId:', project
 // WebSocket connection for real-time updates
 let socket = null;
 let isAuthenticated = false;
+let isDeploying = false;
+let currentOperation = null;
 
 function initWebSocket() {
     console.log('[Lab] Initializing WebSocket...');
-    // Socket.IO automatically sends HTTP cookies with the WebSocket handshake
     socket = io();
     
     socket.on('connect', () => {
         console.log('[Lab] Socket connected, emitting lab_connect...');
-        // Trigger authentication on the backend
-        // (backend reads cookies from the WebSocket request automatically)
         socket.emit('lab_connect', {});
     });
 
@@ -99,7 +138,6 @@ function initWebSocket() {
         console.log('[Lab] Authentication successful for user:', data.username);
         isAuthenticated = true;
         showNotification('Connected as ' + data.username, 'success');
-        // Now that we're authenticated, join the project
         console.log('[Lab] Joining project room:', projectSlug);
         socket.emit('lab_join_project', { slug: projectSlug });
     });
@@ -114,13 +152,24 @@ function initWebSocket() {
         console.error('[Lab] Socket error:', data);
         showNotification('Error: ' + (data.message || 'Unknown error'), 'error');
     });
+
+    // Progress events during deployment
+    socket.on('lab_deployment_progress', (data) => {
+        console.log('[Lab] Deployment progress:', data.message);
+        addProgressMessage(data.message);
+        updateOperationMessage(data.message);
+    });
     
     socket.on('lab_deployment_success', (data) => {
         console.log('[Lab] Deployment successful, container:', data.container_id);
+        isDeploying = false;
+        currentOperation = null;
+        hideLoadingState();
+        hideOperationOverlay();
+        updateDeploymentUI(true);
         showNotification('Deployed successfully! Loading editor...', 'success');
         
         // Reload page after a short delay to trigger server-side template re-render
-        // This ensures the iframe is inserted and docker_container_id is populated
         setTimeout(() => {
             console.log('[Lab] Reloading page to load editor...');
             window.location.reload();
@@ -129,19 +178,29 @@ function initWebSocket() {
     
     socket.on('lab_deployment_failed', (data) => {
         console.error('[Lab] Deployment failed:', data.message);
+        isDeploying = false;
+        currentOperation = null;
+        hideLoadingState();
+        hideOperationOverlay();
+        resetDeployButton();
         showNotification('Deployment failed: ' + data.message, 'error');
-        document.getElementById('deploy-btn').disabled = false;
-        document.getElementById('deploy-btn').textContent = 'Deploy / Restart';
     });
     
     socket.on('lab_logs', (data) => {
         console.log('[Lab] Received logs');
+        hideOperationOverlay();
         displayLogs(data.logs);
     });
 }
 
 function deployProject() {
     console.log('[Lab] Deploy button clicked');
+    
+    if (isDeploying) {
+        console.warn('[Lab] Deployment already in progress');
+        return;
+    }
+    
     if (!socket) {
         console.error('[Lab] Socket not connected');
         showNotification('Socket not connected. Refresh page.', 'error');
@@ -154,9 +213,10 @@ function deployProject() {
     }
     
     console.log('[Lab] Sending lab_deploy_project event with projectId:', projectId);
-    const btn = document.getElementById('deploy-btn');
-    btn.disabled = true;
-    btn.textContent = 'Deploying...';
+    isDeploying = true;
+    showLoadingState();
+    lockDeployButton();
+    
     socket.emit('lab_deploy_project', { project_id: projectId });
 }
 
@@ -170,6 +230,7 @@ function showLogs() {
         return;
     }
     
+    showOperationOverlay('Fetching Logs', 'Retrieving container logs...');
     socket.emit('lab_get_logs', { project_id: projectId, tail: 100 });
 }
 
@@ -178,12 +239,37 @@ function displayLogs(logs) {
     display.innerHTML = '<pre>' + escapeHtml(logs) + '</pre>';
 }
 
+function showHelp() {
+    const helpModal = document.getElementById('help-modal');
+    helpModal.style.display = 'flex';
+}
+
+function closeHelp() {
+    const helpModal = document.getElementById('help-modal');
+    helpModal.setAttribute('data-visible', 'false');
+}
+
+// Close modal when clicking outside of it
+document.addEventListener('DOMContentLoaded', () => {
+    const helpModal = document.getElementById('help-modal');
+    if (helpModal) {
+        // Initialize with data-visible attribute for proper display control
+        helpModal.setAttribute('data-visible', 'false');
+        
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                closeHelp();
+            }
+        });
+    }
+});
+
 function showNotification(message, type) {
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
     document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
+    setTimeout(() => notification.remove(), 4000);
 }
 
 function getCookie(name) {
@@ -200,6 +286,116 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Loading state management
+function showLoadingState() {
+    clearProgressMessages();
+    document.getElementById('loading-state').style.display = 'flex';
+    document.getElementById('editor-view').style.display = 'none';
+}
+
+function hideLoadingState() {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('editor-view').style.display = 'block';
+}
+
+function addProgressMessage(message) {
+    const messagesDiv = document.getElementById('progress-messages');
+    const msgElement = document.createElement('div');
+    msgElement.className = 'progress-message';
+    msgElement.textContent = '→ ' + message;
+    messagesDiv.appendChild(msgElement);
+    // Auto-scroll to bottom
+    messagesDiv.parentElement.scrollTop = messagesDiv.parentElement.scrollHeight;
+}
+
+function clearProgressMessages() {
+    document.getElementById('progress-messages').innerHTML = '';
+}
+
+// Button state management
+function lockDeployButton() {
+    const btn = document.getElementById('deploy-btn');
+    const sidebarBtn = document.getElementById('sidebar-deploy-btn');
+    btn.disabled = true;
+    btn.textContent = 'Deploying...';
+    sidebarBtn.disabled = true;
+    sidebarBtn.textContent = 'Deploying...';
+}
+
+function resetDeployButton() {
+    const btn = document.getElementById('deploy-btn');
+    const sidebarBtn = document.getElementById('sidebar-deploy-btn');
+    btn.disabled = false;
+    btn.textContent = 'Deploy';
+    sidebarBtn.disabled = false;
+    sidebarBtn.textContent = 'Deploy / Restart';
+}
+
+function updateDeploymentUI(isRunning) {
+    const statusDiv = document.getElementById('deploy-status');
+    if (isRunning) {
+        statusDiv.innerHTML = '<p class="status status-running">✓ Running</p>';
+        document.getElementById('preview-btn').style.display = 'inline-block';
+    } else {
+        statusDiv.innerHTML = '<p class="status status-stopped">✗ Stopped</p>';
+        document.getElementById('preview-btn').style.display = 'none';
+    }
+}
+
+// Operation Overlay Management
+function showOperationOverlay(title, substatus, showProgressBar = false) {
+    const overlay = document.getElementById('operation-overlay');
+    const titleEl = document.getElementById('operation-title');
+    const substatusEl = document.getElementById('operation-substatus');
+    const progressBar = document.getElementById('operation-progress-bar');
+    const msgContainer = document.getElementById('operation-messages');
+    
+    titleEl.textContent = title;
+    substatusEl.textContent = substatus;
+    msgContainer.innerHTML = '';
+    
+    if (showProgressBar) {
+        progressBar.style.display = 'block';
+        document.getElementById('operation-progress-fill').style.width = '0%';
+    } else {
+        progressBar.style.display = 'none';
+    }
+    
+    overlay.style.display = 'flex';
+}
+
+function hideOperationOverlay() {
+    const overlay = document.getElementById('operation-overlay');
+    overlay.style.display = 'none';
+    currentOperation = null;
+}
+
+function updateOperationMessage(message) {
+    const msgContainer = document.getElementById('operation-messages');
+    const msgElement = document.createElement('div');
+    msgElement.className = 'operation-message';
+    msgElement.textContent = '→ ' + message;
+    msgContainer.appendChild(msgElement);
+    msgContainer.parentElement.scrollTop = msgContainer.parentElement.scrollHeight;
+}
+
+function updateOperationProgress(percentage) {
+    const progressFill = document.getElementById('operation-progress-fill');
+    progressFill.style.width = percentage + '%';
+}
+
+function updateOperationSubstatus(substatus) {
+    const substatusEl = document.getElementById('operation-substatus');
+    substatusEl.textContent = substatus;
+}
+
+// Show preview button if container is running
+if ('{{ project.docker_container_id }}') {
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('preview-btn').style.display = 'inline-block';
+    });
 }
 
 // Initialize on page load
@@ -248,12 +444,187 @@ window.addEventListener('load', initWebSocket);
     background: white;
     border-right: 1px solid #ddd;
     overflow: hidden;
+    position: relative;
 }
 
 .editor-container iframe {
     width: 100%;
     height: 100%;
     border: none;
+}
+
+/* Loading State */
+.loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+}
+
+.loading-content {
+    text-align: center;
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+}
+
+.loading-content h2 {
+    margin: 20px 0 10px;
+    color: #333;
+    font-size: 1.5em;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.progress-messages {
+    margin-top: 20px;
+    text-align: left;
+    max-height: 150px;
+    overflow-y: auto;
+    background: #f5f5f5;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 3px solid #667eea;
+    min-height: 40px;
+}
+
+.progress-message {
+    font-size: 0.9em;
+    color: #333;
+    margin: 8px 0;
+    font-family: 'Monaco', 'Menlo', monospace;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Operation Overlay (Generic for all long-running operations) */
+.operation-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    backdrop-filter: blur(2px);
+}
+
+.operation-modal {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    text-align: center;
+}
+
+.operation-spinner {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #667eea;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+.operation-modal h2 {
+    margin: 0 0 10px;
+    color: #333;
+    font-size: 1.5em;
+}
+
+.operation-substatus {
+    color: #666;
+    font-size: 0.95em;
+    margin-bottom: 20px;
+    font-weight: 500;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 20px 0;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.operation-messages {
+    margin-top: 20px;
+    text-align: left;
+    max-height: 250px;
+    overflow-y: auto;
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 6px;
+    border-left: 4px solid #667eea;
+    min-height: 50px;
+}
+
+.operation-message {
+    font-size: 0.9em;
+    color: #333;
+    margin: 8px 0;
+    font-family: 'Monaco', 'Menlo', monospace;
+    animation: slideDown 0.3s ease-in;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .editor-sidebar {
@@ -376,6 +747,171 @@ window.addEventListener('load', initWebSocket);
     .editor-sidebar {
         width: 100%;
         max-height: 200px;
+    }
+}
+
+/* Help Modal Styles */
+.help-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.help-modal[data-visible="true"] {
+    display: flex;
+}
+
+.help-modal-content {
+    background: white;
+    border-radius: 8px;
+    max-width: 800px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.help-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.help-modal-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #333;
+}
+
+.help-modal-close {
+    background: none;
+    border: none;
+    font-size: 2em;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.help-modal-close:hover {
+    color: #333;
+}
+
+.help-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.help-modal-body .help-content {
+    color: #333;
+}
+
+.help-section {
+    margin-bottom: 25px;
+}
+
+.help-section h3 {
+    color: #667eea;
+    margin-top: 0;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 10px;
+}
+
+.help-section ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.help-section li {
+    margin: 6px 0;
+    line-height: 1.6;
+}
+
+.help-section ol {
+    margin: 10px 0;
+    padding-left: 20px;
+    counter-reset: item;
+}
+
+.help-section ol li {
+    margin: 8px 0;
+    line-height: 1.6;
+}
+
+.help-section code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.9em;
+}
+
+.help-section pre {
+    background: #f5f5f5;
+    padding: 12px;
+    border-radius: 4px;
+    overflow-x: auto;
+    border-left: 4px solid #667eea;
+    margin: 10px 0;
+}
+
+.help-section pre code {
+    background: none;
+    padding: 0;
+}
+
+.help-task {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.help-task strong {
+    color: #333;
+}
+
+.help-modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+    text-align: right;
+}
+
+.help-modal-footer .btn {
+    margin-left: 10px;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #138496;
+}
+
+
+@media (max-width: 600px) {
+    .help-modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .help-modal-body {
+        font-size: 0.95em;
     }
 }
 </style>

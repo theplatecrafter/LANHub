@@ -1,7 +1,23 @@
+# CRITICAL: Gevent monkey patching MUST be at the absolute top, before any other imports
+# This patches the standard library (sockets, threading, etc.) to be Gevent-aware,
+# preventing the event loop from blocking during synchronous I/O operations like requests.get()
+from gevent import monkey
+monkey.patch_all()
+
 # app.py
 from glob_vars import *
 from utils.init import initialize
 initialize()
+
+# Sync Docker container states to match is_always_on settings after server restart
+# --- REPLACE THIS SECTION IN app.py ---
+try:
+    from functions import lab
+    # We call the function here; the logic now lives safely inside lab.py
+    lab.sync_all_container_states()
+except Exception as e:
+    app_log.warning(f"[startup] Failed to sync container states: {e}")
+
 
 import os
 from flask import Flask, render_template, session, redirect, url_for, request
@@ -9,6 +25,7 @@ from socketio_instance import socketio
 import utils.scheduler as sch
 import sys
 import signal
+import gevent
 import datetime
 import re as _re
 import config as _config
@@ -193,11 +210,15 @@ def handle_websocket_upgrade():
             
             # 5. Read backend response (Yielding to prevent block)
             handshake_response = b""
-            while b"\r\n\r\n" not in handshake_response:
-                gevent.select.select([unix_socket], [], [])
-                chunk = unix_socket.recv(4096)
-                if not chunk: break
-                handshake_response += chunk
+            try:
+                while b"\r\n\r\n" not in handshake_response:
+                    gevent.select.select([unix_socket], [], [])
+                    chunk = unix_socket.recv(4096)
+                    if not chunk: break
+                    handshake_response += chunk
+            except ConnectionError:
+                app_log.error("[websocket] Container severed connection during handshake.")
+                return "Container Offline", 502
                 
             app_log.info(f"[websocket] Backend response: {handshake_response.split(b'\r\n')}")
             
@@ -412,8 +433,12 @@ def about():
 ##########################################
 # Graceful Shutdown Handler
 ##########################################
-def graceful_shutdown(signum, frame):
-    app_log.info(f"[shutdown] Signal {signum} received — starting graceful shutdown...")
+def graceful_shutdown(*args, **kwargs):
+    """
+    Graceful server shutdown handler.
+    Compatible with both standard signal handlers (signum, frame) and Gevent signal handlers (no args).
+    """
+    app_log.info("[shutdown] Shutdown signal received — starting graceful shutdown...")
 
     # ── 1. Warn all connected clients ─────────────────────────────────────────
     try:
@@ -476,7 +501,27 @@ def graceful_shutdown(signum, frame):
     except Exception as e:
         app_log.warning(f"[shutdown] UNO cleanup error: {e}")
 
-    # ── 6. Flush all log handlers ─────────────────────────────────────────────
+    # ── 6. Stop all LANHub Lab Docker containers ──────────────────────────────
+    try:
+        import docker
+        client = docker.from_env()
+        # Find all running lab containers
+        lab_containers = client.containers.list(filters={"name": "lab-"})
+        for container in lab_containers:
+            try:
+                app_log.info(f"[shutdown] Stopping Lab container {container.name}...")
+                container.stop(timeout=10)
+                app_log.info(f"[shutdown] Lab container {container.name} stopped.")
+            except Exception as ce:
+                app_log.warning(f"[shutdown] Error stopping container {container.name}: {ce}")
+        if lab_containers:
+            app_log.info(f"[shutdown] Stopped {len(lab_containers)} Lab container(s).")
+    except ImportError:
+        pass  # Docker not available
+    except Exception as e:
+        app_log.warning(f"[shutdown] Docker cleanup error: {e}")
+
+    # ── 7. Flush all log handlers ─────────────────────────────────────────────
     try:
         for logger in [app_log, access_log, git_log, error_log]:
             for handler in logger.handlers:
@@ -485,19 +530,40 @@ def graceful_shutdown(signum, frame):
     except Exception as e:
         pass  # best effort
 
-    # ── 7. Brief pause to let socket messages and log writes finish ───────────
-    import time
-    time.sleep(1.5)
+    # ── 8. Brief pause to let socket messages and log writes finish ───────────
+    # Use gevent.sleep() instead of time.sleep() to avoid BlockingSwitchOutError
+    from gevent import sleep as gevent_sleep
+    gevent_sleep(1.5)
 
     app_log.info("[shutdown] Shutdown complete. Goodbye.")
     sys.exit(0)
 
 
-signal.signal(signal.SIGINT, graceful_shutdown)
-signal.signal(signal.SIGTERM, graceful_shutdown)
+# ──────────────────────────────────────────────────────────────────────────────
+# Gevent-Native Signal Handling
+# ──────────────────────────────────────────────────────────────────────────────
+# Use Gevent's signal_handler instead of standard signal.signal() to avoid
+# BlockingSwitchOutError during shutdown when the event loop is interrupted.
+# Gevent signal handlers are async-safe and work properly with Gevent's hub.
+
+gevent.signal_handler(signal.SIGINT, graceful_shutdown)
+gevent.signal_handler(signal.SIGTERM, graceful_shutdown)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Public Preview Routes (Step 3: Preview App)
+# ──────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        sch.start_scheduler()
-    # Use gevent as WSGI server with WebSocket support for Lab reverse proxy
-    socketio.run(app, host="0.0.0.0", debug=True, port=_config.PORT, allow_unsafe_werkzeug=True)
+    # Start the scheduler immediately since reloader is off
+    sch.start_scheduler()
+    
+    # Run the app
+    socketio.run(
+        app, 
+        host="0.0.0.0", 
+        debug=True, 
+        port=_config.PORT, 
+        allow_unsafe_werkzeug=True, 
+        use_reloader=False
+    )

@@ -16,6 +16,7 @@ import os
 import uuid
 import json
 import socket
+import subprocess
 from typing import Optional, Dict, List, Tuple
 from werkzeug.security import generate_password_hash, check_password_hash
 from glob_vars import DB_PATH, BASE_DIR, app_log, error_log
@@ -51,10 +52,6 @@ LAB_DOCKER_IMAGE = "lanhub-lab:latest"
 
 # Password for code-server (internal security layer; users authenticate at LANHub level)
 LAB_CODE_SERVER_PASSWORD = ""
-
-# Available project templates (each requires scaffolding functions in this module)
-LAB_PROJECT_TYPES = ["flask", "static_html", "blank_python", "fastapi", "nodejs_express"]
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -189,7 +186,6 @@ def lab_user_get_quota_used(user_id: int) -> int:
 def project_create(
     owner_id: int,
     title: str,
-    project_type: str,
     description: str = "",
     visibility: str = "private",
     is_always_on: bool = False
@@ -200,7 +196,6 @@ def project_create(
     Args:
         owner_id: Lab user ID
         title: Project title
-        project_type: One of ['flask', 'static_html', 'blank_python', 'fastapi', 'nodejs_express']
         description: Project description
         visibility: 'private' or 'public'
         is_always_on: If True, project starts on LANHub boot
@@ -240,7 +235,6 @@ def project_create(
             "slug": slug,
             "title": title,
             "description": description,
-            "project_type": project_type,
             "visibility": visibility,
             "socket_path": socket_path,
             "is_always_on": 1 if is_always_on else 0,
@@ -255,6 +249,12 @@ def project_create(
             "role": "owner",
             "added_at": now
         })
+        
+        # Initialize git repository (get owner name for git config)
+        owner = lab_user_get_by_id(owner_id)
+        if owner:
+            git_init_repo(slug, owner['username'])
+            # Initial commit will be created after scaffolding
         
         app_log.info(f"[lab] Created project: {slug} (id={project_id}, owner_id={owner_id})")
         return project_get_by_id(project_id)
@@ -326,20 +326,135 @@ def project_delete(project_id: int) -> bool:
         db_delete_row("projects", project_id)
         
         # Clean up filesystem
+        import shutil
+        
+        # Remove working tree directory
         project_dir = os.path.join(resolve_lab_path(LAB_PROJECTS_DIR), project["slug"])
         if os.path.exists(project_dir):
-            import shutil
             shutil.rmtree(project_dir)
+            app_log.info(f"[lab] Removed project directory: {project_dir}")
+        
+        # Remove bare repository (origin remote)
+        bare_repo_dir = os.path.join(resolve_lab_path(LAB_PROJECTS_DIR), f"{project['slug']}.git")
+        if os.path.exists(bare_repo_dir):
+            shutil.rmtree(bare_repo_dir)
+            app_log.info(f"[lab] Removed bare repository: {bare_repo_dir}")
         
         # Clean up socket
         if os.path.exists(project["socket_path"]):
             os.remove(project["socket_path"])
+            app_log.info(f"[lab] Removed socket: {project['socket_path']}")
         
-        app_log.info(f"[lab] Deleted project {project_id}")
+        app_log.info(f"[lab] Deleted project {project_id} ({project['slug']})")
         return True
     except Exception as e:
         error_log.error(f"[lab] Failed to delete project {project_id}: {e}")
         return False
+
+
+def project_clone(source_project_id: int, new_owner_id: int) -> Optional[Dict]:
+    """
+    Clone an existing project and assign it to a new owner.
+    
+    Creates a new project with:
+    - Same title (with " (Clone)" suffix)
+    - Same description
+    - Private visibility (cloned projects start private)
+    - New slug (auto-generated)
+    - New directories and sockets
+    - Copies all project files from source
+    
+    Args:
+        source_project_id: Project ID to clone from
+        new_owner_id: User ID of the new owner
+    
+    Returns:
+        New project dict on success, None on failure
+    """
+    try:
+        from slugify import slugify
+        import shutil
+        
+        # Get source project
+        source_project = project_get_by_id(source_project_id)
+        if not source_project:
+            error_log.error(f"[lab] Source project {source_project_id} not found")
+            return None
+        
+        # Check new owner exists
+        new_owner = lab_user_get_by_id(new_owner_id)
+        if not new_owner:
+            error_log.error(f"[lab] New owner {new_owner_id} not found")
+            return None
+        
+        # Check new owner hasn't exceeded max projects
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM projects WHERE owner_id = ?", (new_owner_id,))
+        count = c.fetchone()[0]
+        conn.close()
+        
+        if count >= _config.LAB_MAX_PROJECTS_PER_USER:
+            error_log.error(f"[lab] User {new_owner_id} has reached max projects limit")
+            return None
+        
+        # Generate new title and slug
+        new_title = f"{source_project['title']} (Clone)"
+        new_slug = slugify(new_title)
+        
+        # Ensure slug is unique
+        while project_get_by_slug(new_slug):
+            new_slug = f"{new_slug}-{uuid.uuid4().hex[:4]}"
+        
+        # Socket path for new project
+        new_socket_path = os.path.join(resolve_lab_path(LAB_SOCKET_DIR), f"{new_slug}.sock")
+        
+        now = time.time()
+        
+        # Create new project
+        new_project_id = db_insert("projects", {
+            "owner_id": new_owner_id,
+            "slug": new_slug,
+            "title": new_title,
+            "description": source_project["description"],
+            "visibility": "private",  # Clone always starts as private
+            "socket_path": new_socket_path,
+            "is_always_on": source_project["is_always_on"],
+            "created_at": now,
+            "updated_at": now
+        })
+        
+        # Add owner as project member
+        db_insert("project_members", {
+            "project_id": new_project_id,
+            "user_id": new_owner_id,
+            "role": "owner",
+            "added_at": now
+        })
+        
+        # Copy project files from source directory
+        source_dir = os.path.join(resolve_lab_path(LAB_PROJECTS_DIR), source_project["slug"])
+        new_dir = os.path.join(resolve_lab_path(LAB_PROJECTS_DIR), new_slug)
+        
+        try:
+            if os.path.exists(source_dir):
+                shutil.copytree(source_dir, new_dir)
+                app_log.info(f"[lab] Copied project files from {source_project['slug']} to {new_slug}")
+            else:
+                # Create empty project directory
+                os.makedirs(new_dir, mode=0o755, exist_ok=True)
+                app_log.info(f"[lab] Created empty project directory for {new_slug}")
+        except Exception as e:
+            error_log.error(f"[lab] Failed to copy project files: {e}")
+            # Don't fail entirely, project can be created without files
+        
+        app_log.info(f"[lab] Cloned project {source_project_id} to {new_project_id} for user {new_owner_id}")
+        return project_get_by_id(new_project_id)
+    
+    except Exception as e:
+        error_log.error(f"[lab] Failed to clone project: {e}")
+        return None
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Project Members & Collaboration
 # ──────────────────────────────────────────────────────────────────────────────
@@ -405,6 +520,176 @@ def project_can_edit(project_id: int, user_id: int) -> bool:
     """Check if user can edit a project."""
     role = project_member_get_role(project_id, user_id)
     return role in ["owner", "contributor"]
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Project Invitations & Collaboration
+# ──────────────────────────────────────────────────────────────────────────────
+
+def project_invite_send(project_id: int, inviter_id: int, invitee_username: str, role: str = "contributor") -> Optional[Dict]:
+    """
+    Send a collaboration invitation to another Lab user.
+    
+    Args:
+        project_id: Project ID
+        inviter_id: User ID of the person sending the invite
+        invitee_username: Username of the person being invited
+        role: Role to grant if accepted (contributor or viewer)
+    
+    Returns:
+        Invitation dict on success, None on failure
+    """
+    try:
+        # Find invitee by username
+        invitee = lab_user_get_by_username(invitee_username)
+        if not invitee:
+            return None
+        
+        project = project_get_by_id(project_id)
+        if not project:
+            return None
+        
+        # Check if inviter is project owner
+        inviter_role = project_member_get_role(project_id, inviter_id)
+        if inviter_role != "owner":
+            return None
+        
+        # Check if invitee is already a member
+        existing_role = project_member_get_role(project_id, invitee["id"])
+        if existing_role:
+            return None  # Already a member
+        
+        # Check for existing pending invitation
+        cols, rows = db_query(
+            "SELECT * FROM project_invitations WHERE project_id = ? AND invitee_id = ? AND status = 'pending'",
+            [project_id, invitee["id"]]
+        )
+        if rows:
+            return None  # Invitation already pending
+        
+        # Create invitation
+        invite_id = db_insert("project_invitations", {
+            "project_id": project_id,
+            "inviter_id": inviter_id,
+            "invitee_id": invitee["id"],
+            "role": role,
+            "status": "pending",
+            "created_at": time.time()
+        })
+        
+        app_log.info(f"[lab] Created invitation for {invitee_username} to {project['slug']}")
+        
+        return {
+            "id": invite_id,
+            "project_id": project_id,
+            "inviter_id": inviter_id,
+            "invitee_id": invitee["id"],
+            "invitee_username": invitee["username"],
+            "role": role,
+            "status": "pending",
+            "created_at": time.time()
+        }
+    except Exception as e:
+        error_log.error(f"[lab] Failed to send invitation: {e}")
+        return None
+
+
+def project_invite_accept(invitation_id: int, user_id: int) -> bool:
+    """Accept a collaboration invitation and become a project member."""
+    try:
+        # Get invitation
+        cols, rows = db_query(
+            "SELECT * FROM project_invitations WHERE id = ? AND invitee_id = ? AND status = 'pending'",
+            [invitation_id, user_id]
+        )
+        
+        if not rows:
+            return False
+        
+        invitation = rows[0]
+        project_id = invitation[1]  # project_id from columns
+        role = invitation[4]  # role from columns
+        
+        # Add user to project
+        if not project_member_add(project_id, user_id, role):
+            return False
+        
+        # Mark invitation as accepted
+        db_update_row("project_invitations", invitation_id, {
+            "status": "accepted",
+            "responded_at": time.time()
+        })
+        
+        app_log.info(f"[lab] User {user_id} accepted invitation {invitation_id}")
+        return True
+    except Exception as e:
+        error_log.error(f"[lab] Failed to accept invitation: {e}")
+        return False
+
+
+def project_invite_reject(invitation_id: int, user_id: int) -> bool:
+    """Reject a collaboration invitation."""
+    try:
+        # Get invitation
+        cols, rows = db_query(
+            "SELECT * FROM project_invitations WHERE id = ? AND invitee_id = ? AND status = 'pending'",
+            [invitation_id, user_id]
+        )
+        
+        if not rows:
+            return False
+        
+        # Mark invitation as rejected
+        db_update_row("project_invitations", invitation_id, {
+            "status": "rejected",
+            "responded_at": time.time()
+        })
+        
+        app_log.info(f"[lab] User {user_id} rejected invitation {invitation_id}")
+        return True
+    except Exception as e:
+        error_log.error(f"[lab] Failed to reject invitation: {e}")
+        return False
+
+
+def project_invitations_list_pending_received(user_id: int) -> List[Dict]:
+    """List pending invitations received by a user."""
+    cols, rows = db_query(
+        """
+        SELECT pi.*, p.title, p.slug, lu.username as inviter_username
+        FROM project_invitations pi
+        JOIN projects p ON pi.project_id = p.id
+        JOIN lab_users lu ON pi.inviter_id = lu.id
+        WHERE pi.invitee_id = ? AND pi.status = 'pending'
+        ORDER BY pi.created_at DESC
+        """,
+        [user_id]
+    )
+    return rows
+
+
+def project_invitations_list_sent(project_id: int) -> List[Dict]:
+    """List all invitations sent for a project (pending and answered)."""
+    cols, rows = db_query(
+        """
+        SELECT pi.*, lu.username as invitee_username
+        FROM project_invitations pi
+        JOIN lab_users lu ON pi.invitee_id = lu.id
+        WHERE pi.project_id = ?
+        ORDER BY pi.created_at DESC
+        """,
+        [project_id]
+    )
+    return rows
+
+
+def lab_user_get_by_username(username: str) -> Optional[Dict]:
+    """Get a Lab user by username."""
+    cols, rows = db_query(
+        "SELECT * FROM lab_users WHERE username = ?",
+        [username]
+    )
+    return rows[0] if rows else None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -483,6 +768,55 @@ def lab_comment_delete(comment_id: int) -> bool:
         return True
     except Exception:
         return False
+
+
+def comment_add_like(comment_id: int, user_id: int) -> bool:
+    """Add a like to a comment by a user."""
+    try:
+        db_insert("comment_likes", {
+            "comment_id": comment_id,
+            "user_id": user_id,
+            "created_at": time.time()
+        })
+        return True
+    except Exception as e:
+        # Likely duplicate entry
+        return False
+
+
+def comment_remove_like(comment_id: int, user_id: int) -> bool:
+    """Remove a like from a comment by a user."""
+    try:
+        c = get_db().cursor()
+        c.execute("DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?", 
+                  (comment_id, user_id))
+        return c.rowcount > 0
+    except Exception:
+        return False
+
+
+def comment_has_like(comment_id: int, user_id: int) -> bool:
+    """Check if a user has liked a comment."""
+    try:
+        cols, rows = db_query(
+            "SELECT 1 FROM comment_likes WHERE comment_id = ? AND user_id = ?",
+            [comment_id, user_id]
+        )
+        return len(rows) > 0
+    except Exception:
+        return False
+
+
+def comment_get_like_count(comment_id: int) -> int:
+    """Get the number of likes for a comment."""
+    try:
+        cols, rows = db_query(
+            "SELECT COUNT(*) as count FROM comment_likes WHERE comment_id = ?",
+            [comment_id]
+        )
+        return rows[0]["count"] if rows else 0
+    except Exception:
+        return 0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -613,14 +947,20 @@ def docker_container_start(project: Dict) -> Optional[str]:
         # Resolve paths (relative paths resolved against BASE_DIR)
         project_dir = os.path.join(resolve_lab_path(LAB_PROJECTS_DIR), project["slug"])
         socket_dir = resolve_lab_path(LAB_SOCKET_DIR)
+        lab_dir = resolve_lab_path(LAB_PROJECTS_DIR)
         
         # Create directories with proper permissions
         os.makedirs(project_dir, mode=0o755, exist_ok=True)
         os.makedirs(socket_dir, mode=0o755, exist_ok=True)
         
         # Prepare volumes and mounts
+        # Mount both the project directory (for code-server) and the parent lab directory
+        # (so git commands can access the bare repo at ../projectslug.git)
+        git_repo_dir = os.path.join(resolve_lab_path(LAB_PROJECTS_DIR), f"{project['slug']}.git")
         volumes = {
             project_dir: {"bind": "/home/coder/project", "mode": "rw"},
+            lab_dir: {"bind": "/home/coder/lab", "mode": "rw"},
+            git_repo_dir: {"bind": "/home/coder/project.git", "mode": "rw"},
             socket_dir: {"bind": "/tmp/sockets", "mode": "rw"}
         }
         
@@ -630,9 +970,14 @@ def docker_container_start(project: Dict) -> Optional[str]:
         environment = {
             "CODER_PASSWORD": LAB_CODE_SERVER_PASSWORD or "lanhub",
             "PROJECT_SOCKET": container_socket_path,
-            "PROJECT_SLUG": project["slug"],
-            "PROJECT_TYPE": project["project_type"]
+            "PROJECT_SLUG": project["slug"]
         }
+        
+        # Load project secrets and inject as environment variables
+        project_secrets = get_project_secrets_for_deployment(project["id"])
+        environment.update(project_secrets)
+        
+        app_log.info(f"[lab] Injecting {len(project_secrets)} secrets for project {project['slug']}")
         
         # Start container (NO PORT MAPPING - Unix socket only)
         container = client.containers.run(
@@ -643,6 +988,7 @@ def docker_container_start(project: Dict) -> Optional[str]:
             mem_limit=f"{_config.LAB_DOCKER_MEMORY_MB}m",
             cpu_shares=_config.LAB_DOCKER_CPU_SHARES,
             network_mode="bridge",
+            dns=["8.8.8.8", "1.1.1.1"],  # Explicit DNS for reliable package manager access
             detach=True,
             restart_policy={"Name": "no"},
             user="1000:1000"  # Run as coder user (see Dockerfile.lab)
@@ -650,7 +996,7 @@ def docker_container_start(project: Dict) -> Optional[str]:
         
         # Wait for socket file to be created and set permissions
         import time
-        socket_path = f"{socket_dir}{project['slug']}.sock"
+        socket_path = os.path.join(socket_dir, f"{project['slug']}.sock")
         for attempt in range(30):  # Wait up to 30 seconds
             if os.path.exists(socket_path):
                 # Socket created, set permissions so Flask can access it
@@ -706,13 +1052,104 @@ def docker_container_get_logs(container_id: str, tail: int = 100) -> str:
         return f"Error retrieving logs: {e}"
 
 
+def docker_container_get_ip(container_id: str) -> Optional[str]:
+    """
+    Get the IP address of a running Docker container.
+    
+    Returns:
+        The container's IP address on the bridge network, or None if not found.
+    """
+    try:
+        import docker
+        client = docker.from_env()
+        container = client.containers.get(container_id)
+        
+        # Force SDK to refresh container attributes from Docker daemon
+        # This ensures IP address is up-to-date, especially on cold boots
+        container.reload()
+        
+        # Try to get the IP from the default bridge network
+        if (container.attrs and 
+            "NetworkSettings" in container.attrs and 
+            "Networks" in container.attrs["NetworkSettings"]):
+            networks = container.attrs["NetworkSettings"]["Networks"]
+            # Try 'bridge' first, then fall back to first available network
+            if "bridge" in networks and networks["bridge"].get("IPAddress"):
+                return networks["bridge"]["IPAddress"]
+            else:
+                # Get first network with an IP
+                for network_name, network_info in networks.items():
+                    if network_info.get("IPAddress"):
+                        return network_info["IPAddress"]
+        
+        return None
+    except Exception as e:
+        error_log.warning(f"[lab] Failed to get container IP for {container_id[:12]}: {e}")
+        return None
+
+
+def sync_all_container_states():
+    """
+    Syncs the database 'status' with Docker reality.
+    Forces Always-On projects to boot up if they are missing.
+    """
+    import docker
+    import time
+    try:
+        client = docker.from_env()
+    except Exception as e:
+        app_log.error(f"[lab] Docker connection failed: {e}")
+        return
+
+    # Fetch all projects using your existing db_query helper
+    cols, results = db_query("SELECT * FROM projects")
+    if not results:
+        return
+
+    for project in results:
+        # project is already a dict because of how your db_query works
+        slug = project['slug']
+        project_id = project['id']
+        is_always_on = project.get('is_always_on', 0)
+        container_name = f"lab-{slug}"
+        
+        is_running = False
+        try:
+            container = client.containers.get(container_name)
+            if container.status == "running":
+                is_running = True
+        except:
+            is_running = False
+
+        if is_running:
+            # If Docker says it's running, ensure DB matches
+            db_update_row("projects", project_id, {"status": "RUNNING"})
+        else:
+            if is_always_on == 1:
+                app_log.info(f"[lab] Always-on project '{slug}' is offline. Starting...")
+                try:
+                    # Use your actual function from lab.py
+                    docker_container_start(project)
+                    db_update_row("projects", project_id, {"status": "RUNNING"})
+                except Exception as e:
+                    app_log.error(f"[lab] Auto-start failed for {slug}: {e}")
+                    db_update_row("projects", project_id, {"status": "OFFLINE"})
+            else:
+                # Spontaneous project that is not running
+                db_update_row("projects", project_id, {"status": "OFFLINE"})
+
+    app_log.info("[lab] Startup status synchronization complete.")
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Project Scaffolding
 # ──────────────────────────────────────────────────────────────────────────────
 
 def project_scaffold(project: Dict) -> bool:
     """
-    Initialize a project directory with a starter template.
+    Initialize a project directory with the universal Flask template.
+    
+    Unified Dual-Process Architecture: All projects get the same Flask+HTML template.
+    The container runs both the app (port 8000) and IDE (port 8443) simultaneously.
     
     Returns:
         True on success, False on failure
@@ -721,25 +1158,21 @@ def project_scaffold(project: Dict) -> bool:
         project_dir = os.path.join(resolve_lab_path(LAB_PROJECTS_DIR), project["slug"])
         os.makedirs(project_dir, mode=0o755, exist_ok=True)
         
-        project_type = project["project_type"]
+        # Universal Template: All projects use Flask for consistency
+        # Users can modify app.py to add their own logic, frameworks, etc.
+        _scaffold_universal_app(project_dir)
         
-        # Scaffold based on project type
-        if project_type == "flask":
-            _scaffold_flask(project_dir)
-        elif project_type == "static_html":
-            _scaffold_static_html(project_dir)
-        elif project_type == "blank_python":
-            _scaffold_blank_python(project_dir)
-        elif project_type == "fastapi":
-            _scaffold_fastapi(project_dir)
-        elif project_type == "nodejs_express":
-            _scaffold_nodejs_express(project_dir)
+        # Generate .gitignore to prevent repo bloat
+        _scaffold_gitignore(project_dir)
         
-        # Setup virtual environment for Python projects
-        if project_type in ["flask", "blank_python", "fastapi"]:
-            _setup_python_venv(project_dir)
+        # Setup Python virtual environment
+        _setup_python_venv(project_dir)
+        _scaffold_vscode_settings(project_dir)
         
-        app_log.info(f"[lab] Scaffolded project {project['slug']} ({project_type})")
+        # Create initial git commit after scaffolding
+        git_create_initial_commit(project["slug"])
+        
+        app_log.info(f"[lab] Scaffolded project {project['slug']} (universal)")
         return True
     
     except Exception as e:
@@ -747,25 +1180,236 @@ def project_scaffold(project: Dict) -> bool:
         return False
 
 
-def _scaffold_flask(project_dir: str):
-    """Create Flask starter template."""
+def _scaffold_universal_app(project_dir: str):
+    """
+    Create the universal Flask application template.
+    
+    All projects start with the same Flask structure:
+    - app.py: Flask app serving index.html on port 8000
+    - requirements.txt: Flask, python-dotenv dependencies
+    - templates/index.html: Basic starting HTML
+    - Static files support for CSS, JS, images
+    
+    Users modify these files to build their project.
+    """
     os.makedirs(project_dir, exist_ok=True)
     
+    # Create app.py with graceful shutdown and basic Flask app
     app_py = """
-from flask import Flask, render_template
+import signal
+import sys
+from flask import Flask, render_template, send_from_directory
+import os
 
 app = Flask(__name__)
+
+def graceful_shutdown(signum, frame):
+    \"\"\"Handle SIGINT/SIGTERM for graceful shutdown.\"\"\"
+    print('[Server] Shutting down gracefully...', file=sys.stderr)
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, graceful_shutdown)
+signal.signal(signal.SIGTERM, graceful_shutdown)
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8000, debug=False)
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
 """
     
     requirements_txt = """Flask==2.3.3
 Werkzeug==2.3.7
+python-dotenv==1.0.0
+watchdog==4.0.0
+"""
+    
+    # Create templates directory and HTML
+    templates_dir = os.path.join(project_dir, "templates")
+    os.makedirs(templates_dir, exist_ok=True)
+    
+    index_html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My LANHub Project</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 2em;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .features {
+            text-align: left;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f5f7fa;
+            border-radius: 8px;
+        }
+        
+        .features li {
+            margin: 10px 0;
+            color: #555;
+            list-style-position: inside;
+        }
+        
+        .cta {
+            margin-top: 30px;
+        }
+        
+        .cta a {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .cta a:hover {
+            background: #764ba2;
+        }
+        
+        .info {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Welcome to your LANHub Project!</h1>
+        <p class="subtitle">
+            Your Flask app is now running and ready to customize. Edit the files in VS Code to get started.
+        </p>
+        
+        <div class="features">
+            <strong>What you can do:</strong>
+            <ul>
+                <li>Edit <code>templates/index.html</code> to customize this page</li>
+                <li>Add static files (CSS, JS, images) in the <code>static/</code> directory</li>
+                <li>Modify <code>app.py</code> to create routes and add backend logic</li>
+                <li>Install Python packages with <code>pip install &lt;package&gt;</code></li>
+                <li>Commit your changes to the built-in Git repository</li>
+            </ul>
+        </div>
+        
+        <div class="info">
+            ✨ Your app is running on port 8000. Changes to Python code will auto-reload.
+        </div>
+    </div>
+</body>
+</html>
+"""
+    
+    with open(os.path.join(project_dir, "app.py"), "w") as f:
+        f.write(app_py.strip())
+    
+    with open(os.path.join(project_dir, "requirements.txt"), "w") as f:
+        f.write(requirements_txt.strip())
+    
+    with open(os.path.join(templates_dir, "index.html"), "w") as f:
+        f.write(index_html.strip())
+    
+    # Create static directory for CSS, JS, images
+    static_dir = os.path.join(project_dir, "static")
+    os.makedirs(static_dir, exist_ok=True)
+    
+    # Create a basic CSS file
+    css_content = """/* Add your custom styles here */
+body {
+    font-family: sans-serif;
+}
+"""
+    with open(os.path.join(static_dir, "style.css"), "w") as f:
+        f.write(css_content.strip())
+    
+    # Create .vscode/settings.json to exclude venv and caches from file watcher
+    # This prevents IDE hangs and excessive CPU usage from monitoring massive directories
+    vscode_dir = os.path.join(project_dir, ".vscode")
+    os.makedirs(vscode_dir, exist_ok=True)
+    
+    vscode_settings = {
+        "files.watcherExclude": {
+            "**/venv/**": True,
+            "**/__pycache__/**": True,
+            "**/.git/objects/**": True,
+            "**/.git/hooks/**": True,
+            "**/.git/logs/**": True,
+            "**/node_modules/**": True,
+            "**/*.pyc": True
+        }
+    }
+    
+    import json
+    with open(os.path.join(vscode_dir, "settings.json"), "w") as f:
+        json.dump(vscode_settings, f, indent=2)
+    
+    app_log.info(f"[lab] Created universal app template at {project_dir}")
+    
+    app_py = """
+import signal
+import sys
+from flask import Flask, render_template
+
+app = Flask(__name__)
+
+def graceful_shutdown(signum, frame):
+    \"\"\"Handle SIGINT/SIGTERM for graceful shutdown.\"\"\"
+    print('\\n[Server] Shutting down gracefully...', file=sys.stderr)
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, graceful_shutdown)
+signal.signal(signal.SIGTERM, graceful_shutdown)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+"""
+    
+    requirements_txt = """Flask==2.3.3
+Werkzeug==2.3.7
+python-dotenv==1.0.0
+watchdog==4.0.0
 """
     
     with open(os.path.join(project_dir, "app.py"), "w") as f:
@@ -795,35 +1439,49 @@ Werkzeug==2.3.7
 
 
 def _scaffold_fastapi(project_dir: str):
-    """Create FastAPI starter template."""
+    """Create FastAPI starter template with graceful shutdown."""
     os.makedirs(project_dir, exist_ok=True)
     
     app_py = """
+import signal
+import sys
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
-app = FastAPI()
+app = FastAPI(title="LANHub FastAPI App")
+
+def graceful_shutdown(signum, frame):
+    \"\"\"Handle SIGINT/SIGTERM for graceful shutdown.\"\"\"
+    print('\\n[Server] Shutting down gracefully...', file=sys.stderr)
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, graceful_shutdown)
+signal.signal(signal.SIGTERM, graceful_shutdown)
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
     return '''
+    <!DOCTYPE html>
     <html>
         <head>
             <title>FastAPI App</title>
         </head>
         <body>
             <h1>Welcome to FastAPI!</h1>
+            <p>Edit app.py to customize.</p>
         </body>
     </html>
     '''
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host='127.0.0.1', port=8000)
+    print('[Server] Starting FastAPI app on 0.0.0.0:8000')
+    uvicorn.run(app, host='0.0.0.0', port=8000)
 """
     
     requirements_txt = """fastapi==0.103.1
 uvicorn==0.23.2
+python-dotenv==1.0.0
 """
     
     with open(os.path.join(project_dir, "app.py"), "w") as f:
@@ -856,13 +1514,29 @@ def _scaffold_static_html(project_dir: str):
     
     with open(os.path.join(project_dir, "server.py"), "w") as f:
         f.write("""
-from http.server import HTTPServer, SimpleHTTPRequestHandler
 import os
+import signal
+import sys
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+class ShutdownHandler(SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        sys.stderr.write("[%s] %s\\n" % (self.log_date_time_string(), format % args))
+
+def graceful_shutdown(signum, frame):
+    print('\\n[Server] Shutting down gracefully...', file=sys.stderr)
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, graceful_shutdown)
+signal.signal(signal.SIGTERM, graceful_shutdown)
 
 os.chdir(os.path.dirname(__file__))
-httpd = HTTPServer(('127.0.0.1', 8000), SimpleHTTPRequestHandler)
-print('Server running on http://127.0.0.1:8000')
-httpd.serve_forever()
+httpd = HTTPServer(('0.0.0.0', 8000), ShutdownHandler)
+print('[Server] Starting HTTP server on http://0.0.0.0:8000')
+try:
+    httpd.serve_forever()
+except KeyboardInterrupt:
+    print('\\n[Server] Shutting down gracefully...', file=sys.stderr)
 """.strip())
 
 
@@ -872,7 +1546,16 @@ def _scaffold_blank_python(project_dir: str):
     
     with open(os.path.join(project_dir, "main.py"), "w") as f:
         f.write("""
-# Your Python project starts here!
+import signal
+import sys
+
+def graceful_shutdown(signum, frame):
+    \"\"\"Handle SIGINT/SIGTERM for graceful shutdown.\"\"\"
+    print('\\n[App] Shutting down gracefully...', file=sys.stderr)
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, graceful_shutdown)
+signal.signal(signal.SIGTERM, graceful_shutdown)
 
 def hello():
     return "Hello, LANHub Lab!"
@@ -882,7 +1565,8 @@ if __name__ == '__main__':
 """.strip())
     
     with open(os.path.join(project_dir, "requirements.txt"), "w") as f:
-        f.write("")  # Empty, user can add deps
+        f.write("""python-dotenv==1.0.0
+""".strip())
 
 
 def _scaffold_nodejs_express(project_dir: str):
@@ -899,7 +1583,8 @@ def _scaffold_nodejs_express(project_dir: str):
             "dev": "nodemon app.js"
         },
         "dependencies": {
-            "express": "^4.18.2"
+            "express": "^4.18.2",
+            "dotenv": "^16.3.1"
         }
     }
     
@@ -909,6 +1594,17 @@ def _scaffold_nodejs_express(project_dir: str):
     app_js = """
 const express = require('express');
 const app = express();
+
+// Graceful shutdown handlers
+process.on('SIGINT', () => {
+    console.error('\\n[Server] Shutting down gracefully...');
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    console.error('[Server] Shutting down gracefully...');
+    process.exit(0);
+});
 
 app.get('/', (req, res) => {
     res.send(`
@@ -922,8 +1618,12 @@ app.get('/', (req, res) => {
     `);
 });
 
-app.listen(8000, '127.0.0.1', () => {
-    console.log('Server running on http://127.0.0.1:8000');
+const server = app.listen(8000, '0.0.0.0', () => {
+    console.log('[Server] Starting Express app on http://0.0.0.0:8000');
+});
+
+server.on('error', (err) => {
+    console.error('[Server] Error:', err);
 });
 """
     
@@ -932,20 +1632,120 @@ app.listen(8000, '127.0.0.1', () => {
 
 
 def _setup_python_venv(project_dir: str):
-    """Create and initialize a Python virtual environment."""
-    import subprocess
+    """
+    Prepare Python project for virtual environment creation.
     
-    venv_dir = os.path.join(project_dir, "venv")
+    NOTE: The actual venv creation happens INSIDE the container via entrypoint-lab.sh
+    This is necessary because venv with compiled packages must be created in the target OS,
+    not on the host. This function just ensures requirements.txt exists.
+    """
+    requirements_file = os.path.join(project_dir, "requirements.txt")
+    if os.path.exists(requirements_file):
+        app_log.info(f"[lab] requirements.txt exists - venv will be created in container: {requirements_file}")
+    else:
+        error_log.warning(f"[lab] requirements.txt not found for {project_dir}")
+
+
+def _scaffold_vscode_settings(project_dir: str):
+    """
+    Create .vscode/settings.json to configure VS Code for the project.
+    
+    This forces code-server to use the project's virtual environment,
+    sets up the PATH so terminal commands use venv, and enables better 
+    Python language support.
+    """
+    vscode_dir = os.path.join(project_dir, ".vscode")
+    os.makedirs(vscode_dir, exist_ok=True)
+    
+    settings = {
+        "python.defaultInterpreterPath": "/home/coder/project/venv/bin/python",
+        "terminal.integrated.env.linux": {
+            "PATH": "/home/coder/project/venv/bin:${env:PATH}"
+        },
+        "python.formatting.provider": "black",
+        "python.linting.enabled": True,
+        "python.linting.pylintEnabled": False,
+        "[python]": {
+            "editor.defaultFormatter": "ms-python.python",
+            "editor.formatOnSave": True
+        }
+    }
+    
+    settings_file = os.path.join(vscode_dir, "settings.json")
     try:
-        subprocess.run(
-            ["/usr/bin/python3", "-m", "venv", venv_dir],
-            check=True,
-            cwd=project_dir,
-            capture_output=True
-        )
-        app_log.info(f"[lab] Created venv at {venv_dir}")
-    except subprocess.CalledProcessError as e:
-        error_log.error(f"[lab] Failed to create venv: {e}")
+        with open(settings_file, "w") as f:
+            json.dump(settings, f, indent=2)
+        app_log.info(f"[lab] Created VS Code settings at {settings_file}")
+    except Exception as e:
+        error_log.error(f"[lab] Failed to create VS Code settings: {e}")
+
+
+def _scaffold_gitignore(project_dir: str):
+    """
+    Create a .gitignore file to exclude common files that shouldn't be committed.
+    
+    This prevents venv, dependencies, cache files, and OS files from bloating the repository.
+    """
+    gitignore_path = os.path.join(project_dir, ".gitignore")
+    
+    gitignore_content = """# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Environment variables
+.env
+.env.local
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+.project
+.pydevproject
+
+# Node modules (if applicable)
+node_modules/
+npm-debug.log
+
+# Logs
+*.log
+logs/
+
+# Coverage and testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+"""
+    
+    try:
+        with open(gitignore_path, "w") as f:
+            f.write(gitignore_content.strip())
+        app_log.info(f"[lab] Created .gitignore at {gitignore_path}")
+    except Exception as e:
+        error_log.error(f"[lab] Failed to create .gitignore: {e}")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -963,7 +1763,7 @@ def project_record_activity(project_id: int):
 def project_check_idle():
     """
     Check for idle projects and stop them.
-    Called by the scheduler periodically.
+    Always-on projects are EXEMPT from this check.
     """
     now = time.time()
     idle_threshold = _config.LAB_IDLE_TIMEOUT_MINS * 60
@@ -971,16 +1771,33 @@ def project_check_idle():
     projects_to_stop = []
     
     for project_id, last_activity in list(project_idle_timers.items()):
+        # Check if the time has passed the threshold
         if (now - last_activity) > idle_threshold:
-            projects_to_stop.append(project_id)
+            # CRITICAL FIX: Get project details to check Always-On status
+            project = project_get_by_id(project_id)
+            
+            # Only stop it if it is NOT an always-on project
+            if project and project.get("is_always_on") == 0:
+                projects_to_stop.append(project_id)
+            else:
+                # If it IS always-on, just remove it from the idle timer 
+                # so we stop checking it, or update its timer to 'now'
+                if project_id in project_idle_timers:
+                    del project_idle_timers[project_id]
     
     for project_id in projects_to_stop:
         project = project_get_by_id(project_id)
         if project and project.get("docker_container_id"):
+            app_log.info(f"[lab] Stopping idle spontaneous project {project_id}")
             docker_container_stop(project["docker_container_id"], project_id)
-            db_update_row("projects", project_id, {"docker_container_id": None})
-            del project_idle_timers[project_id]
-            app_log.info(f"[lab] Stopped idle project {project_id}")
+            
+            db_update_row("projects", project_id, {
+                "docker_container_id": None, 
+                "status": "OFFLINE"
+            })
+            
+            if project_id in project_idle_timers:
+                del project_idle_timers[project_id]
 
 
 from datetime import datetime
@@ -1209,4 +2026,779 @@ def proxy_forward_request(
         return (502, {}, f"Bad Gateway: {str(e)}".encode())
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Environment Secrets Management
+# ──────────────────────────────────────────────────────────────────────────────
 
+def set_project_secret(project_id: int, secret_key: str, secret_value: str) -> bool:
+    """
+    Store or update an environment secret for a project.
+    
+    Secrets are encrypted and stored in the database. They can be injected as
+    environment variables when the project's Docker container starts.
+    
+    Args:
+        project_id: Project ID
+        secret_key: Secret key/name (e.g., 'API_KEY', 'DB_PASSWORD')
+        secret_value: Secret value (stored encrypted)
+    
+    Returns:
+        True on success, False on failure
+    """
+    try:
+        if not secret_key or not secret_value:
+            error_log.error("[lab] Secret key and value cannot be empty")
+            return False
+        
+        # Check if project exists
+        project = project_get_by_id(project_id)
+        if not project:
+            error_log.error(f"[lab] Project {project_id} not found")
+            return False
+        
+        # Check if secret already exists (update) or new (insert)
+        conn = get_db()
+        c = conn.cursor()
+        
+        try:
+            c.execute(
+                "SELECT id FROM project_secrets WHERE project_id = ? AND secret_key = ?",
+                (project_id, secret_key)
+            )
+            existing = c.fetchone()
+            
+            if existing:
+                # Update existing secret
+                db_update_row("project_secrets", existing[0], {
+                    "secret_value": secret_value,
+                    "updated_at": time.time()
+                })
+                app_log.info(f"[lab] Updated secret '{secret_key}' for project {project_id}")
+            else:
+                # Insert new secret
+                db_insert("project_secrets", {
+                    "project_id": project_id,
+                    "secret_key": secret_key,
+                    "secret_value": secret_value,
+                    "created_at": time.time(),
+                    "updated_at": time.time()
+                })
+                app_log.info(f"[lab] Created secret '{secret_key}' for project {project_id}")
+            
+            return True
+        finally:
+            conn.close()
+    
+    except Exception as e:
+        error_log.error(f"[lab] Failed to set secret for project {project_id}: {e}")
+        return False
+
+
+def delete_project_secret(project_id: int, secret_key: str) -> bool:
+    """
+    Delete an environment secret for a project.
+    
+    Args:
+        project_id: Project ID
+        secret_key: Secret key to delete
+    
+    Returns:
+        True on success, False if secret not found or error
+    """
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        
+        try:
+            c.execute(
+                "SELECT id FROM project_secrets WHERE project_id = ? AND secret_key = ?",
+                (project_id, secret_key)
+            )
+            secret_id = c.fetchone()
+            
+            if not secret_id:
+                error_log.warning(f"[lab] Secret '{secret_key}' not found for project {project_id}")
+                return False
+            
+            db_delete_row("project_secrets", secret_id[0])
+            app_log.info(f"[lab] Deleted secret '{secret_key}' for project {project_id}")
+            return True
+        finally:
+            conn.close()
+    
+    except Exception as e:
+        error_log.error(f"[lab] Failed to delete secret for project {project_id}: {e}")
+        return False
+
+
+def get_project_secret_keys(project_id: int) -> List[str]:
+    """
+    Get all secret keys (not values) for a project.
+    
+    This returns only the key names, not the actual secret values (for security).
+    Secret values should only be loaded into environment variables when the
+    container is actually deployed.
+    
+    Args:
+        project_id: Project ID
+    
+    Returns:
+        List of secret key names, empty list if none or error
+    """
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        
+        try:
+            c.execute(
+                "SELECT secret_key FROM project_secrets WHERE project_id = ? ORDER BY created_at ASC",
+                (project_id,)
+            )
+            rows = c.fetchall()
+            keys = [row[0] for row in rows]
+            return keys
+        finally:
+            conn.close()
+    
+    except Exception as e:
+        error_log.error(f"[lab] Failed to get secrets for project {project_id}: {e}")
+        return []
+
+
+def get_project_secrets_for_deployment(project_id: int) -> Dict[str, str]:
+    """
+    Get all secrets for a project as a dict for Docker environment injection.
+    
+    This is called only at deployment time and returns the actual secret values.
+    Should be used with caution and never logged or exposed to the client.
+    
+    Args:
+        project_id: Project ID
+    
+    Returns:
+        Dict of secret_key -> secret_value, empty dict if none or error
+    """
+    try:
+        conn = get_db()
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        try:
+            c.execute(
+                "SELECT secret_key, secret_value FROM project_secrets WHERE project_id = ?",
+                (project_id,)
+            )
+            rows = c.fetchall()
+            secrets = {row["secret_key"]: row["secret_value"] for row in rows}
+            return secrets
+        finally:
+            conn.close()
+    
+    except Exception as e:
+        error_log.error(f"[lab] Failed to get secrets for deployment {project_id}: {e}")
+        return {}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Project Starring & Ratings
+# ──────────────────────────────────────────────────────────────────────────────
+
+def project_add_star(project_id: int, user_id: int) -> bool:
+    """
+    Add a star to a project by a user.
+    
+    Args:
+        project_id: Project ID
+        user_id: User ID
+    
+    Returns:
+        True on success (created new star), False if already starred or error
+    """
+    try:
+        db_insert("project_stars", {
+            "project_id": project_id,
+            "user_id": user_id,
+            "created_at": time.time()
+        })
+        app_log.info(f"[lab] User {user_id} starred project {project_id}")
+        return True
+    except sqlite3.IntegrityError:
+        # Already starred by this user
+        return False
+    except Exception as e:
+        error_log.error(f"[lab] Failed to add star: {e}")
+        return False
+
+
+def project_remove_star(project_id: int, user_id: int) -> bool:
+    """
+    Remove a star from a project by a user.
+    
+    Args:
+        project_id: Project ID
+        user_id: User ID
+    
+    Returns:
+        True on success, False if not starred or error
+    """
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        
+        try:
+            c.execute(
+                "DELETE FROM project_stars WHERE project_id = ? AND user_id = ?",
+                (project_id, user_id)
+            )
+            conn.commit()
+            
+            if c.rowcount > 0:
+                app_log.info(f"[lab] User {user_id} unstarred project {project_id}")
+                return True
+            return False
+        finally:
+            conn.close()
+    
+    except Exception as e:
+        error_log.error(f"[lab] Failed to remove star: {e}")
+        return False
+
+
+def project_get_star_count(project_id: int) -> int:
+    """
+    Get the number of stars for a project.
+    
+    Args:
+        project_id: Project ID
+    
+    Returns:
+        Number of stars, 0 if none or error
+    """
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        
+        try:
+            c.execute(
+                "SELECT COUNT(*) FROM project_stars WHERE project_id = ?",
+                (project_id,)
+            )
+            count = c.fetchone()[0]
+            return count
+        finally:
+            conn.close()
+    
+    except Exception as e:
+        error_log.error(f"[lab] Failed to get star count: {e}")
+        return 0
+
+
+def project_has_star(project_id: int, user_id: int) -> bool:
+    """
+    Check if a user has starred a project.
+    
+    Args:
+        project_id: Project ID
+        user_id: User ID
+    
+    Returns:
+        True if starred, False otherwise or error
+    """
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        
+        try:
+            c.execute(
+                "SELECT 1 FROM project_stars WHERE project_id = ? AND user_id = ?",
+                (project_id, user_id)
+            )
+            return c.fetchone() is not None
+        finally:
+            conn.close()
+    
+    except Exception as e:
+        error_log.error(f"[lab] Failed to check star: {e}")
+        return False
+
+
+def project_list_public_sorted(sort_by: str = "recent", search_query: str = "") -> List[Dict]:
+    """
+    List all public projects with optional sorting and search filtering.
+    
+    Args:
+        sort_by: Sort order - 'recent' (default), 'stars' (most starred)
+        search_query: Optional search string to filter by name, description, owner, or contributors
+    
+    Returns:
+        List of project dicts, sorted and filtered as requested
+    """
+    try:
+        search_filter = ""
+        if search_query:
+            search_query = f"%{search_query}%"
+            search_filter = """
+                AND (
+                    p.title LIKE ? 
+                    OR p.description LIKE ?
+                    OR u.username LIKE ?
+                    OR EXISTS (
+                        SELECT 1 FROM project_members pm
+                        JOIN lab_users lu ON pm.user_id = lu.id
+                        WHERE pm.project_id = p.id AND lu.username LIKE ?
+                    )
+                )
+            """
+        
+        if sort_by == "stars":
+            query = f"""
+                SELECT p.id, p.owner_id, p.slug, p.title, p.description, 
+                       p.visibility, p.socket_path, p.git_url, p.docker_container_id, 
+                       p.is_always_on, p.created_at, p.updated_at, p.last_deployed_at,
+                       COUNT(ps.id) as star_count, 
+                       COALESCE(u.username, 'Unknown') as owner_username
+                FROM projects p
+                LEFT JOIN project_stars ps ON p.id = ps.project_id
+                LEFT JOIN lab_users u ON p.owner_id = u.id
+                WHERE p.visibility = 'public'
+                {search_filter}
+                GROUP BY p.id
+                ORDER BY star_count DESC, p.created_at DESC
+            """
+            if search_query:
+                cols, rows = db_query(query, (search_query, search_query, search_query, search_query))
+            else:
+                cols, rows = db_query(query)
+        else:
+            # Default to 'recent'
+            query = f"""
+                SELECT p.id, p.owner_id, p.slug, p.title, p.description, 
+                       p.visibility, p.socket_path, p.git_url, p.docker_container_id, 
+                       p.is_always_on, p.created_at, p.updated_at, p.last_deployed_at,
+                       0 as star_count, 
+                       COALESCE(u.username, 'Unknown') as owner_username
+                FROM projects p
+                LEFT JOIN lab_users u ON p.owner_id = u.id
+                WHERE p.visibility = 'public'
+                {search_filter}
+                ORDER BY p.created_at DESC
+            """
+            if search_query:
+                cols, rows = db_query(query, (search_query, search_query, search_query, search_query))
+            else:
+                cols, rows = db_query(query)
+        
+        return rows if rows else []
+    
+    except Exception as e:
+        error_log.error(f"[lab] Failed to list public projects: {e}")
+        return []
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Git Integration - Wrap Git Commands for Multi-Contributor Collaboration
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _get_git_dir(project_slug: str) -> str:
+    """Get the git directory path for a project."""
+    project_dir = os.path.join(resolve_lab_path(LAB_PROJECTS_DIR), project_slug)
+    return os.path.join(project_dir, '.git')
+
+
+def _get_project_dir(project_slug: str) -> str:
+    """Get the project directory path."""
+    return os.path.join(resolve_lab_path(LAB_PROJECTS_DIR), project_slug)
+
+
+def git_init_repo(project_slug: str, author_name: str) -> bool:
+    """Initialize a git repository for a new project with isolation and local origin."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        # Bare repository path (acts as "origin" remote on the server)
+        bare_repo_dir = os.path.join(resolve_lab_path(LAB_PROJECTS_DIR), f"{project_slug}.git")
+        
+        # Make sure project dir exists
+        os.makedirs(project_dir, exist_ok=True)
+        
+        # Create bare repository (acts as origin)
+        if not os.path.exists(bare_repo_dir):
+            # Create the bare repo directory first
+            os.makedirs(bare_repo_dir, exist_ok=True)
+            
+            result = subprocess.run(
+                ['git', 'init', '--bare', '--initial-branch=main'],
+                cwd=bare_repo_dir,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            
+            if result.returncode != 0:
+                error_log.error(f"[lab] Failed to create bare repo: {result.stderr}")
+                return False
+            app_log.info(f"[lab] Created bare git repo at {bare_repo_dir}")
+        
+        # Initialize working tree repo with explicit git directory
+        result = subprocess.run(
+            ['git', 'init', '--initial-branch=main'],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        
+        if result.returncode != 0:
+            error_log.error(f"[lab] Git init failed: {result.stderr}")
+            return False
+        
+        # Verify .git directory was created
+        if not os.path.exists(git_dir):
+            error_log.error(f"[lab] Git directory not created at {git_dir}")
+            return False
+        
+        # Use --git-dir and --work-tree to explicitly set repo location (prevents parent search)
+        subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'config', 'user.name', author_name],
+            cwd=project_dir,
+            capture_output=True,
+            check=True
+        )
+        
+        email = f"{author_name.lower().replace(' ', '.')}@lanhub.local"
+        subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'config', 'user.email', email],
+            cwd=project_dir,
+            capture_output=True,
+            check=True
+        )
+        
+        # Configure the bare repo as "origin" remote (local push destination)
+        # Use container-specific path so it works inside docker container
+        container_bare_path = "/home/coder/project.git"
+        subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'remote', 'add', 'origin', container_bare_path],
+            cwd=project_dir,
+            capture_output=True,
+            check=True
+        )
+        
+        app_log.info(f"[lab] Initialized git repo for project: {project_slug} at {git_dir}")
+        app_log.info(f"[lab] Configured local origin remote at {bare_repo_dir}")
+        return True
+    except Exception as e:
+        error_log.error(f"[lab] Failed to init git repo: {e}")
+        return False
+
+
+def git_create_initial_commit(project_slug: str, initial_file: str = "README.md") -> bool:
+    """Create initial commit in git repository and push to local origin."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        # Verify git repo exists
+        if not os.path.exists(git_dir):
+            error_log.error(f"[lab] Git repo not found at {git_dir}")
+            return False
+        
+        # Create initial file if it doesn't exist
+        readme_path = os.path.join(project_dir, initial_file)
+        if not os.path.exists(readme_path):
+            with open(readme_path, 'w') as f:
+                f.write(f"# {project_slug}\n\nProject initialized by LANHub.\n")
+        
+        # Add all files using explicit git repo
+        subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'add', '.'],
+            cwd=project_dir,
+            capture_output=True,
+            check=True
+        )
+        
+        # Create commit using explicit git repo
+        subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'commit', '-m', 'Initial commit'],
+            cwd=project_dir,
+            capture_output=True,
+            check=True
+        )
+        
+        # Push initial commit to local origin remote
+        # This allows code-server to track remote/origin branch
+        subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'push', '-u', 'origin', 'main'],
+            cwd=project_dir,
+            capture_output=True,
+            check=False  # Don't fail if push doesn't work (might happen if bare repo not ready)
+        )
+        
+        return True
+    except Exception as e:
+        error_log.error(f"[lab] Failed to create initial commit: {e}")
+        return False
+        return False
+
+
+def git_get_branches(project_slug: str) -> List[Dict]:
+    """Get all git branches for a project."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        # Get all branches with metadata - use explicit git dir to prevent parent search
+        result = subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'branch', '-v', '--format=%(refname:short)|%(objectname:short)|%(committerdate:iso8601-strict)'],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        branches = []
+        for line in result.stdout.strip().split('\n'):
+            if not line:
+                continue
+            parts = line.split('|')
+            if len(parts) >= 3:
+                branches.append({
+                    'name': parts[0],
+                    'commit': parts[1],
+                    'date': parts[2],
+                    'is_default': parts[0] == 'main'
+                })
+        
+        return branches
+    except Exception as e:
+        error_log.error(f"[lab] Failed to get branches: {e}")
+        return []
+
+
+def git_create_branch(project_slug: str, branch_name: str, from_commit: str = None) -> bool:
+    """Create a new branch from a commit hash (or HEAD if not specified)."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        if from_commit:
+            subprocess.run(['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'checkout', '-b', branch_name, from_commit], cwd=project_dir, check=True, capture_output=True)
+        else:
+            subprocess.run(['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'checkout', '-b', branch_name], cwd=project_dir, check=True, capture_output=True)
+        
+        # Switch back to main after creating
+        subprocess.run(['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'checkout', 'main'], cwd=project_dir, check=True, capture_output=True)
+        
+        return True
+    except Exception as e:
+        error_log.error(f"[lab] Failed to create branch: {e}")
+        return False
+
+
+def git_get_commit_log(project_slug: str, branch: str = 'main', limit: int = 50) -> List[Dict]:
+    """Get commit history for a branch."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        # Get commits with full info - use explicit git dir to prevent parent search
+        result = subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'log', f'{branch}', '--format=%H|%an|%ae|%s|%aI|%b', f'-n{limit}'],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        commits = []
+        for line in result.stdout.strip().split('\n'):
+            if not line:
+                continue
+            parts = line.split('|', 5)
+            if len(parts) >= 4:
+                commits.append({
+                    'hash': parts[0][:7],  # Short hash
+                    'author': parts[1],
+                    'email': parts[2],
+                    'message': parts[3],
+                    'date': parts[4],
+                    'body': parts[5] if len(parts) > 5 else ''
+                })
+        
+        return commits
+    except Exception as e:
+        error_log.error(f"[lab] Failed to get commit log: {e}")
+        return []
+
+
+def git_get_diff_stat(project_slug: str, commit1: str, commit2: str) -> Dict:
+    """Get statistics of changes between two commits."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        # Get files changed - use explicit git dir
+        result = subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'diff', '--name-status', commit1, commit2],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        changes = {'created': [], 'modified': [], 'deleted': []}
+        for line in result.stdout.strip().split('\n'):
+            if not line:
+                continue
+            status, filepath = line.split('\t', 1)
+            if status == 'A':
+                changes['created'].append(filepath)
+            elif status == 'M':
+                changes['modified'].append(filepath)
+            elif status == 'D':
+                changes['deleted'].append(filepath)
+        
+        return changes
+    except Exception as e:
+        error_log.error(f"[lab] Failed to get diff stat: {e}")
+        return {'created': [], 'modified': [], 'deleted': []}
+
+
+def git_merge_branch(project_slug: str, source_branch: str, target_branch: str = 'main') -> Dict:
+    """Attempt to merge source branch into target branch. Returns merge status."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        # Checkout target branch using explicit git dir
+        subprocess.run(['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'checkout', target_branch], cwd=project_dir, check=True, capture_output=True)
+        
+        # Attempt merge
+        result = subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'merge', source_branch, '--no-edit'],
+            cwd=project_dir,
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode == 0:
+            return {'success': True, 'message': f'Successfully merged {source_branch} into {target_branch}'}
+        else:
+            # Merge conflict detected
+            conflicts = git_get_conflicted_files(project_slug)
+            return {
+                'success': False,
+                'conflicts': conflicts,
+                'merge_in_progress': True,
+                'error': 'Merge conflict detected. Please resolve conflicts.'
+            }
+    except Exception as e:
+        error_log.error(f"[lab] Failed to merge branches: {e}")
+        return {'success': False, 'error': str(e)}
+
+
+def git_get_conflicted_files(project_slug: str) -> List[str]:
+    """Get list of files with merge conflicts."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        result = subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'diff', '--name-only', '--diff-filter=U'],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        return [f for f in result.stdout.strip().split('\n') if f]
+    except Exception as e:
+        error_log.error(f"[lab] Failed to get conflicted files: {e}")
+        return []
+
+
+def git_get_file_content(project_slug: str, file_path: str, commit_hash: str = None) -> Optional[str]:
+    """Get file content at a specific commit (or working directory if no commit specified)."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        if commit_hash:
+            # Get from specific commit using explicit git dir
+            result = subprocess.run(
+                ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'show', f'{commit_hash}:{file_path}'],
+                cwd=project_dir,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            return result.stdout
+        else:
+            # Get from working directory
+            full_path = os.path.join(project_dir, file_path)
+            if os.path.exists(full_path):
+                with open(full_path, 'r') as f:
+                    return f.read()
+            return None
+    except Exception as e:
+        error_log.error(f"[lab] Failed to get file content: {e}")
+        return None
+
+
+def git_resolve_conflict(project_slug: str, file_path: str, resolved_content: str) -> bool:
+    """Resolve a merge conflict by writing resolved content and marking as resolved."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        full_path = os.path.join(project_dir, file_path)
+        
+        # Write resolved content
+        with open(full_path, 'w') as f:
+            f.write(resolved_content)
+        
+        # Stage the file using explicit git dir
+        subprocess.run(['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'add', file_path], cwd=project_dir, check=True, capture_output=True)
+        
+        return True
+    except Exception as e:
+        error_log.error(f"[lab] Failed to resolve conflict: {e}")
+        return False
+
+
+def git_abort_merge(project_slug: str) -> bool:
+    """Abort an ongoing merge operation."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        subprocess.run(['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'merge', '--abort'], cwd=project_dir, check=True, capture_output=True)
+        
+        return True
+    except Exception as e:
+        error_log.error(f"[lab] Failed to abort merge: {e}")
+        return False
+
+
+def git_complete_merge(project_slug: str, merge_message: str = "Merge branch") -> bool:
+    """Complete a merge after resolving all conflicts."""
+    try:
+        project_dir = _get_project_dir(project_slug)
+        git_dir = _get_git_dir(project_slug)
+        
+        # Check if merge is in progress
+        merge_head = os.path.join(git_dir, 'MERGE_HEAD')
+        if not os.path.exists(merge_head):
+            return False
+        
+        # Commit the merge using explicit git dir
+        subprocess.run(
+            ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'commit', '--no-edit', '-m', merge_message],
+            cwd=project_dir,
+            check=True,
+            capture_output=True
+        )
+        
+        return True
+    except Exception as e:
+        error_log.error(f"[lab] Failed to complete merge: {e}")
+        return False

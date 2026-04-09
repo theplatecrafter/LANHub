@@ -12,12 +12,17 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     python3 \
     python3-pip \
+    python3-venv \
+    python3-dev \
     nodejs \
     npm \
     nano \
     vim \
     sudo \
     socat \
+    sqlite3 \
+    netcat-traditional \
+    jq \
     && rm -rf /var/lib/apt/lists/*
 
 # Create coder user
