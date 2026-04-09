@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 source venv/bin/activate
 git pull
@@ -18,11 +17,13 @@ if [ ! -f "$UPDATED_JSON" ]; then
 EOF
 fi
 
-# Use Python to handle JSON parsing and update logic
+# All update logic (detection, prompting, execution) in Python
 python3 << 'PYTHON_EOF'
 import json
 import subprocess
 import sys
+import os
+import time
 
 # Read JSON files
 with open('updates/updates.json', 'r') as f:
@@ -61,11 +62,29 @@ for i, update in enumerate(pending, 1):
         print(f"   Tags: {', '.join(update['tags'])}")
     print()
 
-# Prompt for confirmation
+# Prompt for confirmation - with proper handling of piped vs interactive input
 print("="*75)
+response = None
 try:
-    response = input("Apply updates? (Y/n): ").strip().lower()
-except KeyboardInterrupt:
+    # Check if stdin is a TTY (interactive terminal)
+    import sys
+    is_tty = sys.stdin.isatty()
+    
+    if is_tty:
+        # Interactive terminal - read from stdin
+        response = input("Apply updates? (Y/n): ").strip().lower()
+    else:
+        # Piped input - read from /dev/tty for true interactivity
+        # If /dev/tty is available, use it; otherwise use stdin (which has piped data)
+        try:
+            with open('/dev/tty', 'r') as tty:
+                sys.stdout.write("Apply updates? (Y/n): ")
+                sys.stdout.flush()
+                response = tty.readline().strip().lower()
+        except (FileNotFoundError, OSError):
+            # No /dev/tty available - read from piped stdin
+            response = input("Apply updates? (Y/n): ").strip().lower()
+except (KeyboardInterrupt, EOFError):
     print("\n\nUpdates cancelled.")
     sys.exit(0)
 
@@ -101,7 +120,8 @@ for update in pending:
         'timestamp': update['created_at'],
         'tags': update.get('tags', [])
     })
-    applied_updates['manifest']['last_update'] = update['created_at']
+    # last_update is the current timestamp (when update is actually applied)
+    applied_updates['manifest']['last_update'] = int(time.time())
     
     # Write updates to file after each successful update
     with open('updates/updated.json', 'w') as f:

@@ -772,6 +772,7 @@ info "Initializing update tracking system..."
 ./venv/bin/python3 - <<'UPDATESPY'
 import json
 import sys
+import time
 
 try:
     # Read all available updates from updates.json
@@ -792,12 +793,13 @@ try:
             'timestamp': update_data['created_at'],
             'tags': update_data.get('tags', [])
         })
-        max_timestamp = max(max_timestamp, update_data['created_at'])
     
     # Create updated.json with all updates marked as installed
+    # Note: last_update is the current timestamp (when installation happens), not when updates were created
+    current_time = int(time.time())
     updated_data = {
         'manifest': {
-            'last_update': max_timestamp
+            'last_update': current_time
         },
         'updates': installed_updates
     }
