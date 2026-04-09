@@ -27,8 +27,6 @@ def _redirector_update_url(full_url: str) -> bool:
     import re, datetime, os
     import functions as f
     import config as _config
-    if not getattr(_config, 'GITHUB_REPO_URL', None):
-        return False # Silently abort if no repo is configured
 
     # Get current LAN IP to embed in the redirector
     stats  = f.get_network_stats()
@@ -186,8 +184,6 @@ last_pushed_ip = None
 def sch_redirector_update():
     global last_pushed_ip
     import config as _config
-    if not getattr(_config, 'GITHUB_REPO_URL', None):
-        return False # Silently abort if no repo is configured
 
     # Prefer a manually-set tunnel URL (e.g. from Cloudflare)
     tunnel_url = getattr(_config, "TUNNEL_URL", "").strip()
