@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}403 - アクセス拒否{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-box">
+        <h1>403</h1>
+        <h2>アクセスが拒否されました</h2>
+        <p>このプロジェクトにアクセスする権限がありません。</p>
+        <p>誤りだと思われる場合は、プロジェクトの所有者にお問い合わせください。</p>
+        <a href="{{ url_for('tools_lab.index') }}" class="btn btn-primary">プロジェクトを閲覧</a>
+        <a href="{{ url_for('tools_lab.dashboard') }}" class="btn btn-secondary">マイダッシュボード</a>
+    </div>
+</div>
+
+<style>
+.error-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.error-box {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    text-align: center;
+    max-width: 500px;
+}
+
+.error-box h1 {
+    margin: 0;
+    font-size: 4em;
+    color: #667eea;
+}
+
+.error-box h2 {
+    margin: 10px 0 20px;
+    color: #333;
+    font-size: 1.5em;
+}
+
+.error-box p {
+    margin: 0 0 10px;
+    color: #666;
+}
+
+.error-box .btn {
+    display: inline-block;
+    margin: 15px 10px 0 0;
+}
+</style>
+{% endblock %}

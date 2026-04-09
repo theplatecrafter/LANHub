@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="lab-new-project">
+    <header class="page-header">
+        <h1>新規プロジェクト作成</h1>
+        <a href="{{ url_for('tools_lab.dashboard') }}" class="btn btn-secondary">ダッシュボードへ戻る</a>
+    </header>
+
+    <main class="page-main">
+        {% if error %}
+            <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" class="project-form">
+            <div class="form-group">
+                <label for="title">プロジェクトタイトル *</label>
+                <input type="text" id="title" name="title" required minlength="3" autofocus>
+                <small>キャッチーな名前を付けましょう</small>
+            </div>
+
+            <div class="form-group">
+                <label for="description">説明</label>
+                <textarea id="description" name="description" rows="4"></textarea>
+                <small>プロジェクトの内容を説明してください</small>
+            </div>
+
+            <div class="form-group">
+                <label for="visibility">公開設定 *</label>
+                <select id="visibility" name="visibility" required>
+                    <option value="private" selected>非公開（自分と共同作業者のみ）</option>
+                    <option value="public">公開（ラボディレクトリに表示）</option>
+                </select>
+            </div>
+
+            <div class="form-group checkbox">
+                <input type="checkbox" id="always_on" name="always_on">
+                <label for="always_on">常時起動（継続的に実行、サーバー起動時に自動開始）</label>
+                <small>サーバーリソースを多く消費します。通常のプロジェクトは必要時に起動します。</small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">プロジェクト作成</button>
+                <a href="{{ url_for('tools_lab.dashboard') }}" class="btn btn-secondary">キャンセル</a>
+            </div>
+        </form>
+
+        <section class="template-info">
+            <h2>🚀 ユニバーサルプロジェクトテンプレート</h2>
+            <p>新しいプロジェクトはすべて、ポート8000で動作する最適化された <strong>Flask + HTML</strong> テンプレートと、VS Codeの強力なIDEを備えています。</p>
+            
+            <div class="template-features">
+                <div class="feature-item">
+                    <h4>✨ 含まれるもの</h4>
+                    <ul>
+                        <li><strong>Flask Webサーバー</strong> — ポート8000で自動実行</li>
+                        <li><strong>HTML/CSS/JSサポート</strong> — 静的ファイル配信とテンプレート完全対応</li>
+                        <li><strong>Python環境</strong> — 仮想環境とpipをプリセット</li>
+                        <li><strong>VS Code IDE</strong> — ポート8443のWebベースエディタ</li>
+                        <li><strong>Gitリポジトリ</strong> — 組み込みバージョン管理</li>
+                    </ul>
+                </div>
+                
+                <div class="feature-item">
+                    <h4>🛠️ はじめに</h4>
+                    <ol>
+                        <li>プロジェクトを作成</li>
+                        <li>「コードを編集」をクリックしてVS Codeを開く</li>
+                        <li><code>templates/index.html</code> と <code>app.py</code> を編集</li>
+                        <li>「ページを開く」をクリックしてアプリをライブ確認</li>
+                        <li>変更をGitにコミット</li>
+                    </ol>
+                </div>
+                
+                <div class="feature-item">
+                    <h4>🔧 カスタマイズ</h4>
+                    <p>Flaskアプリを使って何でも構築できます：</p>
+                    <ul>
+                        <li>複数ページのWebアプリケーション</li>
+                        <li>JSONレスポンスのREST API</li>
+                        <li>WebSocketを使ったリアルタイムアプリ</li>
+                        <li>データベース駆動システム</li>
+                        <li>他のPythonフレームワークの導入も可能</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<style>
+.lab-new-project {
+    min-height: 100vh;
+    background: #f5f5f5;
+}
+
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.page-header h1 {
+    margin: 0;
+}
+
+.page-main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.project-form {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.form-group small {
+    display: block;
+    color: #999;
+    font-size: 0.9em;
+    margin-top: 4px;
+}
+
+.form-group.checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.form-group.checkbox input {
+    width: auto;
+    margin-top: 4px;
+}
+
+.form-group.checkbox label {
+    margin: 0;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.template-info {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+}
+
+.template-info h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.5em;
+    color: #333;
+}
+
+.template-info > p {
+    color: #666;
+    font-size: 1.05em;
+    margin-bottom: 25px;
+    line-height: 1.6;
+}
+
+.template-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+.feature-item {
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 6px;
+    border-left: 4px solid #667eea;
+}
+
+.feature-item h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.feature-item ul,
+.feature-item ol {
+    margin: 0;
+    padding-left: 20px;
+    color: #666;
+    font-size: 0.95em;
+}
+
+.feature-item li {
+    margin: 8px 0;
+    line-height: 1.4;
+}
+
+.feature-item code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+}
+
+.alert {
+    padding: 12px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.alert-error {
+    background: #fee;
+    color: #c33;
+    border: 1px solid #fcc;
+}
+</style>
+{% endblock %}

@@ -1,26 +1,28 @@
 {% extends "base.html" %}
 
+{% block title %}LANHub ラボ - プロジェクト編集{% endblock %}
+
 {% block content %}
 <div class="lab-editor">
     <header class="editor-header">
-        <h1>{{ project.title }} - Code Editor</h1>
+        <h1>{{ project.title }} - コードエディタ</h1>
         <div class="editor-actions">
-            <button id="deploy-btn" class="btn btn-primary" onclick="deployProject()">Deploy</button>
-            <a id="preview-btn" href="{{ url_for('tools_lab.project_preview', slug=project.slug) }}" class="btn btn-secondary" target="_blank" style="display: none;">Preview App</a>
-            <button id="logs-btn" class="btn btn-secondary" onclick="showLogs()">View Logs</button>
-            <button id="help-btn" class="btn btn-info" onclick="showHelp()">? Help</button>
-            <a id="fullscreen-btn" href="{{ url_for('tools_lab.project_proxy', slug=project.slug, path='') }}" class="btn btn-secondary" target="_blank" title="Open VSCode in fullscreen">⛶ Fullscreen</a>
-            <a href="{{ url_for('tools_lab.project_view', slug=project.slug) }}" class="btn btn-secondary">Back</a>
+            <button id="deploy-btn" class="btn btn-primary" onclick="deployProject()">デプロイ</button>
+            <a id="preview-btn" href="{{ url_for('tools_lab.project_preview', slug=project.slug) }}" class="btn btn-secondary" target="_blank" style="display: none;">プレビュー</a>
+            <button id="logs-btn" class="btn btn-secondary" onclick="showLogs()">ログ表示</button>
+            <button id="help-btn" class="btn btn-info" onclick="showHelp()">? ヘルプ</button>
+            <a id="fullscreen-btn" href="{{ url_for('tools_lab.project_proxy', slug=project.slug, path='') }}" class="btn btn-secondary" target="_blank" title="VSCodeを全画面で開く">⛶ 全画面</a>
+            <a href="{{ url_for('tools_lab.project_view', slug=project.slug) }}" class="btn btn-secondary">戻る</a>
         </div>
     </header>
 
     <main class="editor-main">
         <div class="editor-container">
-            <!-- Operation Progress Overlay (Generic for all operations) -->
+            <!-- 操作進行中オーバーレイ（全操作共通） -->
             <div id="operation-overlay" class="operation-overlay" style="display: none;">
                 <div class="operation-modal">
                     <div class="operation-spinner"></div>
-                    <h2 id="operation-title">Processing...</h2>
+                    <h2 id="operation-title">処理中...</h2>
                     <div id="operation-substatus" class="operation-substatus"></div>
                     <div id="operation-progress-bar" class="progress-bar" style="display: none;">
                         <div id="operation-progress-fill" class="progress-fill"></div>
@@ -29,24 +31,24 @@
                 </div>
             </div>
 
-            <!-- Loading State (For deployment specifically) -->
+            <!-- 読み込み中表示（デプロイ時専用） -->
             <div id="loading-state" class="loading-state" style="display: none;">
                 <div class="loading-content">
                     <div class="spinner"></div>
-                    <h2>Deploying Environment...</h2>
+                    <h2>環境をデプロイ中...</h2>
                     <div id="progress-messages" class="progress-messages"></div>
                 </div>
             </div>
 
-            <!-- Editor or Not Deployed Message -->
+            <!-- エディタまたは未デプロイメッセージ -->
             <div id="editor-view">
                 {% if project.docker_container_id %}
                     <iframe id="code-editor" src="{{ url_for('tools_lab.project_proxy', slug=project.slug, path='') }}" frameborder="0" allow="clipboard-read; clipboard-write"></iframe>
                 {% else %}
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #f5f5f5; padding: 20px;">
-                        <h2>🚀 Project Not Deployed</h2>
-                        <p>Click "Deploy" in the header to start your project container.</p>
-                        <p style="color: #666; font-size: 0.9em; margin-top: 10px;">Once deployed, the code editor will appear here.</p>
+                        <h2>🚀 プロジェクト未デプロイ</h2>
+                        <p>ヘッダーの「デプロイ」をクリックして、プロジェクトコンテナを起動してください。</p>
+                        <p style="color: #666; font-size: 0.9em; margin-top: 10px;">デプロイが完了すると、ここにコードエディタが表示されます。</p>
                     </div>
                 {% endif %}
             </div>
@@ -54,46 +56,46 @@
 
         <aside class="editor-sidebar">
             <div class="sidebar-panel">
-                <h3>Project Information</h3>
+                <h3>プロジェクト情報</h3>
                 <div class="info-group">
-                    <label>Slug</label>
+                    <label>スラッグ</label>
                     <p><code>{{ project.slug }}</code></p>
                 </div>
                 <div class="info-group">
-                    <label>Socket</label>
+                    <label>ソケットパス</label>
                     <p><code>{{ project.socket_path }}</code></p>
                 </div>
             </div>
 
             <div class="sidebar-panel">
-                <h3>Deployment</h3>
+                <h3>デプロイ状態</h3>
                 <div id="deploy-status">
                     {% if project.docker_container_id %}
-                        <p class="status status-running">✓ Running</p>
+                        <p class="status status-running">✓ 実行中</p>
                     {% else %}
-                        <p class="status status-stopped">✗ Stopped</p>
+                        <p class="status status-stopped">✗ 停止中</p>
                     {% endif %}
                 </div>
-                <button class="btn btn-block" id="sidebar-deploy-btn" onclick="deployProject()">Deploy / Restart</button>
+                <button class="btn btn-block" id="sidebar-deploy-btn" onclick="deployProject()">デプロイ / 再起動</button>
             </div>
 
             <div class="sidebar-panel">
-                <h3>Logs</h3>
+                <h3>ログ</h3>
                 <div id="logs-display" class="logs-display"></div>
             </div>
         </aside>
 
-        <!-- Help Modal -->
+        <!-- ヘルプモーダル -->
         <div id="help-modal" class="help-modal">
             <div class="help-modal-content">
                 <div class="help-modal-header">
-                    <h2 id="help-title">Help</h2>
+                    <h2 id="help-title">ヘルプ</h2>
                     <button class="help-modal-close" onclick="closeHelp()">×</button>
                 </div>
                 <div class="help-modal-body" id="help-body">
                 </div>
                 <div class="help-modal-footer">
-                    <button class="btn btn-secondary" onclick="closeHelp()">Close</button>
+                    <button class="btn btn-secondary" onclick="closeHelp()">閉じる</button>
                 </div>
             </div>
         </div>
@@ -101,117 +103,117 @@
 </div>
 
 <script>
-console.log('[Lab] Template script executing, projectSlug:', '{{ project.slug }}');
+console.log('[Lab] テンプレートスクリプト実行中, projectSlug:', '{{ project.slug }}');
 
 const projectSlug = '{{ project.slug }}';
 const projectId = {{ project.id }};
 
-console.log('[Lab] Loaded with projectSlug:', projectSlug, 'projectId:', projectId);
+console.log('[Lab] 読み込み完了, projectSlug:', projectSlug, 'projectId:', projectId);
 
-// WebSocket connection for real-time updates
+// リアルタイム更新のためのWebSocket接続
 let socket = null;
 let isAuthenticated = false;
 let isDeploying = false;
 let currentOperation = null;
 
 function initWebSocket() {
-    console.log('[Lab] Initializing WebSocket...');
+    console.log('[Lab] WebSocket初期化中...');
     socket = io();
     
     socket.on('connect', () => {
-        console.log('[Lab] Socket connected, emitting lab_connect...');
+        console.log('[Lab] ソケット接続完了, lab_connect 送信中...');
         socket.emit('lab_connect', {});
     });
 
     socket.on('connect_error', (error) => {
-        console.error('[Lab] Connection error:', error);
-        showNotification('Connection error: ' + error.message, 'error');
+        console.error('[Lab] 接続エラー:', error);
+        showNotification('接続エラー: ' + error.message, 'error');
     });
 
     socket.on('disconnect', () => {
-        console.warn('[Lab] Socket disconnected');
+        console.warn('[Lab] ソケット切断');
         isAuthenticated = false;
     });
     
     socket.on('lab_auth_success', (data) => {
-        console.log('[Lab] Authentication successful for user:', data.username);
+        console.log('[Lab] 認証成功, ユーザー:', data.username);
         isAuthenticated = true;
-        showNotification('Connected as ' + data.username, 'success');
-        console.log('[Lab] Joining project room:', projectSlug);
+        showNotification(data.username + ' として接続しました', 'success');
+        console.log('[Lab] プロジェクトルームに参加:', projectSlug);
         socket.emit('lab_join_project', { slug: projectSlug });
     });
     
     socket.on('lab_auth_failed', (data) => {
-        console.error('[Lab] Authentication failed:', data.error);
+        console.error('[Lab] 認証失敗:', data.error);
         isAuthenticated = false;
-        showNotification('Authentication failed: ' + (data.error || 'Unknown error'), 'error');
+        showNotification('認証失敗: ' + (data.error || '原因不明'), 'error');
     });
     
     socket.on('error', (data) => {
-        console.error('[Lab] Socket error:', data);
-        showNotification('Error: ' + (data.message || 'Unknown error'), 'error');
+        console.error('[Lab] ソケットエラー:', data);
+        showNotification('エラー: ' + (data.message || '原因不明'), 'error');
     });
 
-    // Progress events during deployment
+    // デプロイ中の進捗イベント
     socket.on('lab_deployment_progress', (data) => {
-        console.log('[Lab] Deployment progress:', data.message);
+        console.log('[Lab] デプロイ進捗:', data.message);
         addProgressMessage(data.message);
         updateOperationMessage(data.message);
     });
     
     socket.on('lab_deployment_success', (data) => {
-        console.log('[Lab] Deployment successful, container:', data.container_id);
+        console.log('[Lab] デプロイ成功, コンテナ:', data.container_id);
         isDeploying = false;
         currentOperation = null;
         hideLoadingState();
         hideOperationOverlay();
         updateDeploymentUI(true);
-        showNotification('Deployed successfully! Loading editor...', 'success');
+        showNotification('デプロイ成功！エディタを読み込みます...', 'success');
         
-        // Reload page after a short delay to trigger server-side template re-render
+        // 短い遅延の後、ページをリロードしてサーバー側テンプレートを再描画
         setTimeout(() => {
-            console.log('[Lab] Reloading page to load editor...');
+            console.log('[Lab] エディタ読み込みのためページをリロードします...');
             window.location.reload();
         }, 1000);
     });
     
     socket.on('lab_deployment_failed', (data) => {
-        console.error('[Lab] Deployment failed:', data.message);
+        console.error('[Lab] デプロイ失敗:', data.message);
         isDeploying = false;
         currentOperation = null;
         hideLoadingState();
         hideOperationOverlay();
         resetDeployButton();
-        showNotification('Deployment failed: ' + data.message, 'error');
+        showNotification('デプロイ失敗: ' + data.message, 'error');
     });
     
     socket.on('lab_logs', (data) => {
-        console.log('[Lab] Received logs');
+        console.log('[Lab] ログ受信');
         hideOperationOverlay();
         displayLogs(data.logs);
     });
 }
 
 function deployProject() {
-    console.log('[Lab] Deploy button clicked');
+    console.log('[Lab] デプロイボタンクリック');
     
     if (isDeploying) {
-        console.warn('[Lab] Deployment already in progress');
+        console.warn('[Lab] デプロイは既に進行中です');
         return;
     }
     
     if (!socket) {
-        console.error('[Lab] Socket not connected');
-        showNotification('Socket not connected. Refresh page.', 'error');
+        console.error('[Lab] ソケット未接続');
+        showNotification('ソケット未接続。ページを再読込してください。', 'error');
         return;
     }
     if (!isAuthenticated) {
-        console.error('[Lab] User not authenticated');
-        showNotification('Not authenticated. Refresh page and try again.', 'error');
+        console.error('[Lab] 未認証');
+        showNotification('未認証です。ページを再読込して再度お試しください。', 'error');
         return;
     }
     
-    console.log('[Lab] Sending lab_deploy_project event with projectId:', projectId);
+    console.log('[Lab] lab_deploy_project イベント送信, projectId:', projectId);
     isDeploying = true;
     showLoadingState();
     lockDeployButton();
@@ -221,15 +223,15 @@ function deployProject() {
 
 function showLogs() {
     if (!socket) {
-        showNotification('Socket not connected. Refresh page.', 'error');
+        showNotification('ソケット未接続。ページを再読込してください。', 'error');
         return;
     }
     if (!isAuthenticated) {
-        showNotification('Not authenticated. Refresh page and try again.', 'error');
+        showNotification('未認証です。ページを再読込して再度お試しください。', 'error');
         return;
     }
     
-    showOperationOverlay('Fetching Logs', 'Retrieving container logs...');
+    showOperationOverlay('ログ取得中', 'コンテナログを取得しています...');
     socket.emit('lab_get_logs', { project_id: projectId, tail: 100 });
 }
 
@@ -240,67 +242,66 @@ function displayLogs(logs) {
 
 function showHelp() {
     const helpModal = document.getElementById('help-modal');
+    // Load help content if not already loaded
     const helpBody = document.getElementById('help-body');
-    
-    // Load help content on first open
     if (helpBody.children.length === 0) {
         helpBody.innerHTML = `
             <div class="help-content">
                 <div class="help-section">
-                    <h3>📚 Lab Project Editor Guide</h3>
-                    <p>A complete development environment for building, deploying, and testing Flask applications inside isolated Docker containers with VSCode integration.</p>
+                    <h3>📚 Lab プロジェクトエディタガイド</h3>
+                    <p>Flask アプリケーションを隔離 Docker コンテナ内で構築、デプロイ、テストするための完全な開発環境です。VSCode をブラウザベースで統合しています。</p>
                 </div>
 
                 <div class="help-section">
-                    <h3>🐳 How Docker Works in This System</h3>
-                    <p><strong>Container Architecture:</strong></p>
+                    <h3>🐳 このシステムの Docker の仕組み</h3>
+                    <p><strong>コンテナアーキテクチャ：</strong></p>
                     <ul>
-                        <li>Each project gets its own isolated Docker container</li>
-                        <li>Containers are built from a base image with Python, Flask, and development tools pre-installed</li>
-                        <li>VSCode runs inside the container via browser-based interface</li>
-                        <li>Your Flask application runs on a specified port inside the container</li>
+                        <li>各プロジェクトは独立した Docker コンテナを取得します</li>
+                        <li>コンテナは Python、Flask、開発ツールが事前インストールされたベースイメージから構築されます</li>
+                        <li>VSCode はブラウザベースのインターフェースを通じてコンテナ内で実行されます</li>
+                        <li>Flask アプリケーションはコンテナ内の指定ポートで実行されます</li>
                     </ul>
-                    <p><strong>Container Lifecycle:</strong></p>
+                    <p><strong>コンテナのライフサイクル：</strong></p>
                     <ol>
-                        <li>Click "Deploy" → LANHub creates a Docker image from your project</li>
-                        <li>Docker runs the container and starts your Flask app</li>
-                        <li>VSCode interface appears in the editor area for live coding</li>
-                        <li>Changes are visible immediately (file sync enabled)</li>
-                        <li>Click "Deploy" again to restart container and reload your app</li>
+                        <li>「デプロイ」をクリック → LANHub がプロジェクトから Docker イメージを作成します</li>
+                        <li>Docker がコンテナを実行し、Flask アプリを開始します</li>
+                        <li>VSCode インターフェースがエディタエリアに表示されます</li>
+                        <li>変更は即座に表示されます（ファイル同期が有効）</li>
+                        <li>再度「デプロイ」をクリックしてコンテナを再起動し、アプリをリロードします</li>
                     </ol>
-                    <p><strong>Key Commands (inside container):</strong></p>
-                    <pre><code># View running processes
+                    <p><strong>主要コマンド（コンテナ内）：</strong></p>
+                    <pre><code># 実行中のプロセスを表示
 ps aux
 
-# Check container logs
+# コンテナログを確認
 docker logs &lt;container_id&gt;
 
-# Access container shell
+# コンテナシェルにアクセス
 docker exec -it &lt;container_id&gt; bash</code></pre>
                 </div>
 
                 <div class="help-section">
-                    <h3>⚙️ Flask Setup & Configuration</h3>
-                    <p><strong>Default Project Structure:</strong></p>
+                    <h3>⚙️ Flask のセットアップと設定</h3>
+                    <p><strong>デフォルトプロジェクト構造：</strong></p>
                     <pre><code>your-project/
-├── app.py              # Main Flask app entry point
-├── config.py           # Configuration settings
-├── requirements.txt    # Python dependencies
-├── /templates/         # HTML templates
-├── /static/           # CSS, JS, images
+├── app.py              # メイン Flask アプリエントリーポイント
+├── config.py           # 設定ファイル
+├── requirements.txt    # Python 依存パッケージ
+├── /templates/         # HTML テンプレート
+├── /static/           # CSS、JS、画像
 │   ├── css/
 │   ├── js/
 │   └── images/
-└── /routes/           # Blueprint modules (optional)</code></pre>
+└── /routes/           # ブループリントモジュール（オプション）</code></pre>
 
-                    <p><strong>Basic Flask Setup (app.py):</strong></p>
+                    <p><strong>基本的な Flask セットアップ（app.py）：</strong></p>
                     <pre><code>from flask import Flask, render_template, request, jsonify
 import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
 
-# Configure your app
+# アプリを設定
 app.config['JSON_SORT_KEYS'] = False
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
@@ -310,44 +311,44 @@ def home():
 
 @app.route('/api/data', methods=['GET'])
 def get_data():
-    return jsonify({'status': 'success', 'message': 'Hello World'})
+    return jsonify({'status': 'success', 'message': 'こんにちは'})
 
 if __name__ == '__main__':
-    # Runs on 0.0.0.0:5000 inside container
+    # コンテナ内の 0.0.0.0:5000 で実行
     app.run(host='0.0.0.0', port=5000, debug=True)</code></pre>
 
-                    <p><strong>requirements.txt Example:</strong></p>
+                    <p><strong>requirements.txt の例：</strong></p>
                     <pre><code>Flask==2.3.0
 Flask-CORS==4.0.0
 python-dotenv==1.0.0
 requests==2.31.0
 SQLAlchemy==2.0.0</code></pre>
 
-                    <p><strong>Install & Run Commands:</strong></p>
-                    <pre><code># Inside container terminal
+                    <p><strong>インストールと実行コマンド：</strong></p>
+                    <pre><code># コンテナ内ターミナルで
 pip install -r requirements.txt
 python app.py
 
-# Or with environment variables
+# または環境変数を使用
 PORT=5000 python app.py</code></pre>
                 </div>
 
                 <div class="help-section">
-                    <h3>💻 How to Code with Flask</h3>
-                    <p><strong>Creating Routes with Templates:</strong></p>
-                    <pre><code># In app.py
+                    <h3>💻 Flask を使ってコーディングする方法</h3>
+                    <p><strong>テンプレート付きルートを作成：</strong></p>
+                    <pre><code># app.py
 @app.route('/profile/<username>')
 def profile(username):
     user_data = {'name': username, 'joined': '2024-01-01'}
     return render_template('profile.html', user=user_data)
 
-# Handle form submissions
+# フォーム送信を処理
 @app.route('/submit', methods=['POST'])
 def submit():
     data = request.form.get('input_field')
     return jsonify({'received': data})</code></pre>
 
-                    <p><strong>HTML Template (templates/profile.html):</strong></p>
+                    <p><strong>HTML テンプレート（templates/profile.html）：</strong></p>
                     <pre><code>&lt;!DOCTYPE html&gt;
 &lt;html&gt;
 &lt;head&gt;
@@ -355,12 +356,12 @@ def submit():
 &lt;/head&gt;
 &lt;body&gt;
     &lt;h1&gt;&#123;&#123; user.name &#125;&#125;&lt;/h1&gt;
-    &lt;p&gt;Joined: &#123;&#123; user.joined &#125;&#125;&lt;/p&gt;
+    &lt;p&gt;参加日: &#123;&#123; user.joined &#125;&#125;&lt;/p&gt;
     &lt;script src="&#123;&#123; url_for('static', filename='js/app.js') &#125;&#125;"&gt;&lt;/script&gt;
 &lt;/body&gt;
 &lt;/html&gt;</code></pre>
 
-                    <p><strong>API Endpoints with JSON:</strong></p>
+                    <p><strong>JSON 付き API エンドポイント：</strong></p>
                     <pre><code>from flask import request, jsonify
 
 @app.route('/api/users', methods=['GET'])
@@ -380,7 +381,7 @@ def create_user():
     }
     return jsonify(new_user), 201</code></pre>
 
-                    <p><strong>File Uploads:</strong></p>
+                    <p><strong>ファイルアップロード：</strong></p>
                     <pre><code>from werkzeug.utils import secure_filename
 
 @app.route('/upload', methods=['POST'])
@@ -392,8 +393,8 @@ def upload():
                 </div>
 
                 <div class="help-section">
-                    <h3>🔧 Implementing Your Own Features</h3>
-                    <p><strong>Step 1: Create a Blueprint Module</strong></p>
+                    <h3>🔧 独自の機能を実装する</h3>
+                    <p><strong>ステップ 1: ブループリントモジュールを作成</strong></p>
                     <pre><code># routes/custom.py
 from flask import Blueprint, render_template
 
@@ -407,7 +408,7 @@ def feature():
 from routes.custom import custom_bp
 app.register_blueprint(custom_bp)</code></pre>
 
-                    <p><strong>Step 2: Add Database Integration</strong></p>
+                    <p><strong>ステップ 2: データベース統合を追加</strong></p>
                     <pre><code># app.py
 from flask_sqlalchemy import SQLAlchemy
 
@@ -419,23 +420,23 @@ class User(db.Model):
     name = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True)
 
-# Create tables
+# テーブルを作成
 with app.app_context():
     db.create_all()</code></pre>
 
-                    <p><strong>Step 3: Add Static Assets</strong></p>
-                    <pre><code># Place files in static/ directory:
-static/css/style.css       # Your stylesheets
-static/js/app.js          # Your JavaScript
-static/images/logo.png    # Images
+                    <p><strong>ステップ 3: 静的アセットを追加</strong></p>
+                    <pre><code># static/ ディレクトリにファイルを配置:
+static/css/style.css       # スタイルシート
+static/js/app.js          # JavaScript
+static/images/logo.png    # 画像
 
-# Reference in templates:
+# テンプレート内で参照:
 &lt;link rel="stylesheet" href="&#123;&#123; url_for('static', filename='css/style.css') &#125;&#125;"&gt;
 &lt;img src="&#123;&#123; url_for('static', filename='images/logo.png') &#125;&#125;"&gt;
 &lt;script src="&#123;&#123; url_for('static', filename='js/app.js') &#125;&#125;"&gt;&lt;/script&gt;</code></pre>
 
-                    <p><strong>Step 4: Environment Variables</strong></p>
-                    <pre><code># .env file
+                    <p><strong>ステップ 4: 環境変数を設定</strong></p>
+                    <pre><code># .env ファイル
 DEBUG=True
 DATABASE_URL=sqlite:///app.db
 API_KEY=your-secret-key-here
@@ -450,24 +451,24 @@ API_KEY = os.getenv('API_KEY')</code></pre>
                 </div>
 
                 <div class="help-section">
-                    <h3>⏰ Project Modes: Always-On vs Spontaneous</h3>
-                    <p><strong>Always-On Projects:</strong></p>
+                    <h3>⏰ プロジェクトモード: 常時実行 vs 一時的</h3>
+                    <p><strong>常時実行プロジェクト：</strong></p>
                     <ul>
-                        <li>Container runs continuously in the background</li>
-                        <li>Ideal for production services, APIs, scheduled tasks</li>
-                        <li>Survives server restarts (if configured)</li>
-                        <li>Use case: Live API, Discord bot, data collector</li>
+                        <li>コンテナがバックグラウンドで連続実行</li>
+                        <li>本番サービス、API、定期タスクに最適</li>
+                        <li>サーバー再起動後も継続実行（設定に応じて）</li>
+                        <li>用途：ライブ API、Discord ボット、データ収集</li>
                     </ul>
-                    <p><strong>Example: Always-On Background Task</strong></p>
-                    <pre><code># app.py with background job
+                    <p><strong>例: 常時実行バックグラウンドタスク</strong></p>
+                    <pre><code># app.py のバックグラウンドジョブ
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 
 scheduler = BackgroundScheduler()
 
 def scheduled_task():
-    print("Running scheduled task every 5 minutes...")
-    # Your code here
+    print("5分ごとにスケジュールタスクを実行...")
+    # コードをここに入力
 
 scheduler.add_job(
     func=scheduled_task,
@@ -477,20 +478,20 @@ scheduler.add_job(
 )
 scheduler.start()
 
-# Shut down scheduler when exiting app
+# アプリ終了時にスケジューラをシャットダウン
 atexit.register(lambda: scheduler.shutdown())</code></pre>
 
-                    <p><strong>Spontaneous Projects:</strong></p>
+                    <p><strong>一時的プロジェクト：</strong></p>
                     <ul>
-                        <li>Container starts only when you deploy</li>
-                        <li>Ideal for testing, development, temporary apps</li>
-                        <li>Stops when you close the connection</li>
-                        <li>Use case: Prototype, test feature, debug code</li>
+                        <li>デプロイ時のみコンテナが起動</li>
+                        <li>テスト、開発、一時的なアプリに最適</li>
+                        <li>接続を切ると停止します</li>
+                        <li>用途：プロトタイプ、機能テスト、コードデバッグ</li>
                     </ul>
-                    <p><strong>Example: Spontaneous Testing App</strong></p>
+                    <p><strong>例: 一時的テストアプリ</strong></p>
                     <pre><code>@app.route('/test')
 def run_tests():
-    # Your test code here
+    # テストコードをここに入力
     results = {
         'test_one': True,
         'test_two': False,
@@ -498,62 +499,61 @@ def run_tests():
     }
     return jsonify(results)</code></pre>
 
-                    <p><strong>How to Choose:</strong></p>
+                    <p><strong>選択方法：</strong></p>
                     <ul>
-                        <li><strong>Always-On:</strong> Set restart policy in Dockerfile or keep "Deploy" button active</li>
-                        <li><strong>Spontaneous:</strong> Normal development workflow with Deploy/Stop buttons</li>
+                        <li><strong>常時実行：</strong> Dockerfile で再起動ポリシーを設定または「デプロイ」ボタンをアクティブに保つ</li>
+                        <li><strong>一時的：</strong> デプロイ/停止ボタンで通常の開発ワークフロー</li>
                     </ul>
                 </div>
 
                 <div class="help-section">
-                    <h3>🚀 Deployment Workflow</h3>
+                    <h3>🚀 デプロイメントワークフロー</h3>
                     <ol>
-                        <li><strong>Edit your code</strong> in the VSCode editor</li>
-                        <li><strong>Save files</strong> (Ctrl+S)</li>
-                        <li><strong>Check logs</strong> for errors ("View Logs" button)</li>
-                        <li><strong>Test in browser:</strong> Click "Preview App" to see changes</li>
-                        <li><strong>Redeploy if needed:</strong> Click "Deploy" again to restart</li>
-                        <li><strong>Go to production:</strong> Export/commit your final code</li>
+                        <li><strong>コードを編集</strong> VSCode エディタで</li>
+                        <li><strong>ファイルを保存</strong>（Ctrl+S）</li>
+                        <li><strong>ログを確認</strong>（「ログ表示」ボタン）</li>
+                        <li><strong>ブラウザでテスト：</strong>「プレビュー」をクリック</li>
+                        <li><strong>必要に応じて再デプロイ：</strong>「デプロイ」を再度クリック</li>
+                        <li><strong>本番環境へ：</strong>最終コードをエクスポート/コミット</li>
                     </ol>
                 </div>
 
                 <div class="help-section">
-                    <h3>❓ FAQ & Troubleshooting</h3>
+                    <h3>❓ よくある質問とトラブルシューティング</h3>
                     <div class="help-task">
-                        <strong>Q: Changes to Python code aren't reflected</strong><br>
-                        A: Flask debug mode restarts the app automatically. If not, manually redeploy by clicking "Deploy".
+                        <strong>Q: Python コードへの変更が反映されない</strong><br>
+                        A: Flask デバッグモードはアプリを自動的に再起動します。反映されない場合は、「デプロイ」をクリックして手動で再デプロイしてください。
                     </div>
                     <div class="help-task">
-                        <strong>Q: Port 5000 already in use error</strong><br>
-                        A: The container is already running. Click "Deploy" to restart it on a fresh port.
+                        <strong>Q: ポート 5000 が既に使用中エラー</strong><br>
+                        A: コンテナが既に実行中です。「デプロイ」をクリックしてリセットしてください。
                     </div>
                     <div class="help-task">
-                        <strong>Q: How do I view container logs?</strong><br>
-                        A: Click "View Logs" button or run: <code>docker logs &lt;container_id&gt;</code>
+                        <strong>Q: コンテナログを表示するには？</strong><br>
+                        A: 「ログ表示」ボタンをクリックするか、<code>docker logs &lt;container_id&gt;</code> を実行してください。
                     </div>
                     <div class="help-task">
-                        <strong>Q: Can I install new packages?</strong><br>
-                        A: Yes! Run <code>pip install package_name</code> in the terminal, then add to requirements.txt
+                        <strong>Q: 新しいパッケージをインストールできますか？</strong><br>
+                        A: はい。ターミナルで <code>pip install package_name</code> を実行し、requirements.txt に追加してください。
                     </div>
                     <div class="help-task">
-                        <strong>Q: How do I access the database?</strong><br>
-                        A: SQLite files are stored in the container's working directory. Back them up before stopping container.
+                        <strong>Q: データベースにアクセスするには？</strong><br>
+                        A: SQLite ファイルはコンテナの作業ディレクトリに保存されます。コンテナを停止する前にバックアップしてください。
                     </div>
                 </div>
 
                 <div class="help-section">
-                    <h3>📖 Useful Resources</h3>
+                    <h3>📖 有用なリソース</h3>
                     <ul>
-                        <li><strong>Flask Documentation:</strong> https://flask.palletsprojects.com/</li>
-                        <li><strong>Python Packages (PyPI):</strong> https://pypi.org/</li>
-                        <li><strong>Docker Basics:</strong> https://docs.docker.com/get-started/</li>
-                        <li><strong>VSCode Tips:</strong> Press Ctrl+K Ctrl+S for keyboard shortcuts</li>
+                        <li><strong>Flask ドキュメント:</strong> https://flask.palletsprojects.com/</li>
+                        <li><strong>Python パッケージ（PyPI）:</strong> https://pypi.org/</li>
+                        <li><strong>Docker の基本:</strong> https://docs.docker.com/get-started/</li>
+                        <li><strong>VSCode のヒント:</strong> Ctrl+K Ctrl+S でキーボード ショートカットを表示</li>
                     </ul>
                 </div>
             </div>
         `;
     }
-    
     helpModal.setAttribute('data-visible', 'true');
 }
 
@@ -562,11 +562,11 @@ function closeHelp() {
     helpModal.setAttribute('data-visible', 'false');
 }
 
-// Close modal when clicking outside of it
+// モーダル外クリックで閉じる
 document.addEventListener('DOMContentLoaded', () => {
     const helpModal = document.getElementById('help-modal');
     if (helpModal) {
-        // Initialize with data-visible attribute for proper display control
+        // Initialize data-visible attribute
         helpModal.setAttribute('data-visible', 'false');
         
         helpModal.addEventListener('click', (e) => {
@@ -601,7 +601,7 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Loading state management
+// 読み込み状態管理
 function showLoadingState() {
     clearProgressMessages();
     document.getElementById('loading-state').style.display = 'flex';
@@ -619,7 +619,7 @@ function addProgressMessage(message) {
     msgElement.className = 'progress-message';
     msgElement.textContent = '→ ' + message;
     messagesDiv.appendChild(msgElement);
-    // Auto-scroll to bottom
+    // 自動スクロール
     messagesDiv.parentElement.scrollTop = messagesDiv.parentElement.scrollHeight;
 }
 
@@ -627,37 +627,37 @@ function clearProgressMessages() {
     document.getElementById('progress-messages').innerHTML = '';
 }
 
-// Button state management
+// ボタン状態管理
 function lockDeployButton() {
     const btn = document.getElementById('deploy-btn');
     const sidebarBtn = document.getElementById('sidebar-deploy-btn');
     btn.disabled = true;
-    btn.textContent = 'Deploying...';
+    btn.textContent = 'デプロイ中...';
     sidebarBtn.disabled = true;
-    sidebarBtn.textContent = 'Deploying...';
+    sidebarBtn.textContent = 'デプロイ中...';
 }
 
 function resetDeployButton() {
     const btn = document.getElementById('deploy-btn');
     const sidebarBtn = document.getElementById('sidebar-deploy-btn');
     btn.disabled = false;
-    btn.textContent = 'Deploy';
+    btn.textContent = 'デプロイ';
     sidebarBtn.disabled = false;
-    sidebarBtn.textContent = 'Deploy / Restart';
+    sidebarBtn.textContent = 'デプロイ / 再起動';
 }
 
 function updateDeploymentUI(isRunning) {
     const statusDiv = document.getElementById('deploy-status');
     if (isRunning) {
-        statusDiv.innerHTML = '<p class="status status-running">✓ Running</p>';
+        statusDiv.innerHTML = '<p class="status status-running">✓ 実行中</p>';
         document.getElementById('preview-btn').style.display = 'inline-block';
     } else {
-        statusDiv.innerHTML = '<p class="status status-stopped">✗ Stopped</p>';
+        statusDiv.innerHTML = '<p class="status status-stopped">✗ 停止中</p>';
         document.getElementById('preview-btn').style.display = 'none';
     }
 }
 
-// Operation Overlay Management
+// 操作オーバーレイ管理
 function showOperationOverlay(title, substatus, showProgressBar = false) {
     const overlay = document.getElementById('operation-overlay');
     const titleEl = document.getElementById('operation-title');
@@ -704,15 +704,15 @@ function updateOperationSubstatus(substatus) {
     substatusEl.textContent = substatus;
 }
 
-// Show preview button if container is running
+// コンテナが実行中ならプレビューボタンを表示
 if ('{{ project.docker_container_id }}') {
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('preview-btn').style.display = 'inline-block';
     });
 }
 
-// Initialize on page load
-console.log('[Lab] Registering window load event listener');
+// ページ読み込み時に初期化
+console.log('[Lab] window load イベントリスナーを登録');
 window.addEventListener('load', initWebSocket);
 </script>
 
@@ -766,7 +766,7 @@ window.addEventListener('load', initWebSocket);
     border: none;
 }
 
-/* Loading State */
+/* 読み込み状態 */
 .loading-state {
     display: flex;
     align-items: center;
@@ -842,7 +842,7 @@ window.addEventListener('load', initWebSocket);
     }
 }
 
-/* Operation Overlay (Generic for all long-running operations) */
+/* 操作オーバーレイ（長時間動作全般） */
 .operation-overlay {
     position: fixed;
     top: 0;
@@ -1063,7 +1063,7 @@ window.addEventListener('load', initWebSocket);
     }
 }
 
-/* Help Modal Styles */
+/* ヘルプモーダルスタイル */
 .help-modal {
     position: fixed;
     top: 0;

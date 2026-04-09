@@ -154,6 +154,57 @@
     color: var(--text-dim);
     font-size: 0.72rem;
   }
+
+  .help-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.help-modal.open { display: flex; }
+.help-modal-content {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 500px;
+  width: 90%;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.help-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.help-modal-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.close-modal {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+}
+.close-modal:hover { color: var(--text-bright); }
+.help-modal-body {
+  padding: 16px;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.help-modal-body p { margin: 0 0 12px 0; }
 </style>
 {% endblock %}
 
@@ -161,7 +212,7 @@
 <div id="console-shell">
 
   <div id="console-toolbar">
-    <h1>🖥 サーバーコンソール <span class="dev-badge">開発者専用</span></h1>
+    <h1>🖥 サーバーコンソール <span class="dev-badge">開発者のみ</span></h1>
 
     <div id="conn-status">
       <span class="cdot" id="cdot"></span>
@@ -172,6 +223,7 @@
     <button class="tb-btn" onclick="changeFontSize(-1)">A−</button>
     <button class="tb-btn" onclick="changeFontSize(+1)">A+</button>
     <button class="tb-btn" onclick="clearTerm()">クリア</button>
+    <button class="tb-btn" onclick="openHelpModal()">ヘルプを更新</button>
     <button class="tb-btn danger" onclick="killShell()">✕ 強制終了</button>
 
     <span class="admin-lbl">{{ session.admin_name }}</span>
@@ -185,6 +237,20 @@
       <button class="tb-btn" onclick="restartShell()">↻ シェルを再起動</button>
     </div>
   </div>
+
+  <div id="help-modal" class="help-modal">
+  <div class="help-modal-content">
+    <div class="help-modal-header">
+      <h2>コンソールヘルプ</h2>
+      <button class="close-modal" onclick="closeHelpModal()">✕</button>
+    </div>
+    <div class="help-modal-body">
+      LANHubサーバーを更新するには、次を実行してください:
+      <code>bash update.sh</code>
+
+    </div>
+  </div>
+</div>
 
 </div>
 {% endblock %}
@@ -222,6 +288,18 @@ loadScript("https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.js", () => {
     startShell();
   });
 });
+
+  function openHelpModal() {
+    document.getElementById("help-modal").classList.add("open");
+  }
+
+  function closeHelpModal() {
+    document.getElementById("help-modal").classList.remove("open");
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeHelpModal();
+  });
 
   // ── Terminal ───────────────────────────────────────────────
   function buildTerminal() {
@@ -264,7 +342,20 @@ loadScript("https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.js", () => {
   }
 
   // ── Shell control ──────────────────────────────────────────
-  function startShell() {
+  function startShell() {    // Set a timeout to detect if console_ready never arrives
+    const startTimeout = setTimeout(() => {
+      if (!shellAlive) {
+        setStatus(false, "接続タイムアウト");
+        if (term) term.writeln("\r\n\x1b[33m[接続タイムアウト — シェルが応答しませんでした]\x1b[0m");
+        document.getElementById("exited-overlay").classList.add("visible");
+      }
+    }, 5000);  // 5 second timeout
+
+    const handler = () => {
+      clearTimeout(startTimeout);
+      socket.off("console_ready", handler);
+    };
+    socket.once("console_ready", handler);
     socket.emit("console_start", {
       cols: term ? term.cols : 80,
       rows: term ? term.rows : 24,
@@ -280,7 +371,7 @@ loadScript("https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.js", () => {
     if (!confirm("現在のシェルセッションを強制終了しますか？")) return;
     socket.emit("console_stop");
     shellAlive = false;
-    setStatus(false, "強制終了");
+    setStatus(false, "強制終了しました");
     document.getElementById("exited-overlay").classList.add("visible");
   }
 
@@ -299,6 +390,15 @@ loadScript("https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.js", () => {
   }
 
   // ── Socket events ──────────────────────────────────────────
+  socket.on("connect", () => { 
+    setStatus(true, "ソケット接続済み");
+    if (term && !shellAlive) startShell(); 
+  });
+
+  socket.on("disconnect", () => { 
+    setStatus(false, "ソケット切断");
+  });
+
   socket.on("console_ready", () => {
     shellAlive = true;
     setStatus(true, "接続済み");
@@ -311,11 +411,9 @@ loadScript("https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.js", () => {
   socket.on("console_exit", () => {
     shellAlive = false;
     setStatus(false, "シェル終了");
-    if (term) term.writeln("\r\n\x1b[33m[プロセスが終了しました]\x1b[0m");
+    if (term) term.writeln("\r\n\x1b[33m[プロセス終了]\x1b[0m");
     document.getElementById("exited-overlay").classList.add("visible");
   });
-
-  socket.on("connect", () => { if (term && !shellAlive) startShell(); });
 
   new ResizeObserver(doFit).observe(document.getElementById("terminal-wrap"));
   window.addEventListener("beforeunload", () => socket.emit("console_stop"));

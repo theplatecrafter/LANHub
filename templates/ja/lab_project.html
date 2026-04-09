@@ -1,0 +1,1646 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="lab-project-view">
+    <header class="project-header">
+        <div class="header-content">
+            <h1>{{ project.title }}</h1>
+            <p class="project-meta">
+                by <strong>{{ owner.username }}</strong>  |  
+                {{ project.created_at|strftime('%Y-%m-%d') }}
+            </p>
+        </div>
+        <div class="header-actions">
+            {% if is_owner %}
+                <a href="{{ url_for('tools_lab.project_edit', slug=project.slug) }}" class="btn btn-primary">コードを編集</a>
+                <a href="{{ url_for('tools_lab.project_settings', slug=project.slug) }}" class="btn btn-secondary">設定</a>
+                <button onclick="stopProjectContainer({{ project.id }})" class="btn btn-danger" id="stop-container-btn" style="display: {% if project.docker_container_id %}inline-block{% else %}none{% endif %};">🛑 コンテナを停止</button>
+            {% elif is_authenticated and project.visibility == 'public' %}
+                <button onclick="cloneProject({{ project.id }})" class="btn btn-success">📋 プロジェクトを複製</button>
+            {% endif %}
+            
+            {% if project.visibility == 'public' %}
+                <button onclick="openPage('{{ project.slug }}')" class="btn btn-info" title="公開ページを開く">
+                    🔗 ページを開く
+                </button>
+            {% endif %}
+            
+            {% if project.visibility == 'public' and is_authenticated %}
+                <button id="star-btn" onclick="toggleStar({{ project.id }})" class="btn btn-info" title="このプロジェクトにスターを付ける" disabled>
+                    ⭐ <span id="star-count">0</span>
+                </button>
+            {% endif %}
+            
+            <a href="{{ url_for('tools_lab.index') }}" class="btn btn-secondary">戻る</a>
+        </div>
+    </header>
+
+    <main class="project-main">
+        <section class="project-info">
+            <div class="info-panel">
+                <h3>プロジェクト情報</h3>
+                <table class="info-table">
+                    <tr>
+                        <td>ステータス</td>
+                        <td>
+                            {% if project.docker_container_id %}
+                                <span class="badge badge-success">実行中</span>
+                            {% else %}
+                                <span class="badge badge-inactive">停止</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>公開設定</td>
+                        <td><span class="badge">{{ project.visibility|capitalize }}</span></td>
+                    </tr>
+                    <tr>
+                        <td>最終デプロイ</td>
+                        <td>{{ project.last_deployed_at|strftime('%Y-%m-%d %H:%M') if project.last_deployed_at else 'なし' }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="description-panel">
+                <h3>説明</h3>
+                <p>{{ project.description if project.description else '説明はありません。' }}</p>
+            </div>
+
+            <div class="members-panel">
+                <h3>チームメンバー ({{ members|length }})</h3>
+                <ul class="members-list">
+                    {% for member in members %}
+                        <li>
+                            <strong>{{ member.username }}</strong>
+                            <span class="member-role">{{ member.role|capitalize }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- Git リポジトリとコラボレーションセクション                          -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <section class="git-section" id="git-section">
+            <h2>🌳 Git リポジトリ</h2>
+            
+            <div class="git-tabs">
+                <button class="git-tab-btn active" data-tab="branches" onclick="switchGitTab('branches')">
+                    ブランチ
+                </button>
+                <button class="git-tab-btn" data-tab="history" onclick="switchGitTab('history')">
+                    コミット履歴
+                </button>
+                <button class="git-tab-btn" data-tab="merge" onclick="switchGitTab('merge')">
+                    マージ
+                </button>
+            </div>
+
+            <!-- Branches Tab -->
+            <div class="git-tab-content active" id="tab-branches">
+                <div class="branch-controls">
+                    <label for="branch-select">現在のブランチ:</label>
+                    <select id="branch-select" onchange="switchGitBranch(this.value)">
+                        <option value="main">main</option>
+                    </select>
+                    
+                    {% if is_owner or is_contributor %}
+                        <button onclick="showCreateBranchForm()" class="btn btn-primary">+ 新規ブランチ</button>
+                    {% endif %}
+                </div>
+
+                {% if is_owner or is_contributor %}
+                <div id="create-branch-form" class="create-branch-form" style="display: none;">
+                    <h4>新規ブランチを作成</h4>
+                    <input type="text" id="branch-name-input" placeholder="ブランチ名 (例: feature/auth)" />
+                    <div class="form-hint">
+                        オプション: コミットハッシュから作成
+                        <input type="text" id="from-commit-input" placeholder="(空の場合は main からブランチ)" style="margin-top: 5px;" />
+                    </div>
+                    <div class="form-actions">
+                        <button onclick="createGitBranch()" class="btn btn-sm btn-primary">ブランチ作成</button>
+                        <button onclick="hideCreateBranchForm()" class="btn btn-sm btn-secondary">キャンセル</button>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div id="branches-list" class="branches-list">
+                    <p class="loading">ブランチを読み込み中...</p>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div class="git-tab-content" id="tab-history">
+                <div id="commit-history" class="commit-history">
+                    <p class="loading">コミット履歴を読み込み中...</p>
+                </div>
+            </div>
+
+            <!-- Merge Tab -->
+            <div class="git-tab-content" id="tab-merge">
+                {% if is_owner or is_contributor %}
+                <div class="merge-controls">
+                    <h4>ブランチをマージ</h4>
+                    <div class="merge-form">
+                        <div class="form-group">
+                            <label>ソースブランチ:</label>
+                            <select id="merge-source">
+                                <option value="">ブランチを選択...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>ターゲットブランチ:</label>
+                            <select id="merge-target" value="main">
+                                <option value="main">main</option>
+                            </select>
+                        </div>
+                        <button onclick="attemptMerge()" class="btn btn-primary">マージ開始</button>
+                    </div>
+                </div>
+
+                <!-- Conflict Resolution UI -->
+                <div id="conflict-resolution" class="conflict-resolution" style="display: none;">
+                    <div class="conflict-header">
+                        <h4>⚠️ 競合が検出されました</h4>
+                        <p>マージを完了する前に、以下の競合を解決してください。</p>
+                    </div>
+
+                    <div id="conflicts-list" class="conflicts-list">
+                        <p class="loading">競合を読み込み中...</p>
+                    </div>
+
+                    <div class="conflict-actions">
+                        <button onclick="completeGitMerge()" class="btn btn-sm btn-success">✓ マージを完了</button>
+                        <button onclick="abortGitMerge()" class="btn btn-sm btn-danger">✗ マージを中止</button>
+                    </div>
+                </div>
+                
+                <div id="merge-status" class="merge-status" style="display: none;"></div>
+                {% else %}
+                <p class="permission-notice">ブランチのマージができるのはプロジェクトの所有者とコントリビューターのみです。</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="comments-section">
+            <h2>ディスカッション</h2>
+            
+            {% if is_authenticated %}
+                <div class="comment-form">
+                    <textarea id="new-comment" placeholder="ご意見を共有してください..."></textarea>
+                    <button onclick="postComment()" class="btn btn-primary">コメントを投稿</button>
+                </div>
+            {% endif %}
+
+            <div class="comments-list" id="comments-list">
+                {% if comments %}
+                    {% for comment in comments %}
+                        <div class="comment" data-comment-id="{{ comment.id }}">
+                            <div class="comment-header">
+                                <strong>{{ comment.username }}</strong>
+                                <time>{{ comment.created_at|strftime('%Y-%m-%d %H:%M') }}</time>
+                            </div>
+                            <div class="comment-content">{{ comment.content }}</div>
+                            <div class="comment-footer">
+                                {% if is_authenticated %}
+                                    <button class="btn-like" onclick="toggleCommentLike({{ comment.id }}, this)">
+                                        ❤️ <span class="like-count">0</span>
+                                    </button>
+                                    <button class="btn-reply" onclick="toggleReplyForm({{ comment.id }})">
+                                        💬 返信
+                                    </button>
+                                {% else %}
+                                    <span class="likes-info">❤️ <span class="like-count">0</span> いいね</span>
+                                {% endif %}
+                            </div>
+
+                            {% if is_authenticated %}
+                            <div class="reply-form-container" id="reply-form-{{ comment.id }}" style="display: none;">
+                                <div class="reply-form">
+                                    <textarea id="reply-text-{{ comment.id }}" placeholder="返信を書く..."></textarea>
+                                    <div class="form-actions">
+                                        <button onclick="postReply({{ comment.id }})" class="btn btn-sm btn-primary">返信</button>
+                                        <button onclick="toggleReplyForm({{ comment.id }})" class="btn btn-sm btn-secondary">キャンセル</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <div class="replies-section" id="replies-{{ comment.id }}">
+                                <!-- JavaScript で返信を読み込み -->
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="empty-comments">まだコメントはありません。最初の議論を始めましょう！</p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* Git 操作関数                                                                */
+/* ════════════════════════════════════════════════════════════════════════════ */
+
+function switchGitTab(tabName) {
+    // すべてのタブを非表示
+    document.querySelectorAll('.git-tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // ボタンからアクティブクラスを削除
+    document.querySelectorAll('.git-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // 選択されたタブを表示
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    event.target.classList.add('active');
+    
+    // タブのデータを読み込み
+    if (tabName === 'history') {
+        loadCommitHistory();
+    } else if (tabName === 'branches') {
+        loadGitBranches();
+    }
+}
+
+function loadGitBranches() {
+    const slug = '{{ project.slug }}';
+    
+    fetch(`/lab/api/project/${slug}/git/branches`)
+        .then(r => r.json())
+        .then(data => {
+            const branchSelect = document.getElementById('branch-select');
+            const mergeSource = document.getElementById('merge-source');
+            const list = document.getElementById('branches-list');
+            
+            branchSelect.innerHTML = '';
+            mergeSource.innerHTML = '<option value="">ブランチを選択...</option>';
+            list.innerHTML = '';
+            
+            if (data.branches && data.branches.length > 0) {
+                data.branches.forEach(branch => {
+                    // ブランチセレクタに追加
+                    const opt = document.createElement('option');
+                    opt.value = branch.name;
+                    opt.textContent = branch.name + (branch.is_default ? ' (main)' : '');
+                    branchSelect.appendChild(opt);
+                    
+                    // マージソースセレクタに追加
+                    if (!branch.is_default) {
+                        const opt2 = document.createElement('option');
+                        opt2.value = branch.name;
+                        opt2.textContent = branch.name;
+                        mergeSource.appendChild(opt2);
+                    }
+                    
+                    // ブランチリストに追加
+                    const item = document.createElement('div');
+                    item.className = 'branch-item';
+                    item.innerHTML = `
+                        <div>
+                            <div class="branch-name">${branch.name}</div>
+                            <div class="branch-info">コミット: ${branch.commit} | ${new Date(branch.date).toLocaleDateString()}</div>
+                        </div>
+                        <div class="branch-actions">
+                            <button onclick="switchGitBranch('${branch.name}')" class="btn btn-sm">切り替え</button>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            }
+        })
+        .catch(error => console.error('ブランチ読み込みエラー:', error));
+}
+
+function switchGitBranch(branchName) {
+    // ブランチの設定を localStorage に保存
+    localStorage.setItem('current_git_branch', branchName);
+    loadCommitHistory(branchName);
+    alert(`ブランチを切り替えました: ${branchName}`);
+}
+
+function showCreateBranchForm() {
+    document.getElementById('create-branch-form').style.display = 'flex';
+    document.getElementById('branch-name-input').focus();
+}
+
+function hideCreateBranchForm() {
+    document.getElementById('create-branch-form').style.display = 'none';
+    document.getElementById('branch-name-input').value = '';
+    document.getElementById('from-commit-input').value = '';
+}
+
+function createGitBranch() {
+    const slug = '{{ project.slug }}';
+    const branchName = document.getElementById('branch-name-input').value.trim();
+    const fromCommit = document.getElementById('from-commit-input').value.trim() || null;
+    
+    if (!branchName) {
+        alert('ブランチ名を入力してください');
+        return;
+    }
+    
+    fetch(`/lab/api/project/${slug}/git/branches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: branchName,
+            from_commit: fromCommit
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('ブランチを作成しました: ' + branchName);
+            hideCreateBranchForm();
+            loadGitBranches();
+        } else {
+            alert('エラー: ' + (data.error || 'ブランチの作成に失敗しました'));
+        }
+    })
+    .catch(error => alert('エラー: ' + error.message));
+}
+
+function loadCommitHistory(branchName = 'main') {
+    const slug = '{{ project.slug }}';
+    
+    fetch(`/lab/api/project/${slug}/git/log?branch=${encodeURIComponent(branchName)}`)
+        .then(r => r.json())
+        .then(data => {
+            const historyDiv = document.getElementById('commit-history');
+            
+            if (!data.commits || data.commits.length === 0) {
+                historyDiv.innerHTML = '<p class="loading">コミットはまだありません。</p>';
+                return;
+            }
+            
+            historyDiv.innerHTML = '';
+            data.commits.forEach(commit => {
+                const item = document.createElement('div');
+                item.className = 'commit-item';
+                
+                const date = new Date(commit.date).toLocaleString();
+                item.innerHTML = `
+                    <div class="commit-message">${escapeHtml(commit.message)}</div>
+                    <div class="commit-meta">
+                        <div>👤 ${escapeHtml(commit.author)}</div>
+                        <div>📅 ${date}</div>
+                        <div><code>#${commit.hash}</code></div>
+                    </div>
+                `;
+                historyDiv.appendChild(item);
+            });
+        })
+        .catch(error => console.error('コミット履歴読み込みエラー:', error));
+}
+
+function attemptMerge() {
+    const slug = '{{ project.slug }}';
+    const source = document.getElementById('merge-source').value;
+    const target = document.getElementById('merge-target').value || 'main';
+    
+    if (!source) {
+        alert('ソースブランチを選択してください');
+        return;
+    }
+    
+    fetch(`/lab/api/project/${slug}/git/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            source: source,
+            target: target
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        const statusDiv = document.getElementById('merge-status');
+        
+        if (data.success) {
+            statusDiv.className = 'merge-status success';
+            statusDiv.innerHTML = `<strong>✓ 成功！</strong> ${data.message}`;
+            statusDiv.style.display = 'block';
+            loadGitBranches();
+        } else if (data.conflicts) {
+            // 競合解決UIを表示
+            showConflictResolution(data.conflicts);
+        } else {
+            statusDiv.className = 'merge-status error';
+            statusDiv.innerHTML = `<strong>✗ エラー</strong> ${data.error}`;
+            statusDiv.style.display = 'block';
+        }
+    })
+    .catch(error => alert('エラー: ' + error.message));
+}
+
+function showConflictResolution(conflicts) {
+    const conflictDiv = document.getElementById('conflict-resolution');
+    const conflictsList = document.getElementById('conflicts-list');
+    
+    conflictsList.innerHTML = '';
+    
+    conflicts.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'conflict-item';
+        item.innerHTML = `
+            <div class="conflict-item-header">${file}</div>
+            <div class="conflict-item-editor">
+                <textarea id="conflict-${file}" placeholder="ここで競合を解決してください..."></textarea>
+                <div class="editor-buttons">
+                    <button onclick="loadConflictContent('${file}')" class="btn btn-sm">内容を読み込み</button>
+                </div>
+            </div>
+        `;
+        conflictsList.appendChild(item);
+    });
+    
+    conflictDiv.style.display = 'block';
+}
+
+function loadConflictContent(filePath) {
+    const slug = '{{ project.slug }}';
+    
+    fetch(`/lab/api/project/${slug}/git/conflict/${encodeURIComponent(filePath)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.content) {
+                document.getElementById(`conflict-${filePath}`).value = data.content;
+            }
+        })
+        .catch(error => alert('ファイル読み込みエラー: ' + error.message));
+}
+
+function completeGitMerge() {
+    const slug = '{{ project.slug }}';
+    const conflictDiv = document.getElementById('conflict-resolution');
+    const textareas = conflictDiv.querySelectorAll('textarea');
+    
+    // すべての競合を解決
+    let allResolved = true;
+    const conflicts = [];
+    
+    textareas.forEach((textarea, idx) => {
+        const fileMatch = textarea.id.match(/conflict-(.+)$/);
+        if (fileMatch) {
+            const file = fileMatch[1];
+            const content = textarea.value.trim();
+            
+            if (!content) {
+                allResolved = false;
+                return;
+            }
+            
+            conflicts.push({ file, content });
+        }
+    });
+    
+    if (!allResolved) {
+        alert('マージを完了する前にすべての競合を解決してください');
+        return;
+    }
+    
+    // 各競合を解決
+    Promise.all(conflicts.map(item =>
+        fetch(`/lab/api/project/${slug}/git/resolve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                file: item.file,
+                content: item.content
+            })
+        }).then(r => r.json())
+    ))
+    .then(results => {
+        // すべて解決、マージを完了
+        return fetch(`/lab/api/project/${slug}/git/merge/complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: '競合を解決しました' })
+        }).then(r => r.json());
+    })
+    .then(data => {
+        if (data.success) {
+            alert('マージが正常に完了しました！');
+            document.getElementById('conflict-resolution').style.display = 'none';
+            loadGitBranches();
+        } else {
+            alert('マージ完了エラー: ' + (data.error || '不明なエラー'));
+        }
+    })
+    .catch(error => alert('エラー: ' + error.message));
+}
+
+function abortGitMerge() {
+    const slug = '{{ project.slug }}';
+    
+    if (!confirm('このマージを中止してもよろしいですか？')) {
+        return;
+    }
+    
+    fetch(`/lab/api/project/${slug}/git/merge/abort`, {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('マージを中止しました');
+            document.getElementById('conflict-resolution').style.display = 'none';
+        } else {
+            alert('エラー: ' + (data.error || 'マージ中止に失敗しました'));
+        }
+    })
+    .catch(error => alert('エラー: ' + error.message));
+}
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* コメント機能                                                                */
+/* ════════════════════════════════════════════════════════════════════════════ */
+
+function postComment() {
+    const content = document.getElementById('new-comment').value.trim();
+    if (!content) {
+        alert('コメントを入力してください');
+        return;
+    }
+    
+    fetch('{{ url_for("tools_lab.api_create_comment", slug=project.slug) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: content })
+    })
+    .then(r => r.json())
+    .then(comment => {
+        location.reload();
+    })
+    .catch(e => alert('エラー: ' + e));
+}
+
+function toggleReplyForm(commentId) {
+    const form = document.getElementById(`reply-form-${commentId}`);
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        document.getElementById(`reply-text-${commentId}`).focus();
+    } else {
+        form.style.display = 'none';
+    }
+}
+
+function postReply(parentCommentId) {
+    const content = document.getElementById(`reply-text-${parentCommentId}`).value.trim();
+    if (!content) {
+        alert('返信を入力してください');
+        return;
+    }
+    
+    fetch('{{ url_for("tools_lab.api_create_comment", slug=project.slug) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: content, parent_id: parentCommentId })
+    })
+    .then(r => r.json())
+    .then(comment => {
+        loadCommentReplies(parentCommentId);
+        document.getElementById(`reply-text-${parentCommentId}`).value = '';
+        toggleReplyForm(parentCommentId);
+    })
+    .catch(e => alert('エラー: ' + e));
+}
+
+function loadCommentReplies(commentId) {
+    const repliesSection = document.getElementById(`replies-${commentId}`);
+    if (!repliesSection) return;
+    
+    fetch(`/lab/api/comment/${commentId}/replies`)
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+        })
+        .then(data => {
+            repliesSection.innerHTML = '';
+            
+            if (!data.replies || data.replies.length === 0) {
+                return;
+            }
+            
+            const repliesDiv = document.createElement('div');
+            repliesDiv.className = 'replies-list';
+            
+            data.replies.forEach(reply => {
+                const replyDiv = document.createElement('div');
+                replyDiv.className = 'reply';
+                replyDiv.dataset.commentId = reply.id;
+                replyDiv.innerHTML = `
+                    <div class="reply-header">
+                        <strong>${escapeHtml(reply.username)}</strong>
+                        <time>${new Date(reply.created_at * 1000).toLocaleString()}</time>
+                    </div>
+                    <div class="reply-content">${escapeHtml(reply.content)}</div>
+                    <div class="reply-footer">
+                        <button class="btn-like" onclick="toggleCommentLike(${reply.id}, this)">
+                            ❤️ <span class="like-count">${reply.like_count}</span>
+                        </button>
+                        <button class="btn-reply" onclick="toggleReplyForm(${reply.id})">
+                            💬 返信
+                        </button>
+                    </div>
+                    
+                    <div class="reply-form-container" id="reply-form-${reply.id}" style="display: none;">
+                        <div class="reply-form">
+                            <textarea id="reply-text-${reply.id}" placeholder="返信を書く..."></textarea>
+                            <div class="form-actions">
+                                <button onclick="postReply(${reply.id})" class="btn btn-sm btn-primary">返信</button>
+                                <button onclick="toggleReplyForm(${reply.id})" class="btn btn-sm btn-secondary">キャンセル</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="replies-section" id="replies-${reply.id}">
+                        <!-- ネストされた返信は JavaScript で読み込み -->
+                    </div>
+                `;
+                repliesDiv.appendChild(replyDiv);
+                
+                // ユーザーがいいねしている場合はボタンをマーク
+                if (reply.user_liked) {
+                    replyDiv.querySelector('.btn-like').classList.add('liked');
+                }
+                
+                // ネストされた返信を再帰的に読み込み
+                loadCommentReplies(reply.id);
+            });
+            
+            repliesSection.appendChild(repliesDiv);
+        })
+        .catch(error => {
+            console.error('返信読み込みエラー:', error);
+        });
+}
+
+function toggleCommentLike(commentId, button) {
+    const isLiked = button.classList.contains('liked');
+    const endpoint = isLiked ? 'unlike' : 'like';
+    
+    fetch(`/lab/api/comment/${commentId}/${endpoint}`, {
+        method: 'POST'
+    })
+    .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+    })
+    .then(data => {
+        button.classList.toggle('liked');
+        button.querySelector('.like-count').textContent = data.like_count;
+    })
+    .catch(error => {
+        alert('エラー: ' + error.message);
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function cloneProject(projectId) {
+    if (!confirm('このプロジェクトをあなたのアカウントに複製しますか？')) {
+        return;
+    }
+    
+    const socket = io();
+    socket.emit('lab_clone_project', { project_id: projectId });
+    
+    socket.on('lab_project_cloned', (data) => {
+        if (data.success) {
+            alert(`プロジェクトを複製しました！複製先にリダイレクトします...`);
+            window.location.href = `/lab/project/${data.new_project.slug}`;
+        }
+        socket.disconnect();
+    });
+    
+    socket.on('lab_error', (data) => {
+        alert(`プロジェクト複製エラー: ${data.error}`);
+        socket.disconnect();
+    });
+}
+
+// ラボ操作用のグローバルソケット接続
+let labSocket = null;
+let labSocketReady = false;
+
+function initializeLabSocket() {
+    if (labSocket) return;
+    
+    labSocket = io();
+    
+    // ソケット接続を認証
+    labSocket.on('connect', () => {
+        labSocket.emit('lab_connect', {});
+    });
+    
+    labSocket.on('lab_auth_success', (data) => {
+        labSocketReady = true;
+        // 認証後、スターボタンを有効化
+        if (document.getElementById('star-btn')) {
+            document.getElementById('star-btn').disabled = false;
+        }
+    });
+    
+    labSocket.on('lab_auth_failed', (data) => {
+        console.error('ラボ認証失敗:', data.error);
+        labSocketReady = false;
+    });
+    
+    // コンテナ停止操作用のソケットリスナー
+    labSocket.on('lab_stop_progress', (data) => {
+        console.log('[ラボ] 停止進捗:', data.message);
+    });
+    
+    labSocket.on('lab_stop_success', (data) => {
+        console.log('[ラボ] コンテナを正常に停止しました');
+        alert('コンテナを正常に停止しました');
+        
+        // UIを更新 - 停止ボタンを非表示
+        const stopBtn = document.getElementById('stop-container-btn');
+        if (stopBtn) stopBtn.style.display = 'none';
+        
+        // ステータス更新のためページをリロード
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    });
+    
+    labSocket.on('lab_stop_failed', (data) => {
+        console.error('[ラボ] 停止失敗:', data.message);
+        alert('コンテナの停止に失敗しました: ' + data.message);
+    });
+}
+
+function stopProjectContainer(projectId) {
+    if (!labSocket || !labSocketReady) {
+        alert('接続を初期化中です。しばらくしてから再度お試しください...');
+        return;
+    }
+    
+    if (confirm('コンテナを停止してもよろしいですか？')) {
+        console.log('[ラボ] プロジェクトのコンテナを停止中:', projectId);
+        labSocket.emit('lab_stop_project', { project_id: projectId });
+    }
+}
+
+function loadStarInfo(projectId) {
+    if (!labSocket || !labSocketReady) {
+        // ソケットがまだ準備できていない場合、少し待ってから再試行
+        setTimeout(() => loadStarInfo(projectId), 100);
+        return;
+    }
+    
+    labSocket.emit('lab_get_star_info', { project_id: projectId });
+    
+    labSocket.once('lab_star_info', (data) => {
+        document.getElementById('star-count').textContent = data.star_count;
+        if (data.user_has_starred) {
+            document.getElementById('star-btn').classList.add('starred');
+        }
+    });
+    
+    labSocket.once('lab_error', (data) => {
+        console.error('スター情報読み込みエラー:', data.error);
+    });
+}
+
+function toggleStar(projectId) {
+    if (!labSocket || !labSocketReady) {
+        alert('接続を初期化中です。しばらくしてから再度お試しください...');
+        return;
+    }
+    
+    const isStarred = document.getElementById('star-btn').classList.contains('starred');
+    
+    if (isStarred) {
+        labSocket.emit('lab_unstar_project', { project_id: projectId });
+        labSocket.once('lab_project_unstarred', (data) => {
+            if (data.success) {
+                document.getElementById('star-btn').classList.remove('starred');
+                document.getElementById('star-count').textContent = data.star_count;
+            } else {
+                alert(`エラー: ${data.error}`);
+            }
+        });
+        labSocket.once('lab_error', (data) => {
+            alert(`エラー: ${data.error}`);
+        });
+    } else {
+        labSocket.emit('lab_star_project', { project_id: projectId });
+        labSocket.once('lab_project_starred', (data) => {
+            if (data.success) {
+                document.getElementById('star-btn').classList.add('starred');
+                document.getElementById('star-count').textContent = data.star_count;
+            } else {
+                alert(`エラー: ${data.error}`);
+            }
+        });
+        labSocket.once('lab_error', (data) => {
+            alert(`エラー: ${data.error}`);
+        });
+    }
+}
+
+// ページ読み込み時にスター情報を読み込み
+document.addEventListener('DOMContentLoaded', () => {
+    const projectId = {{ project.id }};
+    {% if is_authenticated %}
+        initializeLabSocket();
+        // ソケットが初期化されるのを少し待つ
+        {% if project.visibility == 'public' %}
+            setTimeout(() => loadStarInfo(projectId), 200);
+        {% endif %}
+    {% endif %}
+    
+    // すべてのネストされた返信を読み込み、いいねカウントを初期化
+    document.querySelectorAll('[data-comment-id]').forEach(commentEl => {
+        const commentId = commentEl.dataset.commentId;
+        loadCommentReplies(commentId);
+        
+        // ルートコメントのいいねカウントを初期化
+        const likeBtn = commentEl.querySelector('.btn-like');
+        if (likeBtn) {
+            updateLikeButton(commentId, likeBtn);
+        }
+    });
+    
+    // Gitセクションを初期化（最初のタブでブランチを読み込み）
+    loadGitBranches();
+});
+
+function updateLikeButton(commentId, button) {
+    fetch(`/lab/api/comment/${commentId}/likes`)
+        .then(r => r.json())
+        .then(data => {
+            button.querySelector('.like-count').textContent = data.like_count;
+            if (data.user_liked) {
+                button.classList.add('liked');
+            }
+        })
+        .catch(error => console.error('いいねボタン更新エラー:', error));
+}
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* プロジェクトページを開く関数 (ステップ4)                                      */
+/* ════════════════════════════════════════════════════════════════════════════ */
+
+function openPage(slug) {
+    // すべてのフロントエンドチェックをバイパスし、バックエンドにリクエストを強制
+    // これにより、Pythonルートがコンテナを自動デプロイ/ウェイクアップできる！
+    window.open('/lab/project/' + slug + '/preview/', '_blank');
+}
+
+</script>
+
+<style>
+.lab-project-view {
+    min-height: 100vh;
+    background: #f5f5f5;
+}
+
+.project-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-content h1 {
+    margin: 0;
+    font-size: 2em;
+}
+
+.project-meta {
+    margin: 10px 0 0;
+    opacity: 0.9;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.project-main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.project-info {
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    overflow: hidden;
+}
+
+.info-panel,
+.description-panel,
+.members-panel {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.info-panel:last-child,
+.description-panel:last-child,
+.members-panel:last-child {
+    border-bottom: none;
+}
+
+.info-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.info-table td {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.info-table td:first-child {
+    width: 120px;
+    font-weight: 500;
+    color: #666;
+}
+
+.badge {
+    display: inline-block;
+    background: #667eea;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.badge-success {
+    background: #4caf50;
+}
+
+.badge-inactive {
+    background: #999;
+}
+
+.members-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.members-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+}
+
+.members-list li:last-child {
+    border-bottom: none;
+}
+
+.member-role {
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+    font-size: 0.85em;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/* Git リポジトリセクションのスタイリング                                        */
+/* ════════════════════════════════════════════════════════════════════════════ */
+
+.git-section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+.git-section h2 {
+    margin-top: 0;
+    color: #333;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 10px;
+}
+
+.git-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.git-tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.2s ease;
+}
+
+.git-tab-btn:hover {
+    color: #333;
+}
+
+.git-tab-btn.active {
+    border-bottom-color: #667eea;
+    color: #667eea;
+}
+
+.git-tab-content {
+    display: none;
+}
+
+.git-tab-content.active {
+    display: block;
+}
+
+.branch-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.branch-controls label {
+    font-weight: 600;
+    color: #333;
+}
+
+.branch-controls select,
+#branch-name-input,
+#from-commit-input,
+#merge-source,
+#merge-target {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.95em;
+    cursor: pointer;
+}
+
+.branch-controls select:focus,
+#branch-name-input:focus,
+#from-commit-input:focus,
+#merge-source:focus,
+#merge-target:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.create-branch-form {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.create-branch-form h4 {
+    margin: 0;
+    color: #333;
+}
+
+.form-hint {
+    font-size: 0.85em;
+    color: #666;
+}
+
+.form-hint input {
+    display: block;
+    width: 100%;
+    min-width: 300px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.branches-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.branch-item {
+    background: #f9f9f9;
+    border-left: 4px solid #667eea;
+    padding: 12px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.branch-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.branch-info {
+    font-size: 0.85em;
+    color: #666;
+}
+
+.branch-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.commit-history {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.commit-item {
+    background: #f9f9f9;
+    border-left: 4px solid #26c6da;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.commit-message {
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 8px 0;
+    font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.commit-meta {
+    display: flex;
+    gap: 20px;
+    font-size: 0.85em;
+    color: #666;
+    flex-wrap: wrap;
+}
+
+.merge-controls {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.merge-controls h4 {
+    margin-top: 0;
+    color: #333;
+}
+
+.merge-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.merge-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.merge-form label {
+    font-weight: 500;
+    color: #333;
+}
+
+.conflict-resolution {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.conflict-header {
+    margin-bottom: 15px;
+}
+
+.conflict-header h4 {
+    margin: 0 0 8px 0;
+    color: #856404;
+}
+
+.conflict-header p {
+    margin: 0;
+    color: #856404;
+    font-size: 0.95em;
+}
+
+.conflicts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.conflict-item {
+    background: white;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.conflict-item-header {
+    background: #fff9e6;
+    padding: 10px 15px;
+    font-weight: 600;
+    color: #333;
+}
+
+.conflict-item-editor {
+    position: relative;
+}
+
+.conflict-item-editor textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 12px;
+    border: none;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 0.85em;
+    resize: vertical;
+}
+
+.conflict-item-editor .editor-buttons {
+    padding: 10px 12px;
+    background: #f5f5f5;
+    border-top: 1px solid #ddd;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.conflict-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.merge-status {
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+.merge-status.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.merge-status.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.permission-notice {
+    background: #e7e7e7;
+    padding: 15px;
+    border-radius: 6px;
+    color: #666;
+    font-style: italic;
+}
+
+.loading {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    font-style: italic;
+}
+
+.comments-section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.comments-section h2 {
+    margin-top: 0;
+}
+
+.comment-form {
+    margin-bottom: 20px;
+}
+
+.comment-form textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+    box-sizing: border-box;
+}
+
+.comment-form button {
+    margin-top: 10px;
+}
+
+.comments-list {
+    margin-top: 20px;
+}
+
+.comment {
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.comment-header time {
+    color: #999;
+    font-size: 0.9em;
+}
+
+.empty-comments {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #138496;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
+#star-btn.starred {
+    background: #ffc107;
+    color: #333;
+}
+
+#star-btn.starred:hover {
+    background: #e0a800;
+}
+
+/* 返信スタイル */
+.replies-list {
+    margin-left: 40px;
+    margin-top: 15px;
+    border-left: 3px solid #e0e0e0;
+    padding-left: 15px;
+}
+
+.reply {
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 12px;
+    font-size: 0.95em;
+}
+
+.reply .reply-header {
+    font-size: 0.85em;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.reply .reply-header strong {
+    color: #333;
+    margin-right: 10px;
+}
+
+.reply .reply-header time {
+    color: #999;
+}
+
+.reply .reply-content {
+    margin-bottom: 10px;
+    color: #444;
+    word-wrap: break-word;
+}
+
+.reply .reply-footer {
+    display: flex;
+    gap: 15px;
+    font-size: 0.9em;
+}
+
+.reply-form-container {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 12px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.reply-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.reply-form textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9em;
+    resize: vertical;
+}
+
+.reply-form textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.form-actions .btn {
+    padding: 6px 16px;
+    font-size: 0.85em;
+}
+
+.btn-like, .btn-reply {
+    background: none;
+    border: 1px solid #ddd;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+    color: #666;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-like:hover, .btn-reply:hover {
+    border-color: #667eea;
+    color: #667eea;
+    background: #f5f7ff;
+}
+
+.btn-like.liked {
+    background: #ffe0e0;
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+}
+
+.btn-like.liked:hover {
+    background: #ffc9c9;
+    border-color: #ff5252;
+    color: #ff5252;
+}
+
+.like-count {
+    font-weight: 600;
+}
+
+/* 深いネストされた返信のインデント */
+.replies-list .replies-list {
+    margin-left: 25px;
+}
+
+.replies-list .reply {
+    font-size: 0.92em;
+}
+
+.replies-list .replies-list .reply {
+    font-size: 0.89em;
+}
+
+@media (max-width: 768px) {
+    .replies-list {
+        margin-left: 25px;
+        padding-left: 10px;
+    }
+    
+    .reply-form-container {
+        padding: 10px;
+    }
+    
+    .reply-form textarea {
+        min-height: 50px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .form-actions .btn {
+        width: 100%;
+    }
+}
+
+/* ボタンスタイル */
+.btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: background-color 0.2s;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5568d3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #138496;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.85em;
+}
+</style>
+{% endblock %}

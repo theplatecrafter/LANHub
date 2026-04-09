@@ -1,35 +1,37 @@
 {% extends "base.html" %}
 
+{% block title %}LANHub ラボ - ダッシュボード{% endblock %}
+
 {% block content %}
 <div class="lab-dashboard">
     <header class="dashboard-header">
         <div class="header-left">
-            <a href="/lab" class="btn btn-secondary btn-small" style="margin-right: 15px;">← Back</a>
-            <h1>LANHub Lab</h1>
+            <a href="/lab" class="btn btn-secondary btn-small" style="margin-right: 15px;">← 戻る</a>
+            <h1>LANHub ラボ</h1>
         </div>
         <div class="user-info">
             <span>{{ user.username }}</span>
             <form method="POST" action="{{ url_for('tools_lab.logout') }}" style="display:inline;">
-                <button type="submit" class="btn btn-secondary">Logout</button>
+                <button type="submit" class="btn btn-secondary">ログアウト</button>
             </form>
         </div>
     </header>
 
     <main class="dashboard-main">
         <section class="quota-section">
-            <h3>Storage Quota</h3>
+            <h3>ストレージ割り当て</h3>
             <div class="quota-bar">
                 <div class="quota-used" style="width: {{ (quota_used_mb / max_quota_mb * 100)|int }}%">
                     <span>{{ quota_used_mb|round(1) }} MB</span>
                 </div>
             </div>
-            <p class="quota-text">{{ quota_used_mb|round(1) }} MB of {{ max_quota_mb }} MB used</p>
+            <p class="quota-text">{{ quota_used_mb|round(1) }} MB / {{ max_quota_mb }} MB 使用中</p>
         </section>
 
         <section class="projects-section">
             <div class="section-header">
-                <h2>Your Projects ({{ projects|length }}/{{ max_projects }})</h2>
-                <a href="{{ url_for('tools_lab.create_project') }}" class="btn btn-primary">+ New Project</a>
+                <h2>あなたのプロジェクト ({{ projects|length }}/{{ max_projects }})</h2>
+                <a href="{{ url_for('tools_lab.create_project') }}" class="btn btn-primary">+ 新規プロジェクト</a>
             </div>
 
             {% if projects %}
@@ -41,23 +43,23 @@
                                 <p class="project-meta">
                                     <span class="project-visibility">{{ project.visibility }}</span>
                                     {% if project.is_always_on %}
-                                        <span class="project-badge badge-always-on">Always On</span>
+                                        <span class="project-badge badge-always-on">常時起動</span>
                                     {% endif %}
                                 </p>
                                 <p class="project-desc">{{ project.description }}</p>
                             </div>
                             
                             <div class="project-actions">
-                                <a href="{{ url_for('tools_lab.project_view', slug=project.slug) }}" class="btn btn-small">View</a>
-                                <a href="{{ url_for('tools_lab.project_edit', slug=project.slug) }}" class="btn btn-small btn-primary">Edit</a>
-                                <a href="{{ url_for('tools_lab.project_settings', slug=project.slug) }}" class="btn btn-small">Settings</a>
+                                <a href="{{ url_for('tools_lab.project_view', slug=project.slug) }}" class="btn btn-small">表示</a>
+                                <a href="{{ url_for('tools_lab.project_edit', slug=project.slug) }}" class="btn btn-small btn-primary">編集</a>
+                                <a href="{{ url_for('tools_lab.project_settings', slug=project.slug) }}" class="btn btn-small">設定</a>
                             </div>
                         </div>
                     {% endfor %}
                 </div>
             {% else %}
                 <div class="empty-state">
-                    <p>No projects yet. <a href="{{ url_for('tools_lab.create_project') }}">Create your first project</a></p>
+                    <p>まだプロジェクトがありません。<a href="{{ url_for('tools_lab.create_project') }}">最初のプロジェクトを作成</a></p>
                 </div>
             {% endif %}
         </section>
