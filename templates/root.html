@@ -287,11 +287,11 @@
     {# DEV-only features #}
     {% if session.admin_role == 'DEV' %}
 
-    <a href="{{ url_for('admin.server_control') }}" class="feature-card accent-red">
-      <div class="card-icon">🔄</div>
-      <div class="card-label">Server</div>
-      <div class="card-title">Restart / Update</div>
-      <div class="card-desc">Trigger a git pull and service restart from the browser.</div>
+    <a href="{{ url_for('admin.console') }}" class="feature-card accent-red">
+      <div class="card-icon">🖥️</div>
+      <div class="card-label">System</div>
+      <div class="card-title">Server Console</div>
+      <div class="card-desc">Full Linux shell access directly in the browser. Server Updates are performed here.</div>
       <span class="card-badge">DEV Only</span>
     </a>
 
@@ -311,13 +311,7 @@
       <span class="card-badge">DEV Only</span>
     </a>
 
-    <a href="{{ url_for('admin.console') }}" class="feature-card accent-red">
-      <div class="card-icon">🖥️</div>
-      <div class="card-label">System</div>
-      <div class="card-title">Server Console</div>
-      <div class="card-desc">Full Linux shell access directly in the browser.</div>
-      <span class="card-badge">DEV Only</span>
-    </a>
+    
     <a href="{{ url_for('server_config.server_config') }}" class="feature-card accent-red">
       <div class="card-icon">⚙️</div>
       <div class="card-label">Configuration</div>

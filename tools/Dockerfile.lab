@@ -45,13 +45,6 @@ RUN chmod +x /usr/local/bin/entrypoint-lab.sh
 USER coder
 WORKDIR /home/coder
 
-# Download Copilot, install all extensions, and clean up in one layer!
-RUN export EXTENSIONS_GALLERY='{"serviceUrl":"https://marketplace.visualstudio.com/_apis/public/gallery","cacheUrl":"https://vscode.blob.core.windows.net/gallery/index","itemUrl":"https://marketplace.visualstudio.com/items"}' \
- && code-server --install-extension ms-python.python \
- && code-server --install-extension eamodio.gitlens \
- && code-server --install-extension ms-toolsai.jupyter \
- && code-server --install-extension GitHub.copilot \
- && code-server --install-extension GitHub.copilot-chat
 
 # Create project directories
 RUN mkdir -p /home/coder/project

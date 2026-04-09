@@ -8,7 +8,6 @@ logs/
 redirector_repo/
 configvars.json
 start.sh
-write_update.py
 
 # Testing
 .pytest_cache/
@@ -23,13 +22,10 @@ build/
 dist/
 
 # Generated files
-main_update.json
-.lanhub_updates_manifest
 .lab_enabled
 updated.json
 
 # Development
-dev_tools.ipynb
 .env
 .env.local
 *.log

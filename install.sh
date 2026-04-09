@@ -766,6 +766,56 @@ if [ "$INSTALL_MODE" != "dev" ] && [ -f "${PROJECT_DIR}/.lab_enabled" ] 2>/dev/n
     fi
 fi
 
+# ── Initialize updates tracking ───────────────────────────────────────────────
+info "Initializing update tracking system..."
+
+./venv/bin/python3 - <<'UPDATESPY'
+import json
+import sys
+
+try:
+    # Read all available updates from updates.json
+    with open('updates/updates.json', 'r') as f:
+        available_updates = json.load(f)
+    
+    # Convert to updated.json format: mark all as already installed
+    # This ensures a fresh install won't try to re-run all past updates
+    installed_updates = []
+    max_timestamp = 0
+    
+    for update_name, update_data in available_updates.items():
+        installed_updates.append({
+            'id': update_data['id'],
+            'version': update_data['version'],
+            'title': update_name,
+            'description': update_data['description'],
+            'timestamp': update_data['created_at'],
+            'tags': update_data.get('tags', [])
+        })
+        max_timestamp = max(max_timestamp, update_data['created_at'])
+    
+    # Create updated.json with all updates marked as installed
+    updated_data = {
+        'manifest': {
+            'last_update': max_timestamp
+        },
+        'updates': installed_updates
+    }
+    
+    # Write to updates/updated.json
+    with open('updates/updated.json', 'w') as f:
+        json.dump(updated_data, f, indent=2)
+    
+    print(f"Updated tracking initialized with {len(installed_updates)} updates pre-marked as installed.")
+    
+except Exception as e:
+    print(f"ERROR initializing update tracking: {e}", file=sys.stderr)
+    sys.exit(1)
+
+UPDATESPY
+
+success "Update tracking initialized."
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}━━━ Setup Complete ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"

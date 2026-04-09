@@ -6,7 +6,7 @@ import datetime
 import json as _json
 import os as _os
 
-_GLOBAL_FILE = _os.path.join(_os.path.dirname(__file__), "..", "..", "main_update.json")
+_GLOBAL_FILE = _os.path.join(_os.path.dirname(__file__), "..", "..", "updates", "updated.json")
 
 def _load_global_updates() -> list:
     try:
@@ -20,7 +20,7 @@ def _load_global_updates() -> list:
                 "title":       u.get("title", ""),
                 "description": u.get("description", ""),
                 "timestamp":   u.get("timestamp", 0),
-                "created_by":  "LANHub Core",
+                "created_by":  "LANHub Developers",
                 "tags":        u.get("tags", []),
                 "source":      "global",   # ← key flag for the frontend
             })
