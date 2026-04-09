@@ -78,38 +78,6 @@ if LAB_ENABLED:
 
 socketio.init_app(app)
 
-# ── Check and apply system-level updates on startup ──────────────────────────
-# System updates are now non-blocking thanks to:
-# - Scripts use sudo -n (no password prompt)
-# - Docker group allows docker commands without sudo
-# - Subprocess streaming doesn't buffer output
-# Updates apply automatically on startup for production readiness
-try:
-    from functions.system_updates import check_for_updates, apply_pending_updates
-    import logging
-    import os
-    update_logger = logging.getLogger("lanhub.updates")
-    
-    # Check for updates on every startup
-    pending = check_for_updates()
-    if pending:
-        pending_count = sum(len(v) for v in pending.values())
-        update_logger.info(f"Found {pending_count} pending system updates")
-        
-        # Auto-apply unless running with LANHUB_SKIP_AUTO_UPDATES=1 (for testing)
-        if os.environ.get("LANHUB_SKIP_AUTO_UPDATES") != "1":
-            update_logger.info("Applying pending system updates automatically...")
-            result = apply_pending_updates(allow_interactive=False)
-            if result.get("success"):
-                update_logger.info("✓ All system updates applied successfully")
-            else:
-                update_logger.warning("⚠ Some system updates failed to apply. Check logs above.")
-        else:
-            update_logger.info("Updates can be applied via Admin Panel → Server → System Updates")
-            update_logger.info("Or run: python3 functions/system_updates.py --apply")
-except Exception as e:
-    import logging
-    logging.getLogger("lanhub.updates").warning(f"Could not check for system updates: {e}")
 
 # ── Language-aware template lookup ────────────────────────────────────────────
 # Jinja2 caches compiled templates by name. Without this patch, the first
@@ -362,33 +330,6 @@ def timestamp_fmt(ts):
 def too_large(e):
     from flask import jsonify
     return jsonify({"ok": False, "error": "File too large."}), 413
-
-
-def _repo_url_to_pages(repo_url: str) -> str | None:
-    """
-    Convert a GitHub repo URL to its GitHub Pages URL.
-
-    https://github.com/USER/REPO        →  https://USER.github.io/REPO/
-    https://github.com/USER/REPO.git    →  https://USER.github.io/REPO/
-    git@github.com:USER/REPO.git        →  https://USER.github.io/REPO/
-
-    Returns None if the URL can't be parsed.
-    """
-    m = _re.match(
-        r'https?://github\.com/([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$',
-        repo_url.strip()
-    )
-    if m:
-        return f"https://{m.group(1)}.github.io/{m.group(2)}/"
-
-    m = _re.match(
-        r'git@github\.com:([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$',
-        repo_url.strip()
-    )
-    if m:
-        return f"https://{m.group(1)}.github.io/{m.group(2)}/"
-
-    return None
 
 
 @app.context_processor

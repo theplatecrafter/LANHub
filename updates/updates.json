@@ -1,0 +1,8 @@
+{
+    "Example Update":{
+        "id":1,
+        "path":"updates/example-update.sh",
+        "description":"Example update script that pulls latest code and installs Python dependencies. Replace with actual update logic as needed.",
+        "created_at":1710000000
+    }
+}

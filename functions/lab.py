@@ -47,7 +47,7 @@ LAB_SOCKET_DIR = "files/lab-sockets"
 # Project storage directory (relative to project root, resolved at runtime)
 LAB_PROJECTS_DIR = "files/lab"
 
-# Docker image name - must match Dockerfile.lab
+# Docker image name - must match tools/Dockerfile.lab
 LAB_DOCKER_IMAGE = "lanhub-lab:latest"
 
 # Password for code-server (internal security layer; users authenticate at LANHub level)
@@ -991,7 +991,7 @@ def docker_container_start(project: Dict) -> Optional[str]:
             dns=["8.8.8.8", "1.1.1.1"],  # Explicit DNS for reliable package manager access
             detach=True,
             restart_policy={"Name": "no"},
-            user="1000:1000"  # Run as coder user (see Dockerfile.lab)
+            user="1000:1000"  # Run as coder user (see tools/Dockerfile.lab)
         )
         
         # Wait for socket file to be created and set permissions

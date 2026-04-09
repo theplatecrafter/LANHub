@@ -1694,7 +1694,7 @@ if docker image inspect lanhub-lab:latest >/dev/null 2>&1; then
 fi
 
 # Your update logic here
-docker build -f Dockerfile.lab -t lanhub-lab:latest .
+docker build -f tools/Dockerfile.lab -t lanhub-lab:latest .
 exit 0  # Success
 ```
 

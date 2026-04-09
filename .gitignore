@@ -26,6 +26,7 @@ dist/
 main_update.json
 .lanhub_updates_manifest
 .lab_enabled
+updated.json
 
 # Development
 dev_tools.ipynb

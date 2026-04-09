@@ -135,7 +135,7 @@ if [ "$LAB_FEATURE_ENABLED" = true ]; then
     echo ""
 
 # Build with real-time output showing progress
-if docker build -f Dockerfile.lab -t lanhub-lab:latest . 2>&1 | while IFS= read -r line; do
+if docker build -f tools/Dockerfile.lab -t lanhub-lab:latest . 2>&1 | while IFS= read -r line; do
     # Show each build step with indentation and formatting
     if [[ "$line" =~ ^Step\ [0-9] ]]; then
         echo -e "  ${GREEN}→${RESET} $line"
