@@ -265,7 +265,6 @@ def project_edit(slug):
     return render_template(
         "lab_editor.html",
         project=project,
-        code_server_port=_config.LAB_CODE_SERVER_PORT
     )
 
 

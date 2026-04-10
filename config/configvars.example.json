@@ -97,7 +97,6 @@
     "TUNNEL_URL": ""
   },
   "lab": {
-    "LAB_CODE_SERVER_PORT": 8443,
     "LAB_DEFAULT_QUOTA_MB": 500,
     "LAB_MAX_QUOTA_MB": 5000,
     "LAB_DOCKER_MEMORY_MB": 256,

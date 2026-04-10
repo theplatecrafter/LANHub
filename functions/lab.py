@@ -835,14 +835,14 @@ def get_lab_running_projects() -> List[Dict]:
 
 def calculate_total_memory_usage() -> int:
     """Calculate total memory allocated to running Lab containers in MB."""
-    running = get_lab_running_projects()
-    return len(running) * _config.LAB_DOCKER_MEMORY_MB
+    col, row = get_lab_running_projects()
+    return len(row) * _config.LAB_DOCKER_MEMORY_MB
 
 
 def calculate_total_cpu_usage() -> int:
     """Calculate total CPU shares allocated to running Lab containers."""
-    running = get_lab_running_projects()
-    return len(running) * _config.LAB_DOCKER_CPU_SHARES
+    col, row = get_lab_running_projects()
+    return len(row) * _config.LAB_DOCKER_CPU_SHARES
 
 
 def calculate_total_storage_usage() -> int:
@@ -1218,6 +1218,9 @@ def index():
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000)
 """
     
     requirements_txt = """Flask==2.3.3
@@ -1404,6 +1407,10 @@ signal.signal(signal.SIGTERM, graceful_shutdown)
 @app.route('/')
 def index():
     return render_template('index.html')
+    
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000)
 """
     
     requirements_txt = """Flask==2.3.3
