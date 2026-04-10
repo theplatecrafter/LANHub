@@ -576,24 +576,37 @@ if [ "$INSTALL_MODE" = "dev" ]; then
     info "Skipping systemd service (dev mode — run './start.sh' manually)."
 else
     CURRENT_USER=$(whoami)
-    SERVICE_FILE="/etc/systemd/system/lanhub.service"
-    SKIP_SERVICE=false
+    SERVICE_NAME="lanhub"
 
-    if [ -f "$SERVICE_FILE" ]; then
-        warn "A systemd service named 'lanhub' already exists."
-        ask "Overwrite it? [y/N]:"
-        read -r OVERWRITE_SVC
-        if [[ ! "$OVERWRITE_SVC" =~ ^[Yy]$ ]]; then
-            warn "Skipping service installation. Your existing service was left untouched."
-            SKIP_SERVICE=true
+    # Loop to ensure we get a unique or explicitly overwritten service name
+    while true; do
+        SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+        if [ -f "$SERVICE_FILE" ]; then
+            warn "A systemd service named '${SERVICE_NAME}' already exists."
+            ask "Do you want to (O)verwrite it, or (R)ename this new service? [O/r]:"
+            read -r OVERWRITE_CHOICE
+            if [[ "$OVERWRITE_CHOICE" =~ ^[Rr]$ ]]; then
+                ask "Enter new service name (e.g., lanhub-dev, lanhub2):"
+                read -r SERVICE_NAME
+                # Loop back to check if the new name exists!
+                continue
+            else
+                info "Overwriting ${SERVICE_NAME}.service..."
+                break
+            fi
+        else
+            break # Name is unique and safe to use
         fi
-    fi
+    done
 
-    if [ "$SKIP_SERVICE" = false ]; then
-        info "Writing systemd service..."
-        sudo tee "$SERVICE_FILE" > /dev/null <<SERVICE
+    # CRITICAL: Record the service name so update scripts know what to restart
+    echo "$SERVICE_NAME" > .service_name
+    success "Service name recorded as '${SERVICE_NAME}'"
+
+    info "Writing systemd service (${SERVICE_NAME}.service)..."
+    sudo tee "$SERVICE_FILE" > /dev/null <<SERVICE
 [Unit]
-Description=LANHub Server
+Description=LANHub Server (${SERVICE_NAME})
 After=network.target
 
 [Service]
@@ -610,10 +623,9 @@ StandardError=journal
 WantedBy=multi-user.target
 SERVICE
 
-        sudo systemctl daemon-reload
-        sudo systemctl enable lanhub
-        success "systemd service installed and enabled."
-    fi
+    sudo systemctl daemon-reload
+    sudo systemctl enable "$SERVICE_NAME"
+    success "systemd service ($SERVICE_NAME) installed and enabled."
 fi
 
 # ── Step 12 — Nginx reverse proxy for Lab WebSocket support ──────────────────
@@ -835,9 +847,12 @@ if [ "$INSTALL_MODE" = "dev" ]; then
     echo -e "  ${YELLOW}No systemd service was created. The server does not start on boot.${RESET}"
     echo -e "  ${YELLOW}Use Admin → Server → Update to pull changes from your dev machine.${RESET}"
 else
-    echo -e "  Start the server:   ${BOLD}sudo systemctl start lanhub${RESET}"
-    echo -e "  Check status:       ${BOLD}sudo systemctl status lanhub${RESET}"
-    echo -e "  View logs:          ${BOLD}journalctl -u lanhub -f${RESET}"
+    # Fetch the chosen service name for the printout
+    SVC_NAME=$(cat .service_name 2>/dev/null || echo "lanhub")
+    
+    echo -e "  Start the server:   ${BOLD}sudo systemctl start ${SVC_NAME}${RESET}"
+    echo -e "  Check status:       ${BOLD}sudo systemctl status ${SVC_NAME}${RESET}"
+    echo -e "  View logs:          ${BOLD}journalctl -u ${SVC_NAME} -f${RESET}"
     echo ""
     echo -e "  Local access:       ${BOLD}http://localhost:${PORT:-5000}${RESET}"
     echo -e "  Admin panel:        ${BOLD}http://localhost:${PORT:-5000}/admin${RESET}"

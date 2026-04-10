@@ -8,6 +8,7 @@ logs/
 redirector_repo/
 configvars.json
 start.sh
+.service_name
 
 # Testing
 .pytest_cache/

@@ -135,3 +135,18 @@ print("="*75 + "\n")
 
 PYTHON_EOF
 
+
+if [ -f ".service_name" ]; then
+    SVC_NAME=$(cat .service_name)
+else
+    SVC_NAME="lanhub"
+fi
+
+echo "Restarting $SVC_NAME..."
+if sudo systemctl restart "$SVC_NAME"; then
+    echo "✓ $SVC_NAME restarted successfully."
+else
+    echo -e "\n${YELLOW}⚠️  Failed to restart $SVC_NAME automatically.${RESET}"
+    echo -e "  This may be a development setup without a systemd service."
+    echo -e "  Please restart the server manually to apply updates."
+fi
