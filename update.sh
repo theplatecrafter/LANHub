@@ -143,7 +143,7 @@ else
 fi
 
 echo "Restarting $SVC_NAME..."
-if sudo systemctl restart "$SVC_NAME"; then
+if sudo systemctl daemon-reload && sudo systemctl restart "$SVC_NAME"; then
     echo "✓ $SVC_NAME restarted successfully."
 else
     echo -e "\n${YELLOW}⚠️  Failed to restart $SVC_NAME automatically.${RESET}"
