@@ -69,16 +69,6 @@ if [ -d "venv" ]; then
     source venv/bin/activate
 fi
 
-# The Port-Overlap Kill Switch: 
-# If the user opens a terminal, they want to code. Kill the background app!
-if pgrep -f "flask run" > /dev/null; then
-    echo -e "\033[1;33m=======================================================\033[0m"
-    echo -e "\033[1;31m🛑 Stopping background app to free up port 8000...\033[0m"
-    pkill -f "flask run"
-    sleep 1
-    echo -e "\033[1;32m✅ Port 8000 is free. You can now run 'python3 -m flask run' manually.\033[0m"
-    echo -e "\033[1;33m=======================================================\033[0m"
-fi
 BASHCFG
 # =====================================================================
 

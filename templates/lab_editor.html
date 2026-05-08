@@ -268,15 +268,6 @@ function showHelp() {
                         <li>Changes are visible immediately (file sync enabled)</li>
                         <li>Click "Deploy" again to restart container and reload your app</li>
                     </ol>
-                    <p><strong>Key Commands (inside container):</strong></p>
-                    <pre><code># View running processes
-ps aux
-
-# Check container logs
-docker logs &lt;container_id&gt;
-
-# Access container shell
-docker exec -it &lt;container_id&gt; bash</code></pre>
                 </div>
 
                 <div class="help-section">
@@ -284,52 +275,51 @@ docker exec -it &lt;container_id&gt; bash</code></pre>
                     <p><strong>Default Project Structure:</strong></p>
                     <pre><code>your-project/
 ├── app.py              # Main Flask app entry point
-├── config.py           # Configuration settings
 ├── requirements.txt    # Python dependencies
+├── app.log             # Your App's Log File
+├── README.md           # For Developement Purpose
 ├── /templates/         # HTML templates
-├── /static/           # CSS, JS, images
-│   ├── css/
-│   ├── js/
-│   └── images/
-└── /routes/           # Blueprint modules (optional)</code></pre>
+    └── index.html      # Initial Template
+├── /static/            # CSS, JS, images
+├── /.vscode/           # Server-side Configurations DO NOT EDIT
+└── /venv/              # Virtual Environment</code></pre>
 
-                    <p><strong>Basic Flask Setup (app.py):</strong></p>
-                    <pre><code>from flask import Flask, render_template, request, jsonify
-import os
+                    <p><strong>Default Flask Setup (app.py):</strong></p>
+                    <pre><code>import signal
+import sys
+from flask import Flask, render_template
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
 
-# Configure your app
-app.config['JSON_SORT_KEYS'] = False
-app.config['TEMPLATES_AUTO_RELOAD'] = True
+def graceful_shutdown(signum, frame):
+    """Handle SIGINT/SIGTERM for graceful shutdown."""
+    print('\n[Server] Shutting down gracefully...', file=sys.stderr)
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, graceful_shutdown)
+signal.signal(signal.SIGTERM, graceful_shutdown)
 
 @app.route('/')
-def home():
+def index():
     return render_template('index.html')
-
-@app.route('/api/data', methods=['GET'])
-def get_data():
-    return jsonify({'status': 'success', 'message': 'Hello World'})
+    
 
 if __name__ == '__main__':
-    # Runs on 0.0.0.0:5000 inside container
-    app.run(host='0.0.0.0', port=5000, debug=True)</code></pre>
+    app.run(host='0.0.0.0', port=8000)</code></pre>
 
-                    <p><strong>requirements.txt Example:</strong></p>
+                    <p><strong>requirements.txt Default:</strong></p>
                     <pre><code>Flask==2.3.0
 Flask-CORS==4.0.0
 python-dotenv==1.0.0
 requests==2.31.0
 SQLAlchemy==2.0.0</code></pre>
 
-                    <p><strong>Install & Run Commands:</strong></p>
+                    <p><strong>How to Run Flask:</strong></p>
                     <pre><code># Inside container terminal
-pip install -r requirements.txt
-python app.py
+flask run
 
-# Or with environment variables
-PORT=5000 python app.py</code></pre>
+# Important: The following WILL NOT WORK for LANHub as each container is allocated one PORT
+python app.py</code></pre>
                 </div>
 
                 <div class="help-section">
@@ -525,11 +515,7 @@ def run_tests():
                     </div>
                     <div class="help-task">
                         <strong>Q: Port 5000 already in use error</strong><br>
-                        A: The container is already running. Click "Deploy" to restart it on a fresh port.
-                    </div>
-                    <div class="help-task">
-                        <strong>Q: How do I view container logs?</strong><br>
-                        A: Click "View Logs" button or run: <code>docker logs &lt;container_id&gt;</code>
+                        A: Instead of "python app.py", use "flask run", and follow the link generated in the terminal. Alternatively, the "preview page" button will always show the latest version of your code
                     </div>
                     <div class="help-task">
                         <strong>Q: Can I install new packages?</strong><br>
