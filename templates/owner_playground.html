@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}LANHub — Owner Playground{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<div class="fade-up" style="padding: 2.5rem 0 2rem;">
+  <p class="mono" style="color: var(--amber); letter-spacing: 0.15em; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 10px;">
+    🧪 Experimental Zone
+  </p>
+  <h1>Owner <span style="color: var(--amber);">Playground</span></h1>
+  <p style="color: var(--text-dim); margin-top: 10px; max-width: 600px; font-size: 0.92rem;">
+    A sandbox for experimenting with new ideas, features, and tools. This is where the LANHub developer gets creative. Features here are experimental and may change without notice.
+  </p>
+</div>
+
+<!-- PLAYGROUND FEATURES -->
+<div class="category">
+  <div class="category-header">
+    <h2>🚀 &nbsp;Experimental Features</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+
+    <!-- Sound Visualizer -->
+    <a href="/owner_playground/sound-visualizer" class="feature-card accent-amber">
+      <div class="card-icon">🎵</div>
+      <div class="card-label">Audio</div>
+      <div class="card-title">3D Sound Visualizer</div>
+      <div class="card-desc">Upload an MP3 and watch it come alive in a 3D tunnel with audio-reactive particles and boxes.</div>
+      <span class="card-badge">Experimental</span>
+    </a>
+
+    <!-- TEMPLATE CARD - Copy this block to add new features -->
+    <!-- 
+    <a href="/owner_playground/feature-name" class="feature-card accent-amber">
+      <div class="card-icon">🎵</div>
+      <div class="card-label">Category</div>
+      <div class="card-title">Feature Name</div>
+      <div class="card-desc">A brief description of what this experimental feature does.</div>
+      <span class="card-badge">Experimental</span>
+    </a>
+    -->
+
+    <!-- TEMPLATE CARD EXPANDED (for reference) -->
+    <!--
+    Structure:
+    - href="/owner_playground/your-route-name"  ← Update this to match your route
+    - card-icon: Use an emoji that represents the feature
+    - card-label: Category of the feature (e.g., "Audio", "Utility", "Game", "Tool")
+    - card-title: Name of the feature
+    - card-desc: 1-2 line description of what it does
+    - card-badge: Status badge (usually "Experimental", "Beta", "WIP")
+    -->
+
+    <div style="
+      padding: 20px; border-radius: var(--radius);
+      background: var(--amber-dim); border: 1px solid var(--amber);
+      color: var(--amber); font-family: var(--font-mono); font-size: 0.75rem;
+      line-height: 1.6;
+    ">
+      <strong style="color: var(--amber);">➜ Template Structure:</strong><br>
+      Copy the template card above and paste it into this section to add new experimental features!
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

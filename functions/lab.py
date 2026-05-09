@@ -1791,7 +1791,7 @@ def project_check_idle():
                 # so we stop checking it, or update its timer to 'now'
                 if project_id in project_idle_timers:
                     del project_idle_timers[project_id]
-    
+
     for project_id in projects_to_stop:
         project = project_get_by_id(project_id)
         if project and project.get("docker_container_id"):

@@ -58,8 +58,7 @@ from blueprints.communications import *
 from blueprints.games import *
 from blueprints.server_stats import *
 from blueprints.tools import *
-
-
+from blueprints.other import *
 
 # Socket event handlers
 import socket_events.chat_events
@@ -273,6 +272,7 @@ app.register_blueprint(scribble_bp)
 app.register_blueprint(geoguesser_bp)
 app.register_blueprint(access_bp)
 app.register_blueprint(backup_bp)
+app.register_blueprint(owner_playground_bp)
 # Only register Lab blueprint if feature is enabled
 if LAB_ENABLED:
     app.register_blueprint(lab_bp)
