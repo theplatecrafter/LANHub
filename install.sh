@@ -436,13 +436,24 @@ info "Writing start.sh..."
 if [ "$INSTALL_MODE" = "server" ]; then
     cat > start.sh << 'STARTSH'
 #!/bin/bash
-set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Use a temp file we have permissions to write to
 CF_STDOUT="/tmp/cloudflared_lanhub_output_$$.txt"
-trap "rm -f '$CF_STDOUT'" EXIT
+CF_STDERR="/tmp/cloudflared_lanhub_error_$$.txt"
+CF_PID_FILE="/tmp/lanhub_cf.pid"
+
+cleanup() {
+    rm -f "$CF_STDOUT" "$CF_STDERR"
+    if [ -f "$CF_PID_FILE" ]; then
+        CF_PID=$(cat "$CF_PID_FILE")
+        kill $CF_PID 2>/dev/null || true
+        rm -f "$CF_PID_FILE"
+    fi
+}
+trap cleanup EXIT
+trap "echo 'Shutting down...'; cleanup; exit 0" SIGINT SIGTERM
 
 PORT=$(python3 -c "
 import json
@@ -454,54 +465,62 @@ except:
 ")
 
 echo "Starting Cloudflare tunnel on port $PORT..."
-# Start cloudflared and capture all output (no --logfile to avoid permission issues)
-cloudflared tunnel --url http://localhost:$PORT 2>&1 | tee "$CF_STDOUT" &
-CF_PID=$!
+echo "⏳ Waiting for tunnel to establish (this may take 20-30 seconds)..."
+echo ""
 
-# Wait for tunnel to start and extract URL from stdout
+# Start cloudflared in background, capturing output to files
+cloudflared tunnel --url http://localhost:$PORT > "$CF_STDOUT" 2> "$CF_STDERR" &
+CF_PID=$!
+echo "$CF_PID" > "$CF_PID_FILE"
+
+# Wait for tunnel URL with better detection
 TUNNEL_URL=""
 WAIT_SECONDS=0
-MAX_WAIT=60  # Wait up to 60 seconds for tunnel to start
+MAX_WAIT=90  # Increased to 90 seconds for slower connections
+
 while [ $WAIT_SECONDS -lt $MAX_WAIT ] && [ -z "$TUNNEL_URL" ]; do
     sleep 1
     WAIT_SECONDS=$((WAIT_SECONDS + 1))
     
+    # Try to detect tunnel URL from output
     if [ -f "$CF_STDOUT" ]; then
-        # Look for the tunnel URL - try multiple patterns
-        # Pattern 1: Direct URL match (https://xxx.trycloudflare.com)
+        # Try multiple patterns
         TUNNEL_URL=$(grep -oE 'https://[a-z0-9._-]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
         
-        # Pattern 2: Look in log lines that mention "Route" or "Tunnel"
+        # Alternative pattern: look for "url" followed by the URL
         if [ -z "$TUNNEL_URL" ]; then
-            TUNNEL_URL=$(grep -oP '(?<=Route\s+)https://[a-z0-9._-]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
+            TUNNEL_URL=$(grep -oE '"url": "https://[a-z0-9._-]+\.trycloudflare\.com"' "$CF_STDOUT" 2>/dev/null | grep -oE 'https://[a-z0-9._-]+\.trycloudflare\.com' | head -1)
         fi
-        
-        # Show progress every 5 seconds
-        if [ $((WAIT_SECONDS % 5)) -eq 0 ] && [ -z "$TUNNEL_URL" ]; then
-            echo "  Still waiting for tunnel URL... ($WAIT_SECONDS seconds)"
-            # Show if there's an error in the output
-            if grep -qi "error\|failed" "$CF_STDOUT" 2>/dev/null; then
-                echo "  ⚠ Error detected in cloudflared output"
-                grep -i "error\|failed" "$CF_STDOUT" | head -2 | sed 's/^/    /'
-            fi
+    fi
+    
+    # Show progress
+    if [ $((WAIT_SECONDS % 10)) -eq 0 ] || [ $((WAIT_SECONDS % 5)) -eq 0 ]; then
+        if [ -z "$TUNNEL_URL" ]; then
+            echo "  ⏳ Still connecting... ($WAIT_SECONDS seconds)"
         fi
+    fi
+    
+    # Check if process died
+    if ! kill -0 $CF_PID 2>/dev/null; then
+        echo "⚠ cloudflared process exited. Checking output..."
+        if [ -s "$CF_STDERR" ]; then
+            echo ""
+            echo "cloudflared error output:"
+            head -10 "$CF_STDERR" | sed 's/^/  /'
+        fi
+        if [ -s "$CF_STDOUT" ]; then
+            echo ""
+            echo "cloudflared output:"
+            head -10 "$CF_STDOUT" | sed 's/^/  /'
+        fi
+        break
     fi
 done
 
-echo "$CF_PID" > /tmp/lanhub_cf.pid
-
-# Check if cloudflared process is still running
-if ! kill -0 $CF_PID 2>/dev/null; then
-    echo "ERROR: cloudflared process failed to start"
-    if [ -f "$CF_STDOUT" ]; then
-        echo "cloudflared output:"
-        cat "$CF_STDOUT" | sed 's/^/  /'
-    fi
-    exit 1
-fi
+echo ""
 
 if [ -n "$TUNNEL_URL" ]; then
-    echo "✓ Tunnel URL: $TUNNEL_URL"
+    echo "✓ Tunnel established: $TUNNEL_URL"
     python3 - <<PYEOF
 import json
 with open("configvars.json", "r") as f:
@@ -509,26 +528,41 @@ with open("configvars.json", "r") as f:
 cfg.setdefault("access", {})["TUNNEL_URL"] = "$TUNNEL_URL"
 with open("configvars.json", "w") as f:
     json.dump(cfg, f, indent=2)
-print("configvars.json updated with tunnel URL")
+print("✓ configvars.json updated with tunnel URL")
 PYEOF
 else
-    echo "⚠ Could not detect tunnel URL after $MAX_WAIT seconds"
-    if [ -f "$CF_STDOUT" ]; then
-        echo "cloudflared output:"
-        cat "$CF_STDOUT" | sed 's/^/  /'
-    fi
+    echo "⚠ Could not establish Cloudflare tunnel after $WAIT_SECONDS seconds"
     echo ""
-    echo "Starting LANHub without tunnel URL — you can add it manually later in Admin → Access Settings"
-    echo "To debug, check: tail -f '$CF_STDOUT'"
+    if [ -s "$CF_STDERR" ]; then
+        echo "Last error from cloudflared:"
+        tail -5 "$CF_STDERR" | sed 's/^/  /'
+        echo ""
+    fi
+    echo "LANHub will start anyway and be accessible on this network."
+    echo "You can set the tunnel URL manually in Admin → Access Settings later."
+    echo ""
+    echo "To debug tunnel issues, check:"
+    echo "  • Network connectivity: ping 1.1.1.1"
+    echo "  • Firewall: check if port 443 is blocked"
+    echo "  • Full cloudflared output: tail -50 '$CF_STDOUT'"
+    echo ""
 fi
 
-trap "echo 'Shutting down...'; kill $CF_PID 2>/dev/null; exit 0" SIGINT SIGTERM
+# Check if cloudflared is still running; if not, continue anyway
+if ! kill -0 $CF_PID 2>/dev/null; then
+    echo "Note: cloudflared is not running, but LANHub will still be accessible locally."
+    rm -f "$CF_PID_FILE"
+    CF_PID=""
+fi
 
-echo "Starting LANHub server..."
+echo "Starting LANHub server on port $PORT..."
 source venv/bin/activate
 python app.py
 
-kill $CF_PID 2>/dev/null
+# Cleanup on exit
+if [ -n "$CF_PID" ] && kill -0 $CF_PID 2>/dev/null; then
+    kill $CF_PID 2>/dev/null || true
+fi
 STARTSH
 
 elif [ "$INSTALL_MODE" = "local" ]; then
