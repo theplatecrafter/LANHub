@@ -176,9 +176,31 @@ if [ "$INSTALL_MODE" = "server" ]; then
         fi
         chmod +x /tmp/cloudflared
         sudo mv /tmp/cloudflared /usr/local/bin/cloudflared
-        success "cloudflared installed ($(cloudflared --version 2>&1 | head -1))."
+        success "cloudflared installed."
     else
-        success "cloudflared already installed ($(cloudflared --version 2>&1 | head -1))."
+        success "cloudflared already installed."
+    fi
+    
+    # Verify cloudflared works
+    if ! cloudflared --version &>/dev/null; then
+        warn "cloudflared installed but not working. Attempting to fix..."
+        # Try reinstalling
+        rm -f /usr/local/bin/cloudflared /tmp/cloudflared
+        ARCH=$(dpkg --print-architecture 2>/dev/null || echo "amd64")
+        CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}"
+        if curl -f# "$CF_URL" -o /tmp/cloudflared 2>/dev/null; then
+            chmod +x /tmp/cloudflared
+            sudo mv /tmp/cloudflared /usr/local/bin/cloudflared
+            if cloudflared --version &>/dev/null; then
+                success "cloudflared reinstalled and now working."
+            else
+                warn "cloudflared still not working after reinstall. Tunnel may not function."
+            fi
+        else
+            warn "Failed to reinstall cloudflared. Tunnel will not be available."
+        fi
+    else
+        success "cloudflared verified working ($(cloudflared --version 2>&1 | head -1))."
     fi
 else
     info "Skipping cloudflared (not needed for ${INSTALL_MODE} mode)."
