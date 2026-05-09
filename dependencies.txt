@@ -11,3 +11,5 @@ python-slugify
 requests-unixsocket
 gevent
 gevent-websocket
+numpy
+scikit-image

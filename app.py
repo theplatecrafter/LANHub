@@ -512,6 +512,13 @@ if __name__ == "__main__":
     # Start the scheduler immediately since reloader is off
     sch.start_scheduler()
     
+    # Initialize Owner Playground background tasks
+    try:
+        from functions import owner_playground
+        owner_playground.init_playground_tasks(app)
+    except Exception as e:
+        app_log.warning(f"[startup] Failed to initialize playground tasks: {e}")
+    
     # Run the app
     socketio.run(
         app, 

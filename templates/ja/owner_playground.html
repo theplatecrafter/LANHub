@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}LANHub — 所有者プレイグラウンド{% endblock %}
+
+{% block content %}
+
+<!-- ヒーロー -->
+<div class="fade-up" style="padding: 2.5rem 0 2rem;">
+  <p class="mono" style="color: var(--amber); letter-spacing: 0.15em; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 10px;">
+    🧪 実験ゾーン
+  </p>
+  <h1>所有者 <span style="color: var(--amber);">プレイグラウンド</span></h1>
+  <p style="color: var(--text-dim); margin-top: 10px; max-width: 600px; font-size: 0.92rem;">
+    新しいアイデア、機能、ツールを試すためのサンドボックスです。ここはLANHub開発者が創造性を発揮する場所です。ここにある機能は実験的なものであり、予告なく変更される可能性があります。
+  </p>
+</div>
+
+<!-- プレイグラウンド機能 -->
+<div class="category">
+  <div class="category-header">
+    <h2>🚀 &nbsp;実験的機能</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+
+    <!-- サウンドビジュアライザー -->
+    <a href="/owner_playground/sound-visualizer" class="feature-card accent-amber">
+      <div class="card-icon">🎵</div>
+      <div class="card-label">オーディオ</div>
+      <div class="card-title">3Dサウンドビジュアライザー</div>
+      <div class="card-desc">MP3をアップロードすると、オーディオに反応するパーティクルやボックスを使った3Dトンネルで視覚化します。</div>
+      <span class="card-badge">実験的</span>
+    </a>
+
+    <!-- テンプレートカード - 新しい機能を追加するにはこのブロックをコピーしてください -->
+    <!-- 
+    <a href="/owner_playground/機能名" class="feature-card accent-amber">
+      <div class="card-icon">🎵</div>
+      <div class="card-label">カテゴリ</div>
+      <div class="card-title">機能名</div>
+      <div class="card-desc">この実験的機能が何をするのかの簡単な説明。</div>
+      <span class="card-badge">実験的</span>
+    </a>
+    -->
+
+    <!-- テンプレートカードの詳細（参考用） -->
+    <!--
+    構造:
+    - href="/owner_playground/あなたのルート名"  ← これをあなたのルートに合わせて更新
+    - card-icon: 機能を表す絵文字
+    - card-label: 機能のカテゴリ（例：「オーディオ」、「ユーティリティ」、「ゲーム」、「ツール」）
+    - card-title: 機能の名前
+    - card-desc: それが何をするかの1〜2行の説明
+    - card-badge: ステータスバッジ（通常は「実験的」、「ベータ」、「開発中」）
+    -->
+
+    <div style="
+      padding: 20px; border-radius: var(--radius);
+      background: var(--amber-dim); border: 1px solid var(--amber);
+      color: var(--amber); font-family: var(--font-mono); font-size: 0.75rem;
+      line-height: 1.6;
+    ">
+      <strong style="color: var(--amber);">➜ テンプレート構造:</strong><br>
+      上のテンプレートカードをコピーしてこのセクションに貼り付けると、新しい実験的機能を追加できます！
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

@@ -466,6 +466,33 @@
       return peak;
     }
 
+    // Find the next zero-crossing after a given position (for trigger alignment)
+    function findZeroCrossing(samples, startOffset = 0) {
+      for (let i = startOffset; i < samples.length - 1; i++) {
+        // Zero crossing: sign change between sample and next sample
+        if ((samples[i] >= 0 && samples[i + 1] < 0) || 
+            (samples[i] < 0 && samples[i + 1] >= 0)) {
+          return i;
+        }
+      }
+      return startOffset; // Fallback if no crossing found
+    }
+
+    // Find a peak after a zero-crossing for more stable triggering
+    function findPeakAfterZeroCrossing(samples, zeroCrossingIdx, windowSize) {
+      let maxPeak = -Infinity;
+      let peakIdx = zeroCrossingIdx;
+      const searchEnd = Math.min(zeroCrossingIdx + windowSize, samples.length);
+      
+      for (let i = zeroCrossingIdx; i < searchEnd; i++) {
+        if (Math.abs(samples[i]) > Math.abs(maxPeak)) {
+          maxPeak = samples[i];
+          peakIdx = i;
+        }
+      }
+      return peakIdx;
+    }
+
     function computeFFT(samples) {
       // Cooley-Tukey Fast Fourier Transform
       const N = samples.length;
@@ -543,10 +570,14 @@
       return out;
     }
 
-    function buildWaveform(channelData, start, length, size) {
-      const segment = new Float32Array(length);
-      for (let i = 0; i < length; i++) {
-        segment[i] = channelData[start + i] || 0;
+    function buildWaveform(channelData, start, length, size, triggerOffset = 0) {
+      // Align to trigger point for smoother visual display
+      const alignedStart = Math.max(0, Math.min(start + triggerOffset, channelData.length - 1));
+      const alignedLength = Math.min(length - triggerOffset, channelData.length - alignedStart);
+      
+      const segment = new Float32Array(alignedLength);
+      for (let i = 0; i < alignedLength; i++) {
+        segment[i] = channelData[alignedStart + i] || 0;
       }
       return resampleArray(segment, size);
     }
@@ -570,7 +601,12 @@
             const end = Math.min(channel.length, start + stepSamples);
             const window = channel.slice(start, end);
 
-            const waveform = buildWaveform(channel, start, end - start, state.waveformSize);
+            // Find trigger point (zero-crossing + peak) for stable waveform display
+            const zeroCrossingIdx = findZeroCrossing(window, 0);
+            const triggerIdx = findPeakAfterZeroCrossing(window, zeroCrossingIdx, Math.floor(stepSamples / 8));
+            
+            // Build waveform aligned to trigger point
+            const waveform = buildWaveform(channel, start, end - start, state.waveformSize, triggerIdx);
             const fftBins = computeFFT(waveform);
             const rms = computeRMS(window);
             const peak = computePeak(window);
@@ -584,7 +620,8 @@
               peak,
               avg,
               waveform,
-              fftBins
+              fftBins,
+              triggerIdx
             });
 
             frameIndex++;
