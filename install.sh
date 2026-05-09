@@ -206,7 +206,26 @@ if [ "$INSTALL_MODE" = "server" ]; then
     if [ ! -f "${SSH_KEY}.pub" ]; then
         error "Public key not found at ${SSH_KEY}.pub — something went wrong with key generation."
     fi
+    
+    # Add GitHub to known_hosts to avoid SSH host key verification issues
+    info "Configuring SSH for GitHub..."
+    if ! grep -q "github.com" "$HOME/.ssh/known_hosts" 2>/dev/null; then
+        mkdir -p "$HOME/.ssh"
+        ssh-keyscan -H github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null
+        chmod 600 "$HOME/.ssh/known_hosts"
+        success "GitHub added to known_hosts."
+    else
+        success "GitHub already in known_hosts."
+    fi
 
+    # Configure git user (needed for any git operations)
+    if [ -z "$(git config --global user.name 2>/dev/null)" ]; then
+        info "Configuring git user..."
+        git config --global user.name "LANHub Server"
+        git config --global user.email "server@lanhub.local"
+        success "Git user configured."
+    fi
+    
     echo ""
     echo -e "${BOLD}━━━ GitHub Setup Required ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo ""
