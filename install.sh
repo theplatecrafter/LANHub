@@ -554,9 +554,9 @@ while [ $WAIT_SECONDS -lt $MAX_WAIT ] && [ -z "$TUNNEL_URL" ]; do
     
     # Try to detect tunnel URL from output
     if [ -f "$CF_STDOUT" ]; then
-        # Tunnel URLs have format: https://abc123-def456.trycloudflare.com (with hyphen in subdomain)
-        # This excludes api.trycloudflare.com which is just the API endpoint
-        TUNNEL_URL=$(grep -oE 'https://[a-z0-9]+-[a-z0-9]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
+        # Tunnel URLs have format: https://especially-highland-attacks-hewlett.trycloudflare.com
+        # Match any combination of alphanumerics and hyphens in subdomain
+        TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
     fi
     
     # Show progress every 5 seconds
