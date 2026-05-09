@@ -27,6 +27,17 @@ echo "  • Python 3.8+"
 echo "  • Optional: Docker (only needed for Lab feature with code-server)"
 echo ""
 
+# ── IMPORTANT: Check if running as root ────────────────────────────────────────
+if [ "$EUID" -eq 0 ]; then
+    error "Do NOT run this script with sudo!
+    
+Run it as your regular user:
+  bash install.sh
+
+The script will prompt for sudo when needed for system operations.
+Running as root will cause file permission issues everywhere (Lab, Admin, etc)."
+fi
+
 # ── Mode selection ────────────────────────────────────────────────────────────
 echo "Installation mode:"
 echo "  1) Server     — full setup with Cloudflare tunnel and systemd autostart"
@@ -71,8 +82,8 @@ success "Python dependencies installed."
 # ── Step 4 — Create required directories ───────────────────────────────────────
 info "Setting up required directories..."
 mkdir -p files/lab files/lab-sockets files/dropzone logs
-chmod 777 files/lab-sockets  # WebSocket relay needs write permission
-chmod 755 files/lab files/dropzone logs
+chmod 777 files/lab files/lab-sockets  # Must be writable by Docker container (coder user)
+chmod 755 files/dropzone logs
 success "Directories created and configured."
 
 # ── Step 5 — Lab Feature Setup ─────────────────────────────────────────────────

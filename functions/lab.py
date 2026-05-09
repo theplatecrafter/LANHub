@@ -950,8 +950,9 @@ def docker_container_start(project: Dict) -> Optional[str]:
         lab_dir = resolve_lab_path(LAB_PROJECTS_DIR)
         
         # Create directories with proper permissions
-        os.makedirs(project_dir, mode=0o755, exist_ok=True)
-        os.makedirs(socket_dir, mode=0o755, exist_ok=True)
+        # Use 0o777 so container user (coder:1000) can write to mounted volumes
+        os.makedirs(project_dir, mode=0o777, exist_ok=True)
+        os.makedirs(socket_dir, mode=0o777, exist_ok=True)
         
         # Prepare volumes and mounts
         # Mount both the project directory (for code-server) and the parent lab directory
