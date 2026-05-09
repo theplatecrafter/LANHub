@@ -552,11 +552,13 @@ while [ $WAIT_SECONDS -lt $MAX_WAIT ] && [ -z "$TUNNEL_URL" ]; do
     sleep 1
     WAIT_SECONDS=$((WAIT_SECONDS + 1))
     
-    # Try to detect tunnel URL from output
+    # Try to detect tunnel URL from BOTH stdout and stderr
+    # (cloudflared writes the URL to stderr, not stdout)
     if [ -f "$CF_STDOUT" ]; then
-        # Tunnel URLs have format: https://especially-highland-attacks-hewlett.trycloudflare.com
-        # Match any combination of alphanumerics and hyphens in subdomain
         TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
+    fi
+    if [ -z "$TUNNEL_URL" ] && [ -f "$CF_STDERR" ]; then
+        TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_STDERR" 2>/dev/null | head -1)
     fi
     
     # Show progress every 5 seconds
@@ -564,9 +566,14 @@ while [ $WAIT_SECONDS -lt $MAX_WAIT ] && [ -z "$TUNNEL_URL" ]; do
         if [ -z "$TUNNEL_URL" ]; then
             echo "  ⏳ Still connecting... ($WAIT_SECONDS seconds)"
             # Show what cloudflared is doing every 10 seconds for debugging
-            if [ $((WAIT_SECONDS % 10)) -eq 0 ] && [ -s "$CF_STDOUT" ]; then
-                LATEST_LINE=$(tail -1 "$CF_STDOUT")
-                echo "     → $LATEST_LINE"
+            if [ $((WAIT_SECONDS % 10)) -eq 0 ]; then
+                if [ -s "$CF_STDERR" ]; then
+                    LATEST_LINE=$(tail -1 "$CF_STDERR")
+                    echo "     → $LATEST_LINE"
+                elif [ -s "$CF_STDOUT" ]; then
+                    LATEST_LINE=$(tail -1 "$CF_STDOUT")
+                    echo "     → $LATEST_LINE"
+                fi
             fi
         fi
     fi
