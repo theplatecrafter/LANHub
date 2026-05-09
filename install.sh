@@ -507,12 +507,8 @@ if [ "$INSTALL_MODE" = "server" ]; then
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Use temp files we have permissions to write to
-CF_STDOUT="/tmp/cloudflared_lanhub_output_$$.txt"
-CF_PID_FILE="/tmp/lanhub_cf.pid"
-
 cleanup() {
-    rm -f "$CF_STDOUT"
+    rm -f "$CF_STDOUT" "$CF_STDERR"
     if [ -f "$CF_PID_FILE" ]; then
         CF_PID=$(cat "$CF_PID_FILE")
         kill $CF_PID 2>/dev/null || true
@@ -531,12 +527,19 @@ except:
     print(5000)
 ")
 
+# Use temp files we have permissions to write to
+CF_STDOUT="/tmp/cloudflared_lanhub_output_$$.txt"
+CF_STDERR="/tmp/cloudflared_lanhub_error_$$.txt"
+CF_PID_FILE="/tmp/lanhub_cf.pid"
+
 echo "Starting Cloudflare tunnel on port $PORT..."
 echo "⏳ Waiting for tunnel to establish (this may take 20-30 seconds)..."
 echo ""
 
 # Start cloudflared in background, capturing output to files
-cloudflared tunnel --url http://localhost:$PORT > "$CF_STDOUT" 2>&1 &
+# Use separate files for stdout/stderr to distinguish messages
+CF_STDERR="/tmp/cloudflared_lanhub_error_$$.txt"
+cloudflared tunnel --url http://localhost:$PORT > "$CF_STDOUT" 2>"$CF_STDERR" &
 CF_PID=$!
 echo "$CF_PID" > "$CF_PID_FILE"
 
@@ -549,27 +552,37 @@ while [ $WAIT_SECONDS -lt $MAX_WAIT ] && [ -z "$TUNNEL_URL" ]; do
     sleep 1
     WAIT_SECONDS=$((WAIT_SECONDS + 1))
     
-    # Try to detect tunnel URL from output (cloudflared writes to stderr, so combine them)
+    # Try to detect tunnel URL from output
     if [ -f "$CF_STDOUT" ]; then
         # Tunnel URLs have format: https://abc123-def456.trycloudflare.com (with hyphen in subdomain)
         # This excludes api.trycloudflare.com which is just the API endpoint
         TUNNEL_URL=$(grep -oE 'https://[a-z0-9]+-[a-z0-9]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
     fi
     
-    # Show progress
-    if [ $((WAIT_SECONDS % 10)) -eq 0 ] || [ $((WAIT_SECONDS % 5)) -eq 0 ]; then
+    # Show progress every 5 seconds
+    if [ $((WAIT_SECONDS % 5)) -eq 0 ]; then
         if [ -z "$TUNNEL_URL" ]; then
             echo "  ⏳ Still connecting... ($WAIT_SECONDS seconds)"
+            # Show what cloudflared is doing every 10 seconds for debugging
+            if [ $((WAIT_SECONDS % 10)) -eq 0 ] && [ -s "$CF_STDOUT" ]; then
+                LATEST_LINE=$(tail -1 "$CF_STDOUT")
+                echo "     → $LATEST_LINE"
+            fi
         fi
     fi
     
     # Check if process died
     if ! kill -0 $CF_PID 2>/dev/null; then
-        echo "⚠ cloudflared process exited. Checking output..."
+        echo "⚠ cloudflared process exited at $WAIT_SECONDS seconds"
+        if [ -s "$CF_STDERR" ]; then
+            echo ""
+            echo "cloudflared error output:"
+            cat "$CF_STDERR" | sed 's/^/  /'
+        fi
         if [ -s "$CF_STDOUT" ]; then
             echo ""
-            echo "cloudflared output:"
-            head -10 "$CF_STDOUT" | sed 's/^/  /'
+            echo "cloudflared standard output:"
+            cat "$CF_STDOUT" | sed 's/^/  /'
         fi
         break
     fi
@@ -591,9 +604,14 @@ PYEOF
 else
     echo "⚠ Could not establish Cloudflare tunnel after $WAIT_SECONDS seconds"
     echo ""
+    if [ -s "$CF_STDERR" ]; then
+        echo "cloudflared errors:"
+        cat "$CF_STDERR" | sed 's/^/  /'
+        echo ""
+    fi
     if [ -s "$CF_STDOUT" ]; then
-        echo "Last lines from cloudflared output:"
-        tail -5 "$CF_STDOUT" | sed 's/^/  /'
+        echo "cloudflared output:"
+        cat "$CF_STDOUT" | sed 's/^/  /'
         echo ""
     fi
     echo "LANHub will start anyway and be accessible on this network."
