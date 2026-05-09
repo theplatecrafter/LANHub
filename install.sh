@@ -166,14 +166,32 @@ fi
 
 # ── Step 7 — cloudflared ──────────────────────────────────────────────────────
 if [ "$INSTALL_MODE" = "server" ]; then
-    if ! command -v cloudflared &>/dev/null; then
+    if ! command -v cloudflared &>/dev/null || [ ! -s /usr/local/bin/cloudflared ]; then
         info "Installing cloudflared..."
         ARCH=$(dpkg --print-architecture 2>/dev/null || echo "amd64")
         CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}"
-        echo "  Downloading cloudflared-linux-${ARCH}..."
-        if ! curl -f# "$CF_URL" -o /tmp/cloudflared; then
+        echo "  Downloading cloudflared-linux-${ARCH} from GitHub..."
+        
+        # Clean up any old/corrupt versions
+        rm -f /tmp/cloudflared /usr/local/bin/cloudflared
+        
+        # Download with better error handling
+        if ! curl -fSL "$CF_URL" -o /tmp/cloudflared 2>&1 | grep -v "^  [0-9]"; then
             error "Failed to download cloudflared. Check your internet connection."
         fi
+        
+        # Validate the binary was actually downloaded
+        if [ ! -s /tmp/cloudflared ]; then
+            error "cloudflared download failed (file is empty). Check your internet connection."
+        fi
+        
+        # Validate it's an ELF binary
+        if ! file /tmp/cloudflared | grep -q "ELF"; then
+            warn "Downloaded file doesn't look like a valid binary. Contents:"
+            head -c 200 /tmp/cloudflared
+            error "cloudflared download corrupted. Try again."
+        fi
+        
         chmod +x /tmp/cloudflared
         sudo mv /tmp/cloudflared /usr/local/bin/cloudflared
         success "cloudflared installed."
@@ -183,21 +201,30 @@ if [ "$INSTALL_MODE" = "server" ]; then
     
     # Verify cloudflared works
     if ! cloudflared --version &>/dev/null; then
-        warn "cloudflared installed but not working. Attempting to fix..."
-        # Try reinstalling
-        rm -f /usr/local/bin/cloudflared /tmp/cloudflared
+        warn "cloudflared not responding. Attempting fresh install..."
+        sudo rm -f /usr/local/bin/cloudflared
+        
+        # Fresh download attempt
         ARCH=$(dpkg --print-architecture 2>/dev/null || echo "amd64")
         CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}"
-        if curl -f# "$CF_URL" -o /tmp/cloudflared 2>/dev/null; then
-            chmod +x /tmp/cloudflared
-            sudo mv /tmp/cloudflared /usr/local/bin/cloudflared
-            if cloudflared --version &>/dev/null; then
-                success "cloudflared reinstalled and now working."
+        echo "  Re-downloading cloudflared-linux-${ARCH}..."
+        
+        if curl -fSL "$CF_URL" -o /tmp/cloudflared 2>&1 | grep -v "^  [0-9]"; then
+            if [ -s /tmp/cloudflared ] && file /tmp/cloudflared | grep -q "ELF"; then
+                chmod +x /tmp/cloudflared
+                sudo mv /tmp/cloudflared /usr/local/bin/cloudflared
+                if cloudflared --version &>/dev/null; then
+                    success "cloudflared reinstalled successfully ($(cloudflared --version 2>&1 | head -1))."
+                else
+                    warn "cloudflared installed but still not responding. You may need to reinstall it manually."
+                fi
             else
-                warn "cloudflared still not working after reinstall. Tunnel may not function."
+                warn "cloudflared download failed again. Tunnel will not be available."
+                warn "Manual install: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
             fi
         else
-            warn "Failed to reinstall cloudflared. Tunnel will not be available."
+            warn "Could not download cloudflared. Tunnel will not be available."
+            warn "Manual install: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
         fi
     else
         success "cloudflared verified working ($(cloudflared --version 2>&1 | head -1))."
