@@ -648,9 +648,21 @@ except:
     
     # Check if Lab feature is enabled (flag file exists)
     if [ -f "${PROJECT_DIR}/.lab_enabled" ]; then
-        NGINX_CONF="/etc/nginx/sites-available/lanhub"
-        
         info "Lab feature enabled — setting up Nginx for WebSocket proxying..."
+        
+        # Check and install Nginx if needed
+        if ! command -v nginx &>/dev/null; then
+            info "Installing Nginx..."
+            sudo apt-get install -y nginx > /dev/null 2>&1
+            success "Nginx installed."
+        else
+            success "Nginx already installed."
+        fi
+        
+        # Ensure Nginx directories exist
+        sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+        
+        NGINX_CONF="/etc/nginx/sites-available/lanhub"
         
         # Create Nginx config with minimal setup - just for Lab WebSocket
         sudo bash -c "cat > '$NGINX_CONF' << 'NGINXEOF'
