@@ -467,12 +467,23 @@ while [ $WAIT_SECONDS -lt $MAX_WAIT ] && [ -z "$TUNNEL_URL" ]; do
     WAIT_SECONDS=$((WAIT_SECONDS + 1))
     
     if [ -f "$CF_STDOUT" ]; then
-        # Look for the tunnel URL in JSON output (message contains the URL)
+        # Look for the tunnel URL - try multiple patterns
+        # Pattern 1: Direct URL match (https://xxx.trycloudflare.com)
         TUNNEL_URL=$(grep -oE 'https://[a-z0-9._-]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
+        
+        # Pattern 2: Look in log lines that mention "Route" or "Tunnel"
+        if [ -z "$TUNNEL_URL" ]; then
+            TUNNEL_URL=$(grep -oP '(?<=Route\s+)https://[a-z0-9._-]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
+        fi
         
         # Show progress every 5 seconds
         if [ $((WAIT_SECONDS % 5)) -eq 0 ] && [ -z "$TUNNEL_URL" ]; then
             echo "  Still waiting for tunnel URL... ($WAIT_SECONDS seconds)"
+            # Show if there's an error in the output
+            if grep -qi "error\|failed" "$CF_STDOUT" 2>/dev/null; then
+                echo "  ⚠ Error detected in cloudflared output"
+                grep -i "error\|failed" "$CF_STDOUT" | head -2 | sed 's/^/    /'
+            fi
         fi
     fi
 done
@@ -483,8 +494,8 @@ echo "$CF_PID" > /tmp/lanhub_cf.pid
 if ! kill -0 $CF_PID 2>/dev/null; then
     echo "ERROR: cloudflared process failed to start"
     if [ -f "$CF_STDOUT" ]; then
-        echo "Last 20 lines of cloudflared output:"
-        tail -20 "$CF_STDOUT"
+        echo "cloudflared output:"
+        cat "$CF_STDOUT" | sed 's/^/  /'
     fi
     exit 1
 fi
@@ -503,9 +514,10 @@ PYEOF
 else
     echo "⚠ Could not detect tunnel URL after $MAX_WAIT seconds"
     if [ -f "$CF_STDOUT" ]; then
-        echo "Last 10 lines of cloudflared output:"
-        tail -10 "$CF_STDOUT"
+        echo "cloudflared output:"
+        cat "$CF_STDOUT" | sed 's/^/  /'
     fi
+    echo ""
     echo "Starting LANHub without tunnel URL — you can add it manually later in Admin → Access Settings"
     echo "To debug, check: tail -f '$CF_STDOUT'"
 fi
@@ -665,14 +677,15 @@ except:
         NGINX_CONF="/etc/nginx/sites-available/lanhub"
         
         # Create Nginx config with minimal setup - just for Lab WebSocket
-        sudo bash -c "cat > '$NGINX_CONF' << 'NGINXEOF'
+        # Note: using unquoted heredoc delimiter to allow bash variable expansion
+        sudo bash -c "cat > '$NGINX_CONF' << NGINXEOF
 upstream lanhub_backend {
-    server localhost:$LANHUB_PORT;
+    server localhost:${LANHUB_PORT};
     keepalive 32;
 }
 
 # Map upgrade header
-map \$http_upgrade \$connection_upgrade {
+map \\\$http_upgrade \\\$connection_upgrade {
     default upgrade;
     '' close;
 }
@@ -683,18 +696,18 @@ server {
     
     # Lab project routes - proxy to Unix socket for code-server
     location ~ ^/lab/project/(?<slug>[a-zA-Z0-9_-]+)/page(/.*)?$ {
-        set \$socket_path $SOCKET_DIR/\$slug.sock;
+        set \\\$socket_path ${SOCKET_DIR}/\\\$slug.sock;
         
         # Proxy to Unix socket (WebSocket upgrade + HTTP)
-        proxy_pass http://unix:\$socket_path\$request_uri;
+        proxy_pass http://unix:\\\$socket_path\\\$request_uri;
         
         proxy_http_version 1.1;
-        proxy_set_header Host \$http_host;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection \$connection_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \\\$http_host;
+        proxy_set_header Upgrade \\\$http_upgrade;
+        proxy_set_header Connection \\\$connection_upgrade;
+        proxy_set_header X-Real-IP \\\$remote_addr;
+        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \\\$scheme;
         
         proxy_buffering off;
         proxy_connect_timeout 600s;
@@ -706,10 +719,10 @@ server {
     location / {
         proxy_pass http://lanhub_backend;
         proxy_http_version 1.1;
-        proxy_set_header Host \$http_host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host \\\$http_host;
+        proxy_set_header X-Real-IP \\\$remote_addr;
+        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \\\$scheme;
         proxy_buffering off;
     }
 }
@@ -721,12 +734,14 @@ NGINXEOF
             sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/lanhub
         fi
         
-        # Test and reload
-        if sudo nginx -t 2>/dev/null | grep -q "successful"; then
+        # Test and reload — show full error output if it fails
+        if NGINX_TEST_OUTPUT=$(sudo nginx -t 2>&1); then
             sudo systemctl restart nginx
             success "Nginx configured for Lab WebSocket proxying."
         else
-            warn "Nginx configuration test failed. Lab WebSocket may not work. Run: sudo nginx -t"
+            warn "Nginx configuration test failed:"
+            echo "$NGINX_TEST_OUTPUT" | sed 's/^/  /'
+            warn "Lab WebSocket may not work. Fix the config and run: sudo nginx -t"
         fi
     else
         info "Lab feature not enabled — skipping Nginx setup."
