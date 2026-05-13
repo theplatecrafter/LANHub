@@ -78,29 +78,6 @@ def push_offline_page():
         git_log.error(f"[shutdown] Failed to push offline page: {e}")
         return False
 
-last_pushed_ip = None
-def sch_redirector_update():
-    global last_pushed_ip
-    import config as _config
-
-    # No longer using manual tunnel URLs - redirector just uses LAN IP or public IP
-    stats      = f.get_network_stats()
-    current_ip = stats.get("public_ip") or stats.get("ip_address")
-    if not current_ip or current_ip == "127.0.0.1":
-        git_log.info("No routable IP found, skipping redirector update.")
-        return
-    current_target = f"http://{current_ip}:{PORT}"
-
-    if current_target and current_target != last_pushed_ip:
-        git_log.info(f"Target changed ({last_pushed_ip} -> {current_target}). Updating GitHub...")
-        success = f.redirector_update(current_target, PORT)
-        if success:
-            last_pushed_ip = current_target
-            git_log.info(f"Successfully updated GitHub redirect to {current_target}")
-        else:
-            git_log.warning("Failed to update GitHub redirect.")
-    else:
-        git_log.info("No target change detected.")
 
 
 #########################################################
@@ -126,10 +103,8 @@ def sch_lab_idle_check():
 ##########################################################
 scheduler = BackgroundScheduler()
 scheduler.add_job(update_stats, "interval", seconds=5, max_instances=1, coalesce=True,misfire_grace_time=5)
-scheduler.add_job(sch_redirector_update, "interval", seconds=60)
 scheduler.add_job(sch_lab_idle_check, "interval", seconds=60, max_instances=1, coalesce=True)
 
 def start_scheduler():
     update_stats()
-    sch_redirector_update()
     scheduler.start()
