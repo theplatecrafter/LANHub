@@ -7,9 +7,9 @@ so all existing  `from config import X`  and  `from config import *`
 patterns work identically to the old configvars.py approach.
 
 Usage (anywhere in the codebase):
-    from config import PORT, REPO_URL, SECRET_KEY   # explicit
-    from config import *                             # wildcard (glob_vars style)
-    import config; config.reload()                   # hot-reload after a save
+    from config import PORT, SECRET_KEY   # explicit
+    from config import *                  # wildcard (glob_vars style)
+    import config; config.reload()        # hot-reload after a save
 """
 
 import json

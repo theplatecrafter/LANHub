@@ -442,57 +442,15 @@ def init_db():
     app_log.info("Database initialized.")
 
 
-
-
-###########################################
-# GitHub Redirector Setup
 ###########################################
 def create_directories():
     directories = ['files']
     for directory in directories:
         if not os.path.exists(directory):
             os.makedirs(directory)
-            
-
-def ensure_redirector_exists():
-    if not os.path.exists(REDIRECTOR_PATH):
-        git_log.info("Redirector repo not found. Cloning...")
-        try:
-            Repo.clone_from(REPO_URL, REDIRECTOR_PATH)
-            git_log.info("Clone successful.")
-            # Switch remote to SSH so pushes work without credentials
-            _switch_remote_to_ssh()
-        except Exception as e:
-            git_log.error(f"Error cloning repo: {e}")
-    else:
-        git_log.info("Redirector repo already exists.")
-        # Ensure remote is SSH even on existing repos
-        _switch_remote_to_ssh()
-
-
-def _switch_remote_to_ssh():
-    """Convert the redirector remote URL from HTTPS to SSH."""
-    import re
-    try:
-        repo = Repo(REDIRECTOR_PATH)
-        current_url = repo.remotes.origin.url
-        # Convert https://github.com/USER/REPO to git@github.com:USER/REPO.git
-        m = re.match(r'https?://github\.com/([^/]+)/([^/\s]+?)(?:\.git)?\s*$', current_url)
-        if m:
-            ssh_url = f"git@github.com:{m.group(1)}/{m.group(2)}.git"
-            repo.remotes.origin.set_url(ssh_url)
-            git_log.info(f"Remote switched to SSH: {ssh_url}")
-        else:
-            git_log.info(f"Remote already SSH or unrecognised format: {current_url}")
-    except Exception as e:
-        git_log.error(f"Failed to switch remote to SSH: {e}")
-
-
-
 
 
 #########################################################
 def initialize():
     create_directories()
-    ensure_redirector_exists()
     init_db()

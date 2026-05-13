@@ -22,108 +22,6 @@ def update_stats():
     # specify namespace='/' to broadcast to all clients
     socketio.emit("server_stats", full_stats, namespace='/')
 
-def _redirector_update_url(full_url: str) -> bool:
-    
-    import re, datetime, os
-    import functions as f
-    import config as _config
-
-    # Get current LAN IP to embed in the redirector
-    stats  = f.get_network_stats()
-    lan_ip = stats.get("ip_address", "")
-    port   = int(getattr(_config, "PORT", 5000))
-    lan_url = f"http://{lan_ip}:{port}" if lan_ip else ""
-    """Push a full URL (e.g. https://xyz.trycloudflare.com) to the redirector."""
-    try:
-        from git import Repo
-        import datetime, os
-        repo = Repo(REDIRECTOR_PATH)
-        repo.remotes.origin.fetch()
-        repo.git.reset('--hard', 'origin/main')
-        repo.git.clean('-fd')
-
-        new_html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <title>LANHub Redirector</title>
-    <style>
-        body {{ font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f9; }}
-        .card {{ max-width: 500px; margin: auto; background: white; padding: 30px;
-                 border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }}
-        .spinner {{ border: 4px solid #f3f3f3; border-top: 4px solid #3498db;
-                    border-radius: 50%; width: 30px; height: 30px;
-                    animation: spin 1s linear infinite; margin: 20px auto; }}
-        @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
-        .error-box {{ display:none; color:#721c24; background:#f8d7da;
-                      border:1px solid #f5c6cb; padding:15px; border-radius:8px; margin-top:20px; }}
-        a {{ color: #3498db; }}
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h2>🛰️ LANHub Gateway</h2>
-        <div id="checking">
-            <p>Connecting to server...</p>
-            <div class="spinner"></div>
-        </div>
-        <div id="error-msg" class="error-box">
-            <h3>🚫 Server Unreachable</h3>
-            <p>The server may be offline or the link may have changed.</p>
-            <p><a href="{full_url}">{full_url}</a></p>
-        </div>
-    </div>
-    <script>
-    const tunnelUrl = "{full_url}";
-    const lanUrl    = "{lan_url}";
-
-    function goTunnel() {{
-        window.location.replace(tunnelUrl);
-    }}
-
-    if (lanUrl) {{
-        // Probe the LAN IP first — short timeout
-        const controller = new AbortController();
-        const timer = setTimeout(() => {{ controller.abort(); goTunnel(); }}, 2000);
-
-        fetch(lanUrl + "/static/pixel.png", {{
-            mode: "no-cors",
-            signal: controller.signal
-        }})
-        .then(() => {{
-            clearTimeout(timer);
-            window.location.replace(lanUrl);
-        }})
-        .catch(() => {{
-            clearTimeout(timer);
-            goTunnel();
-        }});
-    }} else {{
-        goTunnel();
-    }}
-</script>
-
-</body>
-</html>"""
-
-        path = os.path.join(REDIRECTOR_PATH, "index.html")
-        with open(path, "w") as fh:
-            fh.write(new_html)
-
-        repo.index.add(["index.html"])
-        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        repo.index.commit(f"Update redirect to {full_url} at {ts}")
-        repo.remote("origin").push(force=True)
-        git_log.info(f"Redirector updated to {full_url}")
-        return True
-    except Exception as e:
-        git_log.error(f"_redirector_update_url failed: {e}")
-        return False
-
 def push_offline_page():
     """
     Pushes a 'server offline' page to the GitHub redirector.
@@ -185,26 +83,17 @@ def sch_redirector_update():
     global last_pushed_ip
     import config as _config
 
-    # Prefer a manually-set tunnel URL (e.g. from Cloudflare)
-    tunnel_url = getattr(_config, "TUNNEL_URL", "").strip()
-
-    if tunnel_url:
-        current_target = tunnel_url
-    else:
-        stats      = f.get_network_stats()
-        current_ip = stats.get("public_ip") or stats.get("ip_address")
-        if not current_ip or current_ip == "127.0.0.1":
-            git_log.info("No routable IP found, skipping redirector update.")
-            return
-        current_target = f"http://{current_ip}:{PORT}"
+    # No longer using manual tunnel URLs - redirector just uses LAN IP or public IP
+    stats      = f.get_network_stats()
+    current_ip = stats.get("public_ip") or stats.get("ip_address")
+    if not current_ip or current_ip == "127.0.0.1":
+        git_log.info("No routable IP found, skipping redirector update.")
+        return
+    current_target = f"http://{current_ip}:{PORT}"
 
     if current_target and current_target != last_pushed_ip:
         git_log.info(f"Target changed ({last_pushed_ip} -> {current_target}). Updating GitHub...")
-        # redirector_update expects an IP+port, so handle full URLs here
-        if current_target.startswith("http"):
-            success = _redirector_update_url(current_target)
-        else:
-            success = f.redirector_update(current_target, PORT)
+        success = f.redirector_update(current_target, PORT)
         if success:
             last_pushed_ip = current_target
             git_log.info(f"Successfully updated GitHub redirect to {current_target}")

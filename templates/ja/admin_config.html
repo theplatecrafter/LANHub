@@ -277,11 +277,6 @@
                    value="{{ value }}"
                    data-original="{{ value }}"
                    oninput="onFieldChange(this)" />
-            {% if key == 'REPO_URL' %}
-            <div class="repo-warning" id="repo-warning-{{ section }}">
-              ⚠ REPO_URLを変更すると、現在の redirector_repo/ が削除され、新しいリポジトリがクローンされ、gitリモートがSSHに切り替わり、新しいリダイレクトページがプッシュされます。保存する前に、SSHキーがGitHubに追加されていることを確認してください。
-            </div>
-            {% endif %}
 
           {% endif %}
 
@@ -291,8 +286,6 @@
     </div>
   </div>
   {% endfor %}
-
-  <div id="redir-result"></div>
 
   <div class="cfg-save-bar">
     <a href="/" class="back-btn">← 戻る</a>
@@ -307,9 +300,6 @@
     <h3>⚠️ 設定を保存しますか？</h3>
     <p>
       これによりサーバー上の <code>configvars.json</code> が上書きされます。ほとんどの設定はすぐに反映されますが、ポートの変更にはサービスの再起動が必要です。
-    </p>
-    <p class="warn" id="modal-repo-warn" style="display:none;">
-      REPO_URLが変更されました — リダイレクターは削除されて再クローンされ、リモートがSSHに切り替わり、新しいリダイレクトページがプッシュされます。先にSSHキーがGitHubに登録されていることを確認してください。
     </p>
     <div class="modal-actions">
       <button class="modal-cancel" onclick="closeConfirm()">キャンセル</button>
@@ -332,13 +322,6 @@
   function onFieldChange(el) {
     const section = el.dataset.section;
     const key     = el.dataset.key;
-
-    // REPO_URL warning
-    if (key === 'REPO_URL') {
-      const orig = el.dataset.original || '';
-      const warn = document.getElementById('repo-warning-' + section);
-      if (warn) warn.classList.toggle('visible', el.value.trim() !== orig.trim());
-    }
 
     // Bool label
     if (el.dataset.type === 'bool') {
@@ -369,9 +352,6 @@
 
   // ── Confirm modal ──────────────────────────────────────
   function openConfirm() {
-    // Check if any REPO_URL warning is visible
-    const repoChanged = !!document.querySelector('.repo-warning.visible');
-    document.getElementById('modal-repo-warn').style.display = repoChanged ? 'block' : 'none';
     document.getElementById('confirmModal').classList.add('open');
   }
   function closeConfirm() {
@@ -399,21 +379,6 @@
         showToast('エラー: ' + data.error, 'err');
       } else {
         showToast('設定を保存しました。', 'ok');
-
-        // Reset REPO_URL baseline so warning clears
-        document.querySelectorAll('[data-key="REPO_URL"]').forEach(el => {
-          el.dataset.original = el.value;
-          const sec  = el.dataset.section;
-          const warn = document.getElementById('repo-warning-' + sec);
-          if (warn) warn.classList.remove('visible');
-        });
-
-        if (data.redirector_msg) {
-          const box = document.getElementById('redir-result');
-          box.textContent  = '🔄 リダイレクター: ' + data.redirector_msg;
-          box.className    = data.redirector_ok ? 'ok' : 'err';
-          box.style.display = 'block';
-        }
       }
     } catch (err) {
       showToast('ネットワークエラー: ' + err.message, 'err');

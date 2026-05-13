@@ -349,7 +349,6 @@ def access():
         current_mode     = getattr(config, "SITE_MODE",                 "lan_only"),
         current_password = getattr(config, "SITE_PASSWORD",             ""),
         cookie_days      = int(getattr(config, "SITE_ACCESS_COOKIE_DAYS", 30)),
-        tunnel_url       = getattr(config, "TUNNEL_URL",                 ""),
     )
 
 
@@ -357,11 +356,9 @@ def access():
 @require_role("DEV")
 def access_settings_save():
     import config as _config
-    import utils.scheduler as sch
 
     mode       = request.form.get("mode",       "lan_only").strip()
     password   = request.form.get("password",   "").strip()
-    tunnel_url = request.form.get("tunnel_url", "").strip()
     try:
         cookie_days = max(1, min(365, int(request.form.get("cookie_days", 30))))
     except ValueError:
@@ -375,32 +372,12 @@ def access_settings_save():
     data["access"]["SITE_MODE"]                = mode
     data["access"]["SITE_PASSWORD"]            = password
     data["access"]["SITE_ACCESS_COOKIE_DAYS"]  = cookie_days
-    data["access"]["TUNNEL_URL"]               = tunnel_url
     _config.save_json(data)
     _config.reload()
 
     app_log.info(
         f"[admin] {_name()!r} updated access settings: "
-        f"mode={mode!r} password={'(set)' if password else '(none)'} "
-        f"tunnel={tunnel_url!r}"
+        f"mode={mode!r} password={'(set)' if password else '(none)'}"
     )
-    # ── Immediately push updated URL to GitHub redirector ─────────────────────
-    redirector_msg  = None
-    redirector_ok   = True
-    try:
-        # Run in a background thread so the HTTP response returns immediately
-        # — the push can take a few seconds
-        def _push():
-            sch.sch_redirector_update()
-        threading.Thread(target=_push, daemon=True).start()
-        redirector_msg = "Redirector update triggered — GitHub Pages will update in ~30 seconds."
-    except Exception as e:
-        redirector_ok  = False
-        redirector_msg = f"Settings saved but redirector update failed: {e}"
-        error_log.error(f"[admin] Redirector push on access save failed: {e}")
 
-    return jsonify({
-        "ok":             True,
-        "redirector_ok":  redirector_ok,
-        "redirector_msg": redirector_msg,
-    })
+    return jsonify({"ok": True})

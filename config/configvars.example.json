@@ -1,8 +1,12 @@
 {
   "general": {
     "REPO_URL": "",
-    "PORT": 5000,
-    "USERNAME_MAX_LENGTH": 24
+    "PORT": 5000
+  },
+  "access": {
+    "SITE_MODE": "lan_only",
+    "SITE_PASSWORD": "",
+    "SITE_ACCESS_COOKIE_DAYS": 30
   },
   "scheduler": {
     "STATS_INTERVAL_SECS": 3,
@@ -89,12 +93,6 @@
     "GEO_COVERAGE_MAX_RADIUS_M": 420000000,
     "GEO_CACHE_MAX_CELLS": 500,
     "GEO_CACHE_MAX_REGIONS": 300
-  },
-  "access": {
-    "SITE_MODE": "lan_only",
-    "SITE_PASSWORD": "",
-    "SITE_ACCESS_COOKIE_DAYS": 30,
-    "TUNNEL_URL": ""
   },
   "lab": {
     "LAB_DEFAULT_QUOTA_MB": 500,

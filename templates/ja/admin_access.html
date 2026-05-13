@@ -71,20 +71,6 @@
                    name="cookie_days" value="{{ cookie_days }}" min="1" max="365" style="max-width:140px">
         </div>
 
-        <!-- Tunnel URL -->
-        <div class="mb-4">
-            <label for="tunnelUrl" class="form-label fw-semibold">
-                トンネルURL
-                <small class="text-muted fw-normal">(start.sh によって自動入力)</small>
-            </label>
-            <input type="text" class="form-control" id="tunnelUrl"
-                   name="tunnel_url" value="{{ tunnel_url }}"
-                   placeholder="https://xyz.trycloudflare.com">
-            <div class="form-text">
-                起動スクリプトによって自動的に設定されます。ここに手動で貼り付けることも可能です。
-            </div>
-        </div>
-
         <button type="submit" class="btn btn-primary">設定を保存</button>
     </form>
 
@@ -101,8 +87,7 @@ document.getElementById("accessForm").addEventListener("submit", async e => {
     msg.style.display = "block";
     if (data.ok) {
         msg.className   = "alert alert-success";
-        msg.textContent = "✓ 設定を保存しました。"
-            + (data.redirector_msg ? " " + data.redirector_msg : "");
+        msg.textContent = "✓ 設定を保存しました。";
     } else {
         msg.className   = "alert alert-danger";
         msg.textContent = data.error || "保存中にエラーが発生しました。";

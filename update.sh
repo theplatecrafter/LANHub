@@ -1,9 +1,98 @@
 #!/bin/bash
 
+set -e
+
 source venv/bin/activate
 git pull
 
-# Initialize updated.json if it doesn't exist
+# ── Merge configvars.json with configvars.example.json ──────────────────────
+# After git pull, synchronise configvars.json with configvars.example.json.
+#
+# Rules:
+#   - Admin section is NEVER touched (existing values kept as-is).
+#   - For other sections:
+#     * New keys in example → added with example's default value.
+#     * Keys removed from example → removed from live config.
+#     * Keys in both → live value kept unchanged.
+#     * New sections in example → added wholesale with example defaults.
+#     * Sections removed from example → removed from live config.
+
+echo "Synchronizing configuration with example..."
+
+EXAMPLE_FILE="config/configvars.example.json"
+LIVE_FILE="configvars.json"
+
+# Ensure files exist
+if [ ! -f "$EXAMPLE_FILE" ]; then
+    echo "✗ Error: $EXAMPLE_FILE not found"
+    exit 1
+fi
+
+if [ ! -f "$LIVE_FILE" ]; then
+    echo "✗ Error: $LIVE_FILE not found"
+    exit 1
+fi
+
+# Check if jq is available
+if ! command -v jq &> /dev/null; then
+    echo "installing jq..."
+    if [ "$(uname)" == "Darwin" ]; then
+        brew install jq
+    elif [ -f /etc/debian_version ]; then
+        sudo apt-get update && sudo apt-get install -y jq
+    elif [ -f /etc/redhat-release ]; then
+        sudo yum install -y jq
+    else
+        echo "✗ Error: jq is required but not installed. Please install jq and rerun the script."
+        exit 1
+    fi
+fi
+
+# Merge configs using jq:
+# 1. Start with empty object
+# 2. For each section in example (except admin):
+#    - Preserve live values where keys exist
+#    - Add new keys from example
+# 3. Add preserved admin section at end
+jq '
+  # Build merged config by iterating through example
+  (. as $example |
+   input as $current |
+   $current.admin as $admin |
+   
+   # Reduce over sections in example
+   $example | to_entries | reduce .[] as $section (
+     {};
+     if $section.key == "admin" then
+       .  # Skip admin, handle separately
+     else
+       .[$section.key] = (
+         # For this section, merge live values with example defaults
+         ($current[$section.key] // {}) as $current_section |
+         $section.value | to_entries | reduce .[] as $field (
+           {};
+           .[$field.key] = ($current_section[$field.key] // $field.value)
+         )
+       )
+     end
+   ) |
+   
+   # Add preserved admin section
+   . + {admin: ($admin // {})}
+  )
+' "$EXAMPLE_FILE" "$LIVE_FILE" > "${LIVE_FILE}.tmp" 2>/dev/null
+
+if [ $? -eq 0 ]; then
+    mv "${LIVE_FILE}.tmp" "$LIVE_FILE"
+    echo "✓ Configuration synchronized"
+else
+    echo "✗ Error: Failed to merge configuration"
+    rm -f "${LIVE_FILE}.tmp"
+    exit 1
+fi
+
+# ── Initialize updated.json if it doesn't exist ────────────────────────────
+
 UPDATED_JSON="updates/updated.json"
 if [ ! -f "$UPDATED_JSON" ]; then
     mkdir -p updates
@@ -17,7 +106,8 @@ if [ ! -f "$UPDATED_JSON" ]; then
 EOF
 fi
 
-# All update logic (detection, prompting, execution) in Python
+# ── Run update detection and application in Python ────────────────────────
+
 python3 << 'PYTHON_EOF'
 import json
 import subprocess
@@ -67,7 +157,6 @@ print("="*75)
 response = None
 try:
     # Check if stdin is a TTY (interactive terminal)
-    import sys
     is_tty = sys.stdin.isatty()
     
     if is_tty:
@@ -135,7 +224,6 @@ print("="*75 + "\n")
 
 PYTHON_EOF
 
-
 if [ -f ".service_name" ]; then
     SVC_NAME=$(cat .service_name)
 else
@@ -146,7 +234,7 @@ echo "Restarting $SVC_NAME..."
 if sudo systemctl daemon-reload && sudo systemctl restart "$SVC_NAME"; then
     echo "✓ $SVC_NAME restarted successfully."
 else
-    echo -e "\n${YELLOW}⚠️  Failed to restart $SVC_NAME automatically.${RESET}"
+    echo -e "\n⚠️  Failed to restart $SVC_NAME automatically."
     echo -e "  This may be a development setup without a systemd service."
     echo -e "  Please restart the server manually to apply updates."
 fi

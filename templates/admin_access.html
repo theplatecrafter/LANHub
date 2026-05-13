@@ -74,20 +74,6 @@
                    name="cookie_days" value="{{ cookie_days }}" min="1" max="365" style="max-width:140px">
         </div>
 
-        <!-- Tunnel URL -->
-        <div class="mb-4">
-            <label for="tunnelUrl" class="form-label fw-semibold">
-                Tunnel URL
-                <small class="text-muted fw-normal">(auto-filled by start.sh)</small>
-            </label>
-            <input type="text" class="form-control" id="tunnelUrl"
-                   name="tunnel_url" value="{{ tunnel_url }}"
-                   placeholder="https://xyz.trycloudflare.com">
-            <div class="form-text">
-                Set by the startup script automatically. You can also paste it manually here.
-            </div>
-        </div>
-
         <button type="submit" class="btn btn-primary">Save Settings</button>
     </form>
 
@@ -104,8 +90,7 @@ document.getElementById("accessForm").addEventListener("submit", async e => {
     msg.style.display = "block";
     if (data.ok) {
         msg.className   = "alert alert-success";
-        msg.textContent = "✓ Settings saved."
-            + (data.redirector_msg ? " " + data.redirector_msg : "");
+        msg.textContent = "✓ Settings saved.";
     } else {
         msg.className   = "alert alert-danger";
         msg.textContent = data.error || "Error saving.";

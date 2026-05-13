@@ -277,13 +277,6 @@
                    value="{{ value }}"
                    data-original="{{ value }}"
                    oninput="onFieldChange(this)" />
-            {% if key == 'REPO_URL' %}
-            <div class="repo-warning" id="repo-warning-{{ section }}">
-              ⚠ Changing REPO_URL will delete the current redirector_repo/, clone the new
-              repository, switch the git remote to SSH, and push a fresh redirect page.
-              Ensure your SSH key is already added to GitHub before saving.
-            </div>
-            {% endif %}
 
           {% endif %}
 
@@ -293,8 +286,6 @@
     </div>
   </div>
   {% endfor %}
-
-  <div id="redir-result"></div>
 
   <div class="cfg-save-bar">
     <a href="/" class="back-btn">← Back</a>
@@ -310,10 +301,6 @@
     <p>
       This will overwrite <code>configvars.json</code> on the server. Most settings
       take effect immediately. Port changes require a service restart.
-    </p>
-    <p class="warn" id="modal-repo-warn" style="display:none;">
-      REPO_URL has changed — the redirector will be deleted, re-cloned, its remote switched
-      to SSH, and a fresh redirect page pushed. Make sure your SSH key is on GitHub first.
     </p>
     <div class="modal-actions">
       <button class="modal-cancel" onclick="closeConfirm()">Cancel</button>
@@ -336,13 +323,6 @@
   function onFieldChange(el) {
     const section = el.dataset.section;
     const key     = el.dataset.key;
-
-    // REPO_URL warning
-    if (key === 'REPO_URL') {
-      const orig = el.dataset.original || '';
-      const warn = document.getElementById('repo-warning-' + section);
-      if (warn) warn.classList.toggle('visible', el.value.trim() !== orig.trim());
-    }
 
     // Bool label
     if (el.dataset.type === 'bool') {
@@ -373,9 +353,6 @@
 
   // ── Confirm modal ──────────────────────────────────────
   function openConfirm() {
-    // Check if any REPO_URL warning is visible
-    const repoChanged = !!document.querySelector('.repo-warning.visible');
-    document.getElementById('modal-repo-warn').style.display = repoChanged ? 'block' : 'none';
     document.getElementById('confirmModal').classList.add('open');
   }
   function closeConfirm() {
@@ -403,21 +380,6 @@
         showToast('Error: ' + data.error, 'err');
       } else {
         showToast('Configuration saved.', 'ok');
-
-        // Reset REPO_URL baseline so warning clears
-        document.querySelectorAll('[data-key="REPO_URL"]').forEach(el => {
-          el.dataset.original = el.value;
-          const sec  = el.dataset.section;
-          const warn = document.getElementById('repo-warning-' + sec);
-          if (warn) warn.classList.remove('visible');
-        });
-
-        if (data.redirector_msg) {
-          const box = document.getElementById('redir-result');
-          box.textContent  = '🔄 Redirector: ' + data.redirector_msg;
-          box.className    = data.redirector_ok ? 'ok' : 'err';
-          box.style.display = 'block';
-        }
       }
     } catch (err) {
       showToast('Network error: ' + err.message, 'err');

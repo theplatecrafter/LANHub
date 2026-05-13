@@ -36,49 +36,6 @@ import types as _types
 # Get project directory for .lab_enabled flag check
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ── Validate Tunnel URL on Startup ────────────────────────────────────────────
-# Ensure that invalid tunnel URLs (like api.trycloudflare.com) don't break the app
-def validate_and_sanitize_tunnel_url():
-    """
-    Validate the TUNNEL_URL from config. If it's invalid (e.g., api.trycloudflare.com),
-    log a warning and remove it so the app can continue functioning on LAN.
-    """
-    tunnel_url = getattr(_config, "TUNNEL_URL", "").strip()
-    if not tunnel_url:
-        return  # No tunnel URL configured
-    
-    # Valid tunnel URLs have multiple hyphen-separated words in the subdomain
-    # Examples: https://shipping-naturals-route-trees.trycloudflare.com
-    # Invalid: https://api.trycloudflare.com (single word)
-    if _re.match(r'^https://[a-z0-9]+-[a-z0-9-]+\.trycloudflare\.com$', tunnel_url):
-        app_log.info(f"[startup] Valid tunnel URL configured: {tunnel_url}")
-    else:
-        app_log.warning(f"[startup] Invalid tunnel URL detected: {tunnel_url}")
-        app_log.warning("[startup] This URL doesn't match the expected Cloudflare tunnel format.")
-        app_log.warning("[startup] Clearing TUNNEL_URL to allow the server to run on LAN only.")
-        
-        # Clear the invalid tunnel URL from config
-        try:
-            import json
-            cfg_path = os.path.join(SCRIPT_DIR, "configvars.json")
-            with open(cfg_path, "r") as f:
-                cfg = json.load(f)
-            if "access" in cfg and "TUNNEL_URL" in cfg["access"]:
-                del cfg["access"]["TUNNEL_URL"]
-                with open(cfg_path, "w") as f:
-                    json.dump(cfg, f, indent=2)
-                app_log.info("[startup] Invalid TUNNEL_URL removed from configvars.json")
-                # Reload config to pick up the change
-                _config.reload()
-        except Exception as e:
-            app_log.error(f"[startup] Failed to clear invalid TUNNEL_URL: {e}")
-
-# Validate tunnel URL before starting the app
-try:
-    validate_and_sanitize_tunnel_url()
-except Exception as e:
-    app_log.warning(f"[startup] Tunnel URL validation error (non-fatal): {e}")
-
 app = Flask(__name__)
 app.secret_key = _config.SECRET_KEY
 import functions as _fns
@@ -378,16 +335,6 @@ def too_large(e):
 @app.context_processor
 def inject_globals():
     import config as _config
-    import re as _re
-
-    def _repo_url_to_pages(url):
-        m = _re.match(r'https?://github\.com/([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$', url.strip())
-        if m:
-            return f"https://{m.group(1)}.github.io/{m.group(2)}/"
-        m = _re.match(r'git@github\.com:([^/\s]+)/([^/\s]+?)(?:\.git)?\s*$', url.strip())
-        if m:
-            return f"https://{m.group(1)}.github.io/{m.group(2)}/"
-        return None
 
     # Only expose languages that actually have a sub-folder in templates/
     templates_dir = os.path.join(BASE_DIR, "templates")
@@ -405,7 +352,7 @@ def inject_globals():
         current_lang = "en"
 
     return {
-        "share_url":       _repo_url_to_pages(getattr(_config, "REPO_URL", "") or ""),
+        "share_url":       None,
         "afk_idle_secs":   int(getattr(_config, "AFK_IDLE_SECS",   300)),
         "afk_prompt_secs": int(getattr(_config, "AFK_PROMPT_SECS",  60)),
         "available_langs": available_langs,   # {code: display_name}
@@ -463,21 +410,7 @@ def graceful_shutdown(*args, **kwargs):
     except Exception as e:
         app_log.warning(f"[shutdown] Redirector offline push error: {e}")
 
-    # ── 4. Kill cloudflared tunnel process ────────────────────────────────────
-    CF_PID_FILE = "/tmp/lanhub_cf.pid"
-    try:
-        if os.path.exists(CF_PID_FILE):
-            with open(CF_PID_FILE) as f:
-                cf_pid = int(f.read().strip())
-            os.kill(cf_pid, signal.SIGTERM)
-            os.remove(CF_PID_FILE)
-            app_log.info(f"[shutdown] cloudflared (pid={cf_pid}) terminated.")
-    except ProcessLookupError:
-        app_log.info("[shutdown] cloudflared process already gone.")
-    except Exception as e:
-        app_log.warning(f"[shutdown] Could not stop cloudflared: {e}")
-
-    # ── 5. Close active game/chess/uno sessions ───────────────────────────────
+    # ── 4. Close active game/chess/uno sessions ───────────────────────────────
     try:
         from socket_events.chess_events import active_games
         for gid, game in list(active_games.items()):
@@ -498,7 +431,7 @@ def graceful_shutdown(*args, **kwargs):
     except Exception as e:
         app_log.warning(f"[shutdown] UNO cleanup error: {e}")
 
-    # ── 6. Stop all LANHub Lab Docker containers ──────────────────────────────
+    # ── 5. Stop all LANHub Lab Docker containers ──────────────────────────────
     try:
         import docker
         client = docker.from_env()
@@ -518,7 +451,7 @@ def graceful_shutdown(*args, **kwargs):
     except Exception as e:
         app_log.warning(f"[shutdown] Docker cleanup error: {e}")
 
-    # ── 7. Flush all log handlers ─────────────────────────────────────────────
+    # ── 6. Flush all log handlers ─────────────────────────────────────────────
     try:
         for logger in [app_log, access_log, git_log, error_log]:
             for handler in logger.handlers:
@@ -527,7 +460,7 @@ def graceful_shutdown(*args, **kwargs):
     except Exception as e:
         pass  # best effort
 
-    # ── 8. Brief pause to let socket messages and log writes finish ───────────
+    # ── 7. Brief pause to let socket messages and log writes finish ───────────
     # Use gevent.sleep() instead of time.sleep() to avoid BlockingSwitchOutError
     from gevent import sleep as gevent_sleep
     gevent_sleep(1.5)
