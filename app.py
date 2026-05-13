@@ -36,6 +36,49 @@ import types as _types
 # Get project directory for .lab_enabled flag check
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ── Validate Tunnel URL on Startup ────────────────────────────────────────────
+# Ensure that invalid tunnel URLs (like api.trycloudflare.com) don't break the app
+def validate_and_sanitize_tunnel_url():
+    """
+    Validate the TUNNEL_URL from config. If it's invalid (e.g., api.trycloudflare.com),
+    log a warning and remove it so the app can continue functioning on LAN.
+    """
+    tunnel_url = getattr(_config, "TUNNEL_URL", "").strip()
+    if not tunnel_url:
+        return  # No tunnel URL configured
+    
+    # Valid tunnel URLs have multiple hyphen-separated words in the subdomain
+    # Examples: https://shipping-naturals-route-trees.trycloudflare.com
+    # Invalid: https://api.trycloudflare.com (single word)
+    if _re.match(r'^https://[a-z0-9]+-[a-z0-9-]+\.trycloudflare\.com$', tunnel_url):
+        app_log.info(f"[startup] Valid tunnel URL configured: {tunnel_url}")
+    else:
+        app_log.warning(f"[startup] Invalid tunnel URL detected: {tunnel_url}")
+        app_log.warning("[startup] This URL doesn't match the expected Cloudflare tunnel format.")
+        app_log.warning("[startup] Clearing TUNNEL_URL to allow the server to run on LAN only.")
+        
+        # Clear the invalid tunnel URL from config
+        try:
+            import json
+            cfg_path = os.path.join(SCRIPT_DIR, "configvars.json")
+            with open(cfg_path, "r") as f:
+                cfg = json.load(f)
+            if "access" in cfg and "TUNNEL_URL" in cfg["access"]:
+                del cfg["access"]["TUNNEL_URL"]
+                with open(cfg_path, "w") as f:
+                    json.dump(cfg, f, indent=2)
+                app_log.info("[startup] Invalid TUNNEL_URL removed from configvars.json")
+                # Reload config to pick up the change
+                _config.reload()
+        except Exception as e:
+            app_log.error(f"[startup] Failed to clear invalid TUNNEL_URL: {e}")
+
+# Validate tunnel URL before starting the app
+try:
+    validate_and_sanitize_tunnel_url()
+except Exception as e:
+    app_log.warning(f"[startup] Tunnel URL validation error (non-fatal): {e}")
+
 app = Flask(__name__)
 app.secret_key = _config.SECRET_KEY
 import functions as _fns

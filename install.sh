@@ -554,55 +554,119 @@ cloudflared tunnel --url http://localhost:$PORT > "$CF_STDOUT" 2>"$CF_STDERR" &
 CF_PID=$!
 echo "$CF_PID" > "$CF_PID_FILE"
 
-# Wait for tunnel URL with better detection
+# Function to validate if a tunnel URL is valid
+# Valid URLs have multiple hyphen-separated words (e.g., shipping-naturals-route-trees.trycloudflare.com)
+# Invalid URLs only have single words before the domain (e.g., api.trycloudflare.com)
+is_valid_tunnel_url() {
+    local url="$1"
+    # Must contain at least one hyphen in the subdomain part (before .trycloudflare.com)
+    # This ensures it's a proper Cloudflare tunnel URL and not something like api.trycloudflare.com
+    if [[ "$url" =~ https://[a-z0-9]+-[a-z0-9-]+\.trycloudflare\.com ]]; then
+        return 0  # Valid
+    else
+        return 1  # Invalid
+    fi
+}
+
+# Wait for tunnel URL with validation
 TUNNEL_URL=""
 WAIT_SECONDS=0
 MAX_WAIT=90  # Increased to 90 seconds for slower connections
+RETRY_COUNT=0
+MAX_RETRIES=3
 
-while [ $WAIT_SECONDS -lt $MAX_WAIT ] && [ -z "$TUNNEL_URL" ]; do
-    sleep 1
-    WAIT_SECONDS=$((WAIT_SECONDS + 1))
+while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ -z "$TUNNEL_URL" ]; do
+    WAIT_SECONDS=0
     
-    # Try to detect tunnel URL from BOTH stdout and stderr
-    # (cloudflared writes the URL to stderr, not stdout)
-    if [ -f "$CF_STDOUT" ]; then
-        TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
-    fi
-    if [ -z "$TUNNEL_URL" ] && [ -f "$CF_STDERR" ]; then
-        TUNNEL_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_STDERR" 2>/dev/null | head -1)
-    fi
-    
-    # Show progress every 5 seconds
-    if [ $((WAIT_SECONDS % 5)) -eq 0 ]; then
-        if [ -z "$TUNNEL_URL" ]; then
-            echo "  ⏳ Still connecting... ($WAIT_SECONDS seconds)"
-            # Show what cloudflared is doing every 10 seconds for debugging
-            if [ $((WAIT_SECONDS % 10)) -eq 0 ]; then
-                if [ -s "$CF_STDERR" ]; then
-                    LATEST_LINE=$(tail -1 "$CF_STDERR")
-                    echo "     → $LATEST_LINE"
-                elif [ -s "$CF_STDOUT" ]; then
-                    LATEST_LINE=$(tail -1 "$CF_STDOUT")
-                    echo "     → $LATEST_LINE"
+    while [ $WAIT_SECONDS -lt $MAX_WAIT ] && [ -z "$TUNNEL_URL" ]; do
+        sleep 1
+        WAIT_SECONDS=$((WAIT_SECONDS + 1))
+        
+        # Try to detect tunnel URL from BOTH stdout and stderr
+        # (cloudflared writes the URL to stderr, not stdout)
+        DETECTED_URL=""
+        if [ -f "$CF_STDOUT" ]; then
+            DETECTED_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_STDOUT" 2>/dev/null | head -1)
+        fi
+        if [ -z "$DETECTED_URL" ] && [ -f "$CF_STDERR" ]; then
+            DETECTED_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_STDERR" 2>/dev/null | head -1)
+        fi
+        
+        # Validate the detected URL
+        if [ -n "$DETECTED_URL" ]; then
+            if is_valid_tunnel_url "$DETECTED_URL"; then
+                TUNNEL_URL="$DETECTED_URL"
+                echo "✓ Valid tunnel URL detected: $TUNNEL_URL"
+            else
+                echo "⚠ Invalid tunnel URL detected: $DETECTED_URL (missing required hyphens)"
+                echo "  Restarting tunnel fetching..."
+                # Kill the cloudflared process to get a fresh one
+                kill $CF_PID 2>/dev/null || true
+                sleep 2
+                # Clear the output files for fresh detection
+                > "$CF_STDOUT"
+                > "$CF_STDERR"
+                # Start a fresh cloudflared process
+                cloudflared tunnel --url http://localhost:$PORT > "$CF_STDOUT" 2>"$CF_STDERR" &
+                CF_PID=$!
+                echo "$CF_PID" > "$CF_PID_FILE"
+                echo "  Waiting for fresh tunnel connection (attempt $((RETRY_COUNT + 2))/$((MAX_RETRIES + 1)))..."
+                WAIT_SECONDS=0
+                continue
+            fi
+        fi
+        
+        # Show progress every 5 seconds
+        if [ $((WAIT_SECONDS % 5)) -eq 0 ]; then
+            if [ -z "$TUNNEL_URL" ]; then
+                echo "  ⏳ Still connecting... ($WAIT_SECONDS seconds)"
+                # Show what cloudflared is doing every 10 seconds for debugging
+                if [ $((WAIT_SECONDS % 10)) -eq 0 ]; then
+                    if [ -s "$CF_STDERR" ]; then
+                        LATEST_LINE=$(tail -1 "$CF_STDERR")
+                        echo "     → $LATEST_LINE"
+                    elif [ -s "$CF_STDOUT" ]; then
+                        LATEST_LINE=$(tail -1 "$CF_STDOUT")
+                        echo "     → $LATEST_LINE"
+                    fi
                 fi
             fi
         fi
-    fi
+        
+        # Check if process died
+        if ! kill -0 $CF_PID 2>/dev/null; then
+            echo "⚠ cloudflared process exited at $WAIT_SECONDS seconds"
+            if [ -s "$CF_STDERR" ]; then
+                echo ""
+                echo "cloudflared error output:"
+                cat "$CF_STDERR" | sed 's/^/  /'
+            fi
+            if [ -s "$CF_STDOUT" ]; then
+                echo ""
+                echo "cloudflared standard output:"
+                cat "$CF_STDOUT" | sed 's/^/  /'
+            fi
+            break
+        fi
+    done
     
-    # Check if process died
-    if ! kill -0 $CF_PID 2>/dev/null; then
-        echo "⚠ cloudflared process exited at $WAIT_SECONDS seconds"
-        if [ -s "$CF_STDERR" ]; then
+    # If we still don't have a valid tunnel URL and we haven't exceeded retries, retry
+    if [ -z "$TUNNEL_URL" ]; then
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
             echo ""
-            echo "cloudflared error output:"
-            cat "$CF_STDERR" | sed 's/^/  /'
+            echo "⏳ Retry $RETRY_COUNT/$((MAX_RETRIES - 1)): Restarting tunnel (no valid URL found yet)..."
+            # Kill the cloudflared process
+            kill $CF_PID 2>/dev/null || true
+            sleep 2
+            # Clear the output files for fresh detection
+            > "$CF_STDOUT"
+            > "$CF_STDERR"
+            # Start a fresh cloudflared process
+            cloudflared tunnel --url http://localhost:$PORT > "$CF_STDOUT" 2>"$CF_STDERR" &
+            CF_PID=$!
+            echo "$CF_PID" > "$CF_PID_FILE"
         fi
-        if [ -s "$CF_STDOUT" ]; then
-            echo ""
-            echo "cloudflared standard output:"
-            cat "$CF_STDOUT" | sed 's/^/  /'
-        fi
-        break
     fi
 done
 
@@ -612,12 +676,24 @@ if [ -n "$TUNNEL_URL" ]; then
     echo "✓ Tunnel established: $TUNNEL_URL"
     python3 - <<PYEOF
 import json
-with open("configvars.json", "r") as f:
-    cfg = json.load(f)
-cfg.setdefault("access", {})["TUNNEL_URL"] = "$TUNNEL_URL"
-with open("configvars.json", "w") as f:
-    json.dump(cfg, f, indent=2)
-print("✓ configvars.json updated with tunnel URL")
+import re
+
+# Validate the tunnel URL before writing
+tunnel_url = "$TUNNEL_URL"
+# Valid tunnel URLs have multiple hyphen-separated words in the subdomain
+# (e.g., https://shipping-naturals-route-trees.trycloudflare.com)
+# Reject single-word subdomains like api.trycloudflare.com
+if not re.match(r'https://[a-z0-9]+-[a-z0-9-]+\.trycloudflare\.com$', tunnel_url):
+    print(f"[WARNING] Tunnel URL validation failed: {tunnel_url}")
+    print("[WARNING] This URL doesn't match the expected Cloudflare tunnel format")
+    print("[WARNING] Skipping URL write - server will be accessible on LAN only")
+else:
+    with open("configvars.json", "r") as f:
+        cfg = json.load(f)
+    cfg.setdefault("access", {})["TUNNEL_URL"] = tunnel_url
+    with open("configvars.json", "w") as f:
+        json.dump(cfg, f, indent=2)
+    print("✓ configvars.json updated with tunnel URL")
 PYEOF
 else
     echo "⚠ Could not establish Cloudflare tunnel after $WAIT_SECONDS seconds"
