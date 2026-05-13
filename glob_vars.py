@@ -1,5 +1,5 @@
 # glob_vars.py
-from config import *          # ← was: from configvars import *
+from config import *
 import os
 import logging
 from logging.handlers import RotatingFileHandler

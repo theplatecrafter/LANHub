@@ -513,12 +513,11 @@ if __name__ == "__main__":
     sch.start_scheduler()
     
     # Initialize Owner Playground background tasks
-    # TEMPORARILY DISABLED for debugging segfault
-    # try:
-    #     from functions import owner_playground
-    #     owner_playground.init_playground_tasks(app)
-    # except Exception as e:
-    #     app_log.warning(f"[startup] Failed to initialize playground tasks: {e}")
+    try:
+        from functions import owner_playground
+        owner_playground.init_playground_tasks(app)
+    except Exception as e:
+        app_log.warning(f"[startup] Failed to initialize playground tasks: {e}")
     
     # Run the app
     socketio.run(
