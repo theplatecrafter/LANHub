@@ -135,16 +135,6 @@
       <li><a href="/admin/login" class="{{ 'active' if '/admin' in request.path }}">Admin</a></li>
     </ul>
 
-    {% if share_url %}
-    <button id="share-btn" onclick="copyShareLink()" title="Copy shareable link: {{ share_url }}">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-      </svg>
-      <span>Copy link to share</span>
-    </button>
-    {% endif %}
-
     <!-- ── Language picker (only rendered when >1 language is available) ──── -->
     {% if available_langs | length > 1 %}
     <div class="lang-picker" id="langPicker">
@@ -344,45 +334,6 @@
       .catch(() => {});
     })();
 
-    /* ── Share / copy link ───────────────────────────────────── */
-    {% if share_url %}
-    const SHARE_URL = {{ share_url | tojson }};
-
-    let _copyTimer = null;
-    function copyShareLink() {
-      const btn = document.getElementById('share-btn');
-      const lbl = btn.querySelector('span');
-
-      function onCopied() {
-        btn.classList.add('copied');
-        if (lbl) lbl.textContent = 'Copied!';
-        clearTimeout(_copyTimer);
-        _copyTimer = setTimeout(() => {
-          btn.classList.remove('copied');
-          if (lbl) lbl.textContent = 'Copy link to share';
-        }, 2000);
-      }
-
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(SHARE_URL).then(onCopied).catch(() => {
-          prompt("Copy this link:", SHARE_URL);
-        });
-      } else {
-        try {
-          const ta = document.createElement("textarea");
-          ta.value = SHARE_URL;
-          ta.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand("copy");
-          document.body.removeChild(ta);
-          onCopied();
-        } catch (_) {
-          prompt("Copy this link:", SHARE_URL);
-        }
-      }
-    }
-    {% endif %}
 
     /* ── Live server stats ───────────────────────────────────── */
     const _socket = io();
