@@ -568,10 +568,10 @@ is_valid_tunnel_url() {
     fi
 }
 
-# Wait for tunnel URL with validation
+# Wait for tunnel URL with validation and exponential backoff
 TUNNEL_URL=""
 WAIT_SECONDS=0
-MAX_WAIT=90  # Increased to 90 seconds for slower connections
+MAX_WAIT=90  # Wait up to 90 seconds for each tunnel attempt
 RETRY_COUNT=0
 MAX_RETRIES=3
 
@@ -610,7 +610,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ -z "$TUNNEL_URL" ]; do
                 cloudflared tunnel --url http://localhost:$PORT > "$CF_STDOUT" 2>"$CF_STDERR" &
                 CF_PID=$!
                 echo "$CF_PID" > "$CF_PID_FILE"
-                echo "  Waiting for fresh tunnel connection (attempt $((RETRY_COUNT + 2))/$((MAX_RETRIES + 1)))..."
+                echo "  Waiting for fresh tunnel connection (attempt $((RETRY_COUNT + 2))/$MAX_RETRIES)..."
                 WAIT_SECONDS=0
                 continue
             fi
@@ -635,16 +635,23 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ -z "$TUNNEL_URL" ]; do
         
         # Check if process died
         if ! kill -0 $CF_PID 2>/dev/null; then
-            echo "⚠ cloudflared process exited at $WAIT_SECONDS seconds"
-            if [ -s "$CF_STDERR" ]; then
-                echo ""
-                echo "cloudflared error output:"
-                cat "$CF_STDERR" | sed 's/^/  /'
-            fi
-            if [ -s "$CF_STDOUT" ]; then
-                echo ""
-                echo "cloudflared standard output:"
-                cat "$CF_STDOUT" | sed 's/^/  /'
+            # Check if it's a Cloudflare rate-limit error (429)
+            if grep -q "429 Too Many Requests\|error code: 1015" "$CF_STDERR" 2>/dev/null; then
+                echo "⚠ Cloudflare rate limiting detected (HTTP 429)"
+                echo "  Waiting before retry to avoid further rate limiting..."
+                # Calculate exponential backoff: 5 sec, then 15 sec, then 30 sec
+                BACKOFF_SECONDS=$((5 * (2 ** RETRY_COUNT)))
+                if [ $BACKOFF_SECONDS -gt 30 ]; then
+                    BACKOFF_SECONDS=30
+                fi
+                echo "  Will retry in $BACKOFF_SECONDS seconds..."
+                sleep $BACKOFF_SECONDS
+            else
+                echo "⚠ cloudflared process exited at $WAIT_SECONDS seconds"
+                if [ -s "$CF_STDERR" ]; then
+                    echo "cloudflared error output (first 5 lines):"
+                    head -5 "$CF_STDERR" | sed 's/^/  /'
+                fi
             fi
             break
         fi
@@ -655,7 +662,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ -z "$TUNNEL_URL" ]; do
         RETRY_COUNT=$((RETRY_COUNT + 1))
         if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
             echo ""
-            echo "⏳ Retry $RETRY_COUNT/$((MAX_RETRIES - 1)): Restarting tunnel (no valid URL found yet)..."
+            echo "⏳ Retry $RETRY_COUNT/$((MAX_RETRIES - 1)): Restarting tunnel..."
             # Kill the cloudflared process
             kill $CF_PID 2>/dev/null || true
             sleep 2
