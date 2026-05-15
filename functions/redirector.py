@@ -26,7 +26,7 @@ def redirector_update(ip: str, port: int = PORT) -> bool:
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>LANHub Redirector</title>
+    <title>HansHub Redirector</title>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f9; color: #333; }}
         .card {{ max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }}
@@ -38,7 +38,7 @@ def redirector_update(ip: str, port: int = PORT) -> bool:
 </head>
 <body>
     <div class="card">
-        <h2>🛰️ LANHub Gateway</h2>
+        <h2>🛰️ HansHub Gateway</h2>
 
         <div id="checking">
             <p>Verifying connection to <b>{ip}</b>...</p>

@@ -227,7 +227,7 @@ PYTHON_EOF
 if [ -f ".service_name" ]; then
     SVC_NAME=$(cat .service_name)
 else
-    SVC_NAME="lanhub"
+    SVC_NAME="hanshub"
 fi
 
 echo "Restarting $SVC_NAME..."

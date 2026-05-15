@@ -61,7 +61,7 @@
         <div class="card-body">
             <h6 class="mb-1">バックアップから復元</h6>
             <p class="text-muted mb-3" style="font-size:.85rem;">
-                このLANHubまたは別のLANHubインスタンスからエクスポートした <code>lanhub_backup_*.zip</code> ファイルをアップロードします。
+                このHansHubまたは別のHansHubインスタンスからエクスポートした <code>hanshub_backup_*.zip</code> ファイルをアップロードします。
                 既存のファイルは上書きされます。復元後はサーバーの再起動を推奨します。
             </p>
             <div class="alert alert-warning py-2 mb-3" style="font-size:.83rem;">
@@ -197,8 +197,8 @@
                     border-radius:8px; padding:1.2rem;">
             <h5 style="color:#dc3545;">サーバーの完全な削除</h5>
             <p style="font-size:.875rem; color:#adb5bd; margin-bottom:1rem;">
-                <code>lanhub</code> の systemd サービスを停止して削除し、Cloudflare トンネルを強制終了し、
-                プロジェクトディレクトリ全体をディスクから削除します。これが完了すると、サーバーコンピューターからLANHubの痕跡がすべて消えます。
+                <code>hanshub</code> の systemd サービスを停止して削除し、Cloudflare トンネルを強制終了し、
+                プロジェクトディレクトリ全体をディスクから削除します。これが完了すると、サーバーコンピューターからHansHubの痕跡がすべて消えます。
                 <strong style="color:#f87171;">この操作は元に戻せません。</strong>
             </p>
             <button class="btn btn-danger"
@@ -340,8 +340,8 @@ function nukeFlow() {
         "nuke",
         10,
         "サーバーの完全な削除",
-        "lanhubのsystemdサービスを停止・削除し、Cloudflareトンネルを強制終了して、プロジェクトディレクトリ全体を削除します。サーバーは完全に消滅します。",
-        "DELETE LANHUB FOREVER"
+        "hanshubのsystemdサービスを停止・削除し、Cloudflareトンネルを強制終了して、プロジェクトディレクトリ全体を削除します。サーバーは完全に消滅します。",
+        "DELETE HANSHUB FOREVER"
     );
 }
 
@@ -399,7 +399,7 @@ async function executeAction(action) {
 
     const body = new FormData();
     if (action === "nuke") {
-        body.append("confirm_phrase", "DELETE LANHUB FOREVER");
+        body.append("confirm_phrase", "DELETE HANSHUB FOREVER");
     }
 
     try {

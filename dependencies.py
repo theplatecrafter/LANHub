@@ -1,4 +1,4 @@
-"""Dependency Injection Container for LANHub
+"""Dependency Injection Container for HansHub
 
 Provides a centralized dependency injection system for easier testing and decoupling.
 Allows functions to be mocked in tests while maintaining production code structure.

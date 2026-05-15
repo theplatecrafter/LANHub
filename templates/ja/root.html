@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}LANHub — ホーム{% endblock %}
+{% block title %}HansHub — ホーム{% endblock %}
 
 {% block content %}
 {% if request.args.get('afk') %}
@@ -26,7 +26,7 @@
   <p class="mono" style="color: var(--cyan); letter-spacing: 0.15em; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 10px;">
     ◈ システム稼動中
   </p>
-  <h1><span style="color: var(--cyan);">LANHub</span> へようこそ</h1>
+  <h1><span style="color: var(--cyan);">HansHub</span> へようこそ</h1>
   <p style="color: var(--text-dim); margin-top: 10px; max-width: 480px; font-size: 0.92rem;">
     ローカルネットワーク (LAN) 上で動作するWebアプリ。ネットワーク上の他のユーザーとチャット、ゲームなどが楽しめます。
   </p>
@@ -70,7 +70,7 @@
     <a href="/updates" class="feature-card accent-cyan">
       <div class="card-icon">🚀</div>
       <div class="card-label">更新履歴</div>
-      <div class="card-title">LANHubアップデート</div>
+      <div class="card-title">HansHubアップデート</div>
       <div class="card-desc">DEVチームによるリリースノートと機能更新情報。</div>
       <span class="card-badge">公開中</span>
     </a>
@@ -160,8 +160,8 @@
     <a href="/about" class="feature-card accent-green">
       <div class="card-icon">ℹ️</div>
       <div class="card-label">情報</div>
-      <div class="card-title">LANHub説明</div>
-      <div class="card-desc">LANHubとは何か、何ができるか、どのように動作するか。</div>
+      <div class="card-title">HansHub説明</div>
+      <div class="card-desc">HansHubとは何か、何ができるか、どのように動作するか。</div>
       <span class="card-badge">公開中</span>
     </a>
   </div>
@@ -178,7 +178,7 @@
     <a href="/lab" class="feature-card accent-amber">
       <div class="card-icon">🧪</div>
       <div class="card-label">開発</div>
-      <div class="card-title">LANHubラボ</div>
+      <div class="card-title">HansHubラボ</div>
       <div class="card-desc">セルフホスト型Web開発環境。LAN上でWebアプリを作成・デプロイ。</div>
       <span class="card-badge">公開中</span>
     </a>
@@ -225,7 +225,7 @@
       <div class="card-icon">🧪</div>
       <div class="card-label">実験的</div>
       <div class="card-title">所有者プレイグラウンド</div>
-      <div class="card-desc">LANHub開発者による実験的機能と創造的なアイデア。新機能のサンドボックス。</div>
+      <div class="card-desc">HansHub開発者による実験的機能と創造的なアイデア。新機能のサンドボックス。</div>
       <span class="card-badge">実験的</span>
     </a>
   </div>
@@ -340,7 +340,7 @@
       <div class="card-icon">🌐</div>
       <div class="card-label">World Wide Web</div>
       <div class="card-title">アクセス設定</div>
-      <div class="card-desc">LANHubを公開アクセス可能にするかどうかを設定。</div>
+      <div class="card-desc">HansHubを公開アクセス可能にするかどうかを設定。</div>
       <span class="card-badge">開発者のみ</span>
     </a>
     <a href="{{ url_for('backup.backup_page') }}" class="feature-card accent-red">

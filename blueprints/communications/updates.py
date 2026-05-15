@@ -20,7 +20,7 @@ def _load_global_updates() -> list:
                 "title":       u.get("title", ""),
                 "description": u.get("description", ""),
                 "timestamp":   u.get("timestamp", 0),
-                "created_by":  "LANHub Developers",
+                "created_by":  "HansHub Developers",
                 "tags":        u.get("tags", []),
                 "source":      "global",   # ← key flag for the frontend
             })

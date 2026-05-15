@@ -1,8 +1,8 @@
 #!/bin/bash
-# LANHub Lab Container Entrypoint
+# HansHub Lab Container Entrypoint
 
 # Get configuration from environment
-CODER_PASSWORD="${CODER_PASSWORD:-lanhub}"
+CODER_PASSWORD="${CODER_PASSWORD:-hanshub}"
 PROJECT_SOCKET="${PROJECT_SOCKET:-/tmp/sockets/project.sock}"
 PROJECT_SLUG="${PROJECT_SLUG:-project}"
 

@@ -1,4 +1,4 @@
-"""socket_events/lab_events.py - LANHub Lab real-time event handlers."""
+"""socket_events/lab_events.py - HansHub Lab real-time event handlers."""
 
 from flask import request
 from flask_socketio import emit, join_room, leave_room

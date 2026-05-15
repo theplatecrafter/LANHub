@@ -1,5 +1,5 @@
 """
-functions/lab.py - LANHub Lab feature business logic.
+functions/lab.py - HansHub Lab feature business logic.
 
 Handles:
 - Lab user management (registration, authentication)
@@ -26,7 +26,7 @@ import config as _config
 try:
     from gevent import spawn, joinall
 except ImportError:
-    # Fallback if gevent not available (shouldn't happen in LANHub)
+    # Fallback if gevent not available (shouldn't happen in HansHub)
     def spawn(func, *args):
         import threading
         t = threading.Thread(target=func, args=args)
@@ -48,9 +48,9 @@ LAB_SOCKET_DIR = "files/lab-sockets"
 LAB_PROJECTS_DIR = "files/lab"
 
 # Docker image name - must match tools/Dockerfile.lab
-LAB_DOCKER_IMAGE = "lanhub-lab:latest"
+LAB_DOCKER_IMAGE = "hanshub-lab:latest"
 
-# Password for code-server (internal security layer; users authenticate at LANHub level)
+# Password for code-server (internal security layer; users authenticate at HansHub level)
 LAB_CODE_SERVER_PASSWORD = ""
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ def project_create(
         title: Project title
         description: Project description
         visibility: 'private' or 'public'
-        is_always_on: If True, project starts on LANHub boot
+        is_always_on: If True, project starts on HansHub boot
     
     Returns:
         Project dict or None if creation failed
@@ -969,7 +969,7 @@ def docker_container_start(project: Dict) -> Optional[str]:
         # Use /tmp/sockets inside container since that's where socket_dir is mounted
         container_socket_path = f"/tmp/sockets/{project['slug']}.sock"
         environment = {
-            "CODER_PASSWORD": LAB_CODE_SERVER_PASSWORD or "lanhub",
+            "CODER_PASSWORD": LAB_CODE_SERVER_PASSWORD or "hanshub",
             "PROJECT_SOCKET": container_socket_path,
             "PROJECT_SLUG": project["slug"]
         }
@@ -1239,7 +1239,7 @@ watchdog==4.0.0
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My LANHub Project</title>
+    <title>My HansHub Project</title>
     <style>
         * {
             margin: 0;
@@ -1321,7 +1321,7 @@ watchdog==4.0.0
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Welcome to your LANHub Project!</h1>
+        <h1>🚀 Welcome to your HansHub Project!</h1>
         <p class="subtitle">
             Your Flask app is now running and ready to customize. Edit the files in VS Code to get started.
         </p>
@@ -1456,7 +1456,7 @@ import sys
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="LANHub FastAPI App")
+app = FastAPI(title="HansHub FastAPI App")
 
 def graceful_shutdown(signum, frame):
     \"\"\"Handle SIGINT/SIGTERM for graceful shutdown.\"\"\"
@@ -1566,7 +1566,7 @@ signal.signal(signal.SIGINT, graceful_shutdown)
 signal.signal(signal.SIGTERM, graceful_shutdown)
 
 def hello():
-    return "Hello, LANHub Lab!"
+    return "Hello, HansHub Lab!"
 
 if __name__ == '__main__':
     print(hello())
@@ -1582,9 +1582,9 @@ def _scaffold_nodejs_express(project_dir: str):
     os.makedirs(project_dir, exist_ok=True)
     
     package_json = {
-        "name": "lanhub-app",
+        "name": "hanshub-app",
         "version": "1.0.0",
-        "description": "LANHub Node.js project",
+        "description": "HansHub Node.js project",
         "main": "app.js",
         "scripts": {
             "start": "node app.js",
@@ -2474,7 +2474,7 @@ def git_init_repo(project_slug: str, author_name: str) -> bool:
             check=True
         )
         
-        email = f"{author_name.lower().replace(' ', '.')}@lanhub.local"
+        email = f"{author_name.lower().replace(' ', '.')}@hanshub.local"
         subprocess.run(
             ['git', f'--git-dir={git_dir}', f'--work-tree={project_dir}', 'config', 'user.email', email],
             cwd=project_dir,
@@ -2515,7 +2515,7 @@ def git_create_initial_commit(project_slug: str, initial_file: str = "README.md"
         readme_path = os.path.join(project_dir, initial_file)
         if not os.path.exists(readme_path):
             with open(readme_path, 'w') as f:
-                f.write(f"# {project_slug}\n\nProject initialized by LANHub.\n")
+                f.write(f"# {project_slug}\n\nProject initialized by HansHub.\n")
         
         # Add all files using explicit git repo
         subprocess.run(

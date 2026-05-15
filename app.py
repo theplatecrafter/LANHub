@@ -97,7 +97,7 @@ def _lang_get_template(env, name, parent=None, globals=None):
     try:
         from flask import has_request_context, request as _req
         if has_request_context():
-            _l = _req.cookies.get("lanhub_lang", "en")
+            _l = _req.cookies.get("hanshub_lang", "en")
             if _l and _l.replace("-", "").replace("_", "").isalnum():
                 lang = _l
     except Exception:
@@ -250,7 +250,7 @@ def handle_lab_csp_headers(response):
             "style-src * 'unsafe-inline'; "
             "font-src * data:; "
         )
-        # Remove X-Frame-Options to allow code-server to be framed by LANHub
+        # Remove X-Frame-Options to allow code-server to be framed by HansHub
         response.headers.pop('X-Frame-Options', None)
         app_log.debug(f"[lab] Applied permissive CSP headers for {request.path}")
     return response
@@ -309,7 +309,7 @@ def set_language():
         lang = "en"
     resp = make_response(jsonify({"ok": True, "lang": lang}))
     resp.set_cookie(
-        "lanhub_lang", lang,
+        "hanshub_lang", lang,
         max_age=365 * 86400,
         httponly=False,   # JS reads this for auto-detect
         samesite="Lax",
@@ -351,7 +351,7 @@ def inject_globals():
     except Exception:
         pass
 
-    current_lang = request.cookies.get("lanhub_lang", "en")
+    current_lang = request.cookies.get("hanshub_lang", "en")
     if current_lang not in available_langs:
         current_lang = "en"
 
@@ -435,7 +435,7 @@ def graceful_shutdown(*args, **kwargs):
     except Exception as e:
         app_log.warning(f"[shutdown] UNO cleanup error: {e}")
 
-    # ── 5. Stop all LANHub Lab Docker containers ──────────────────────────────
+    # ── 5. Stop all HansHub Lab Docker containers ──────────────────────────────
     try:
         import docker
         client = docker.from_env()

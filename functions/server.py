@@ -191,7 +191,7 @@ def get_gpu_stats() -> dict | None:
 
 
 def get_uptime_seconds() -> int:
-    """Seconds since the LANHub process started."""
+    """Seconds since the HansHub process started."""
     return int(time.time() - _app_start_time)
 
 

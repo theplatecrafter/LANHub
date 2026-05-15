@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}LANHub{% endblock %}</title>
+  <title>{% block title %}HansHub{% endblock %}</title>
 
   <link id="theme-stylesheet"
         rel="stylesheet"
@@ -12,7 +12,7 @@
   <!-- Apply saved theme BEFORE paint — prevents flash -->
   <script>
     (function () {
-      var saved = localStorage.getItem("lanhub-theme") || "dark";
+      var saved = localStorage.getItem("hanshub-theme") || "dark";
       document.getElementById("theme-stylesheet").href = "/static/themes/" + saved + ".css";
     })();
   </script>
@@ -126,7 +126,7 @@
 
   <!-- ── Top Nav ───────────────────────────────────────────── -->
   <nav class="topbar">
-    <a href="/" class="brand">LANHub</a>
+    <a href="/" class="brand">HansHub</a>
 
     <ul class="nav-links">
       <li><a href="/"      class="{{ 'active' if request.path == '/' }}">Home</a></li>
@@ -239,7 +239,7 @@
 
     function setTheme(theme) {
       document.getElementById("theme-stylesheet").href = "/static/themes/" + theme + ".css";
-      localStorage.setItem("lanhub-theme", theme);
+      localStorage.setItem("hanshub-theme", theme);
       document.getElementById("themeLabel").textContent = THEMES[theme] || theme;
       document.querySelectorAll(".theme-option").forEach(el => {
         el.classList.toggle("active", el.dataset.value === theme);
@@ -263,7 +263,7 @@
     });
 
     (function () {
-      const current = localStorage.getItem("lanhub-theme") || "dark";
+      const current = localStorage.getItem("hanshub-theme") || "dark";
       document.getElementById("themeLabel").textContent = THEMES[current] || current;
       document.querySelectorAll(".theme-option").forEach(el => {
         el.classList.toggle("active", el.dataset.value === current);
@@ -303,12 +303,12 @@
     }
 
     /* ── Browser language auto-detection ────────────────────────
-       Fires exactly once on first-ever visit (before the lanhub_lang
+       Fires exactly once on first-ever visit (before the hanshub_lang
        cookie exists).  Reads navigator.languages and picks the best
        available match, then silently sets the cookie + reloads.       */
     (function autoDetectLang() {
       // Cookie already set → nothing to do
-      if (document.cookie.split(";").some(c => c.trim().startsWith("lanhub_lang=")))
+      if (document.cookie.split(";").some(c => c.trim().startsWith("hanshub_lang=")))
         return;
 
       const browserLangs = navigator.languages || [navigator.language || "en"];

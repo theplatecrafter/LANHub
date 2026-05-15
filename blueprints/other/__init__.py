@@ -4,7 +4,7 @@ blueprints/other/
 other stuff
 
 Other:
-- owner_playground.py: A sandbox for the developer of LANHub
+- owner_playground.py: A sandbox for the developer of HansHub
 """
 
 from blueprints.other.owner_playground import bp as owner_playground_bp

@@ -1,6 +1,6 @@
-# LANHub Developer Resources Index
+# HansHub Developer Resources Index
 
-**Complete reference guide for LANHub development**
+**Complete reference guide for HansHub development**
 
 > Status: ✅ Complete Infrastructure  
 > Last Updated: April 2026
@@ -9,12 +9,12 @@
 
 ## 🚀 Start Here
 
-**New to LANHub?** → Read [QUICK_START.md](QUICK_START.md) (5 minutes)
+**New to HansHub?** → Read [QUICK_START.md](QUICK_START.md) (5 minutes)
 
 ```bash
 # Quick setup
 git clone <repo>
-cd LANHub
+cd HansHub
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements-dev.txt
@@ -128,7 +128,7 @@ black . && isort . && pytest tests/ --cov
 ## 📁 Project Structure
 
 ```
-LANHub/
+HansHub/
 ├── Documentation/
 │   ├── QUICK_START.md           ⭐ Start here
 │   ├── CONTRIBUTING.md          📝 Code guidelines
@@ -214,7 +214,7 @@ LANHub/
 ### "Module not found"
 ```bash
 # Make sure you're in the project directory
-cd /path/to/LANHub
+cd /path/to/HansHub
 
 # Reinstall dependencies
 pip install -r dependencies.txt

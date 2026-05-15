@@ -1,4 +1,4 @@
-"""blueprints/tools/lab.py - LANHub Lab blueprint routes."""
+"""blueprints/tools/lab.py - HansHub Lab blueprint routes."""
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, make_response
 from functools import wraps
@@ -273,7 +273,7 @@ def project_edit(slug):
 def project_proxy(slug, path=""):
     """Reverse proxy route to forward requests to project containers via Unix socket.
     
-    This route strips the LANHub prefix (/lab/project/<slug>/edit/) and forwards
+    This route strips the HansHub prefix (/lab/project/<slug>/edit/) and forwards
     the remainder to code-server, which serves from its root.
     
     Example:
@@ -290,7 +290,7 @@ def project_proxy(slug, path=""):
     connection_header = request.headers.get("Connection", "").lower()
     upgrade_header = request.headers.get("Upgrade", "").lower()
     
-    # Strip the LANHub route prefix and send only the path to the socket
+    # Strip the HansHub route prefix and send only the path to the socket
     # If path is empty (root request), send "/"
     # Otherwise send "/<path>" (which may contain version hashes like stable-xxx/...)
     full_path = f"/{path}" if path else "/"

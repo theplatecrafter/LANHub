@@ -1,6 +1,6 @@
-# LANHub Deployment Guide
+# HansHub Deployment Guide
 
-**Production and staging deployment procedures for LANHub**
+**Production and staging deployment procedures for HansHub**
 
 > Last Updated: April 2026
 
@@ -47,8 +47,8 @@
 
 ```bash
 # 1. Clone and setup
-git clone https://github.com/your-org/LANHub.git
-cd LANHub
+git clone https://github.com/your-org/HansHub.git
+cd HansHub
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
@@ -97,11 +97,11 @@ python app.py --port 8000
 
 ```bash
 # Create staging directory
-mkdir -p /var/www/lanhub-staging
-cd /var/www/lanhub-staging
+mkdir -p /var/www/hanshub-staging
+cd /var/www/hanshub-staging
 
 # Clone with specific branch
-git clone -b develop https://github.com/your-org/LANHub.git .
+git clone -b develop https://github.com/your-org/HansHub.git .
 
 # Setup venv
 python3 -m venv venv
@@ -121,7 +121,7 @@ cp configvars.example.json configvars.json
 {
   "DEBUG": false,
   "TESTING": false,
-  "SERVER_NAME": "staging.lanhub.local",
+  "SERVER_NAME": "staging.hanshub.local",
   "DATABASE": "staging.db",
   "REDIS_URL": "redis://localhost:6379/1"
 }
@@ -134,7 +134,7 @@ cp configvars.example.json configvars.json
 gunicorn -w 4 -b 0.0.0.0:5001 app:app
 
 # Or with systemd service (see below)
-systemctl start lanhub-staging
+systemctl start hanshub-staging
 ```
 
 ---
@@ -156,11 +156,11 @@ systemctl start lanhub-staging
 
 ```bash
 # 1. Create production directory
-mkdir -p /var/www/lanhub
-cd /var/www/lanhub
+mkdir -p /var/www/hanshub
+cd /var/www/hanshub
 
 # 2. Clone production branch
-git clone -b main https://github.com/your-org/LANHub.git .
+git clone -b main https://github.com/your-org/HansHub.git .
 
 # 3. Setup environment
 python3 -m venv venv
@@ -168,22 +168,22 @@ source venv/bin/activate
 pip install -r dependencies.txt
 
 # 4. Create non-root user
-useradd -r -s /bin/bash lanhub
-chown -R lanhub:lanhub /var/www/lanhub
+useradd -r -s /bin/bash hanshub
+chown -R hanshub:hanshub /var/www/hanshub
 ```
 
 ### Configuration
 
 ```bash
 # Setup production config
-sudo -u lanhub cp configvars.example.json configvars.json
+sudo -u hanshub cp configvars.example.json configvars.json
 
 # Edit with production values
 {
   "DEBUG": false,
   "TESTING": false,
   "SERVER_NAME": "games.example.com",
-  "DATABASE": "/var/lib/lanhub/app.db",
+  "DATABASE": "/var/lib/hanshub/app.db",
   "SECRET_KEY": "your-secret-key-here",
   "REDIS_URL": "redis://localhost:6379/0",
   "MAX_PLAYERS": 50,
@@ -193,24 +193,24 @@ sudo -u lanhub cp configvars.example.json configvars.json
 
 ### Systemd Service
 
-Create `/etc/systemd/system/lanhub.service`:
+Create `/etc/systemd/system/hanshub.service`:
 
 ```ini
 [Unit]
-Description=LANHub Game Server
+Description=HansHub Game Server
 After=network.target redis.service
 
 [Service]
 Type=notify
-User=lanhub
-WorkingDirectory=/var/www/lanhub
-Environment="PATH=/var/www/lanhub/venv/bin"
-ExecStart=/var/www/lanhub/venv/bin/gunicorn \
+User=hanshub
+WorkingDirectory=/var/www/hanshub
+Environment="PATH=/var/www/hanshub/venv/bin"
+ExecStart=/var/www/hanshub/venv/bin/gunicorn \
   --workers 4 \
   --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker \
   --bind 127.0.0.1:5000 \
-  --access-logfile /var/log/lanhub/access.log \
-  --error-logfile /var/log/lanhub/error.log \
+  --access-logfile /var/log/hanshub/access.log \
+  --error-logfile /var/log/hanshub/error.log \
   app:app
 Restart=on-failure
 RestartSec=10
@@ -223,17 +223,17 @@ Enable and start:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable lanhub
-sudo systemctl start lanhub
-sudo systemctl status lanhub
+sudo systemctl enable hanshub
+sudo systemctl start hanshub
+sudo systemctl status hanshub
 ```
 
 ### Nginx Reverse Proxy
 
-Create `/etc/nginx/sites-available/lanhub`:
+Create `/etc/nginx/sites-available/hanshub`:
 
 ```nginx
-upstream lanhub {
+upstream hanshub {
     server 127.0.0.1:5000;
 }
 
@@ -253,7 +253,7 @@ server {
     client_max_body_size 100M;
 
     location / {
-        proxy_pass http://lanhub;
+        proxy_pass http://hanshub;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -264,7 +264,7 @@ server {
     }
 
     location /static/ {
-        alias /var/www/lanhub/static/;
+        alias /var/www/hanshub/static/;
         expires 30d;
     }
 }
@@ -273,7 +273,7 @@ server {
 Enable site:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/lanhub /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/hanshub /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
@@ -281,7 +281,7 @@ sudo systemctl restart nginx
 ### SSL with Let's Encrypt
 
 ```bash
-sudo certbot certonly --webroot -w /var/www/lanhub/static -d games.example.com
+sudo certbot certonly --webroot -w /var/www/hanshub/static -d games.example.com
 sudo systemctl restart nginx
 ```
 
@@ -311,8 +311,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create non-root user
-RUN useradd -m -u 1000 lanhub && chown -R lanhub:lanhub /app
-USER lanhub
+RUN useradd -m -u 1000 hanshub && chown -R hanshub:hanshub /app
+USER hanshub
 
 # Expose port
 EXPOSE 5000
@@ -333,7 +333,7 @@ Create `docker-compose.yml`:
 version: '3.8'
 
 services:
-  lanhub:
+  hanshub:
     build: .
     ports:
       - "5000:5000"
@@ -364,7 +364,7 @@ Deploy:
 
 ```bash
 docker-compose up -d
-docker-compose logs -f lanhub
+docker-compose logs -f hanshub
 ```
 
 ---
@@ -378,10 +378,10 @@ docker-compose logs -f lanhub
 FLASK_ENV=production
 FLASK_DEBUG=false
 
-# LANHub
+# HansHub
 LANHU_PORT=5000
 LANHU_DEBUG=false
-LANHU_DATABASE=/var/lib/lanhub/app.db
+LANHU_DATABASE=/var/lib/hanshub/app.db
 
 # Optional
 REDIS_URL=redis://localhost:6379/0
@@ -393,7 +393,7 @@ SECRET_KEY=your-secret-key
 
 ```json
 {
-  "server_name": "LANHub Game Server",
+  "server_name": "HansHub Game Server",
   "max_players": 100,
   "features": [
     "chat",
@@ -425,11 +425,11 @@ curl http://localhost:5000/health
 
 ```bash
 # Systemd
-sudo journalctl -u lanhub -f
+sudo journalctl -u hanshub -f
 
 # Gunicorn
-tail -f /var/log/lanhub/access.log
-tail -f /var/log/lanhub/error.log
+tail -f /var/log/hanshub/access.log
+tail -f /var/log/hanshub/error.log
 ```
 
 ### Metrics
@@ -476,7 +476,7 @@ python app.py --port 8000
 sqlite3 app.db "pragma integrity_check;"
 
 # Restart Flask application
-systemctl restart lanhub
+systemctl restart hanshub
 ```
 
 ### WebSocket Connection Issues
@@ -528,7 +528,7 @@ git revert HEAD
 git push origin main
 
 # Restart service
-systemctl restart lanhub
+systemctl restart hanshub
 ```
 
 ### Database Rollback
@@ -541,14 +541,14 @@ cp app.db app.db.backup
 cp app.db.old app.db
 
 # Restart service
-systemctl restart lanhub
+systemctl restart hanshub
 ```
 
 ### Full Rollback
 
 ```bash
 # Stop service
-systemctl stop lanhub
+systemctl stop hanshub
 
 # Checkout previous version
 git checkout <previous-commit-hash>
@@ -557,10 +557,10 @@ git checkout <previous-commit-hash>
 cp /backups/app.db.2024-01-15 app.db
 
 # Start service
-systemctl start lanhub
+systemctl start hanshub
 
 # Verify health
-systemctl status lanhub
+systemctl status hanshub
 curl http://localhost:5000/health
 ```
 
@@ -569,12 +569,12 @@ curl http://localhost:5000/health
 ```bash
 #!/bin/bash
 # Daily backup script
-BACKUP_DIR="/backups/lanhub"
+BACKUP_DIR="/backups/hanshub"
 DATE=$(date +%Y-%m-%d)
 
 mkdir -p $BACKUP_DIR
-cp /var/lib/lanhub/app.db $BACKUP_DIR/app.db.$DATE
-tar -czf $BACKUP_DIR/config.$DATE.tar.gz /var/www/lanhub/configvars.json
+cp /var/lib/hanshub/app.db $BACKUP_DIR/app.db.$DATE
+tar -czf $BACKUP_DIR/config.$DATE.tar.gz /var/www/hanshub/configvars.json
 
 # Keep last 30 days
 find $BACKUP_DIR -mtime +30 -delete
@@ -583,7 +583,7 @@ find $BACKUP_DIR -mtime +30 -delete
 Schedule in crontab:
 
 ```
-0 2 * * * /usr/local/bin/backup-lanhub.sh
+0 2 * * * /usr/local/bin/backup-hanshub.sh
 ```
 
 ---
@@ -594,17 +594,17 @@ Schedule in crontab:
 
 ```bash
 # Check service running
-systemctl status lanhub
+systemctl status hanshub
 
 # Test endpoints
 curl http://localhost:5000/health
 curl http://localhost:5000/
 
 # Check logs
-journalctl -u lanhub -n 100
+journalctl -u hanshub -n 100
 
 # Monitor for 5 minutes
-watch -n 1 'systemctl show -p ActiveState --value lanhub'
+watch -n 1 'systemctl show -p ActiveState --value hanshub'
 ```
 
 ### Performance Tuning
@@ -624,4 +624,4 @@ gzip_types text/plain text/css application/json;
 
 ---
 
-**Deployment complete! Monitor your LANHub instance.**
+**Deployment complete! Monitor your HansHub instance.**

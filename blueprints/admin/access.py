@@ -21,7 +21,7 @@ from flask import (
 import config
 
 access_bp  = Blueprint("access", __name__)
-_COOKIE    = "lanhub_access"
+_COOKIE    = "hanshub_access"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

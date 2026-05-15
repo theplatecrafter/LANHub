@@ -1,4 +1,4 @@
-"""LANHub test suite.
+"""HansHub test suite.
 
 This package contains comprehensive tests for all core modules.
 

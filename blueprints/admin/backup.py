@@ -120,7 +120,7 @@ def backup_export():
 
         # Manifest so we can validate on import
         zf.writestr(
-            "lanhub_backup.json",
+            "hanshub_backup.json",
             f'{{"version": 1, "timestamp": "{ts}", "host": "{os.uname().nodename}"}}'
         )
 
@@ -130,7 +130,7 @@ def backup_export():
         buf,
         mimetype="application/zip",
         as_attachment=True,
-        download_name=f"lanhub_backup_{ts}.zip",
+        download_name=f"hanshub_backup_{ts}.zip",
     )
 
 
@@ -149,11 +149,11 @@ def backup_import():
             names = zf.namelist()
 
             # Validate: must contain the manifest
-            if "lanhub_backup.json" not in names:
+            if "hanshub_backup.json" not in names:
                 return jsonify({
                     "ok":    False,
-                    "error": "This does not look like a valid LANHub backup "
-                             "(missing lanhub_backup.json)."
+                    "error": "This does not look like a valid HansHub backup "
+                             "(missing hanshub_backup.json)."
                 }), 400
 
             # Restore files — overwrite in place
@@ -316,7 +316,7 @@ def danger_purge_chat():
 def danger_nuke():
     """
     Complete server removal:
-      1. Stop + disable the lanhub systemd service
+      1. Stop + disable the hanshub systemd service
       2. Delete the service file
       3. Delete the entire project directory
 
@@ -324,10 +324,10 @@ def danger_nuke():
     response can reach the browser before the process dies.
     """
     confirm = request.form.get("confirm_phrase", "").strip()
-    if confirm != "DELETE LANHUB FOREVER":
+    if confirm != "DELETE HANSHUB FOREVER":
         return jsonify({
             "ok":    False,
-            "error": 'You must type "DELETE LANHUB FOREVER" exactly to confirm.',
+            "error": 'You must type "DELETE HANSHUB FOREVER" exactly to confirm.',
         }), 400
 
     app_log.info(
@@ -341,8 +341,8 @@ def danger_nuke():
 
         # Stop + disable systemd service
         for cmd in [
-            ["sudo", "systemctl", "stop",    "lanhub"],
-            ["sudo", "systemctl", "disable", "lanhub"],
+            ["sudo", "systemctl", "stop",    "hanshub"],
+            ["sudo", "systemctl", "disable", "hanshub"],
         ]:
             try:
                 subprocess.run(cmd, timeout=10)
@@ -350,7 +350,7 @@ def danger_nuke():
                 pass
 
         # Remove service file
-        service = "/etc/systemd/system/lanhub.service"
+        service = "/etc/systemd/system/hanshub.service"
         try:
             subprocess.run(["sudo", "rm", "-f", service], timeout=5)
             subprocess.run(["sudo", "systemctl", "daemon-reload"], timeout=10)
@@ -358,7 +358,7 @@ def danger_nuke():
             pass
 
         # Kill cloudflared
-        pid_file = "/tmp/lanhub_cf.pid"
+        pid_file = "/tmp/hanshub_cf.pid"
         try:
             if os.path.isfile(pid_file):
                 with open(pid_file) as fh:

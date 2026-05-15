@@ -1,4 +1,4 @@
-# LANHub Architecture
+# HansHub Architecture
 
 **System design, module organization, and technical overview**
 
@@ -25,7 +25,7 @@
 
 ## System Overview
 
-LANHub is a Flask-based web application serving local area network games and utilities. It provides:
+HansHub is a Flask-based web application serving local area network games and utilities. It provides:
 
 - **Real-time Communication**: WebSocket-based messaging and game events
 - **Multi-Game Platform**: Chat, chess, Uno, Tetris, Slither, Scribble, Geoguesser
@@ -120,7 +120,7 @@ LANHub is a Flask-based web application serving local area network games and uti
 ### Root Level Files
 
 ```
-LANHub/
+HansHub/
 ├── app.py                  # Flask app initialization & main routes
 ├── socketio_instance.py    # Shared Socket.IO instance
 ├── functions.py            # Utility functions (DB, validation, etc.)
@@ -230,7 +230,7 @@ tests/
 ### User Connection Flow
 
 ```
-1. User visits LANHub URL
+1. User visits HansHub URL
    ↓
 2. Browser requests HTML (HTTP GET)
    ↓
@@ -396,8 +396,8 @@ def handle_event(data):
 
 1. **Environment Variables** (highest priority)
    ```bash
-   LANhub_PORT=5000
-   LANHUB_DEBUG=true
+   HANSHUB_PORT=5000
+   HANSHUB_DEBUG=true
    ```
 
 2. **configvars.json** (runtime config)
@@ -419,7 +419,7 @@ def handle_event(data):
 
 1. Define in `config.py`:
    ```python
-   NEW_SETTING = os.getenv('LANhub_NEW_SETTING', 'default_value')
+   NEW_SETTING = os.getenv('HANSHUB_NEW_SETTING', 'default_value')
    ```
 
 2. Use in code:

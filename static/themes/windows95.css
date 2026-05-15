@@ -1,5 +1,5 @@
 /* ============================================================
-   LANHub — WINDOWS 95 Theme
+   HansHub — WINDOWS 95 Theme
    Aesthetic: It's now safe to turn off your computer.
    Beveled borders. MS Sans Serif. Grey everything.
    ============================================================ */
@@ -124,7 +124,7 @@ nav.topbar .nav-links a:hover, nav.topbar .nav-links a.active {
 
 /* Title bar */
 .feature-card::before {
-  content: var(--win-title, '  LANHub');
+  content: var(--win-title, '  HansHub');
   display: block;
   background: linear-gradient(90deg, var(--card-accent, #000080), #1084d0);
   color: #fff; font-size: 0.75rem; font-weight: bold;

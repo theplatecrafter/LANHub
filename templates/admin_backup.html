@@ -61,7 +61,7 @@
         <div class="card-body">
             <h6 class="mb-1">Restore from backup</h6>
             <p class="text-muted mb-3" style="font-size:.85rem;">
-                Upload a <code>lanhub_backup_*.zip</code> file exported from this or another LANHub instance.
+                Upload a <code>hanshub_backup_*.zip</code> file exported from this or another HansHub instance.
                 Existing files are overwritten in place. A server restart is recommended after restoring.
             </p>
             <div class="alert alert-warning py-2 mb-3" style="font-size:.83rem;">
@@ -198,9 +198,9 @@
                     border-radius:8px; padding:1.2rem;">
             <h5 style="color:#dc3545;">Complete server removal</h5>
             <p style="font-size:.875rem; color:#adb5bd; margin-bottom:1rem;">
-                Stops and removes the <code>lanhub</code> systemd service, kills the Cloudflare tunnel,
+                Stops and removes the <code>hanshub</code> systemd service, kills the Cloudflare tunnel,
                 and deletes the entire project directory from disk.
-                After this completes the server computer will have no trace of LANHub.
+                After this completes the server computer will have no trace of HansHub.
                 <strong style="color:#f87171;">This cannot be undone.</strong>
             </p>
             <button class="btn btn-danger"
@@ -344,9 +344,9 @@ function nukeFlow() {
         "nuke",
         10,
         "Remove server permanently",
-        "This will stop the lanhub systemd service, remove it, kill the Cloudflare tunnel, " +
+        "This will stop the hanshub systemd service, remove it, kill the Cloudflare tunnel, " +
         "and delete the entire project directory. The server will be completely gone.",
-        "DELETE LANHUB FOREVER"
+        "DELETE HANSHUB FOREVER"
     );
 }
 
@@ -404,7 +404,7 @@ async function executeAction(action) {
 
     const body = new FormData();
     if (action === "nuke") {
-        body.append("confirm_phrase", "DELETE LANHUB FOREVER");
+        body.append("confirm_phrase", "DELETE HANSHUB FOREVER");
     }
 
     try {

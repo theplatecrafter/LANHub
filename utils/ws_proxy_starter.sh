@@ -1,8 +1,8 @@
 #!/bin/bash
-# WebSocket proxy starter for LANHub
+# WebSocket proxy starter for HansHub
 # Listens on port 9000 and forwards to lab-sockets
 
-SOCKET_DIR="/home/hans/project/LANHub/files/lab-sockets"
+SOCKET_DIR="/home/hans/project/HansHub/files/lab-sockets"
 
 # Ensure socket directory exists
 mkdir -p "$SOCKET_DIR"

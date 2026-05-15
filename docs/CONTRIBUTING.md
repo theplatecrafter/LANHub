@@ -1,6 +1,6 @@
-# Contributing to LANHub
+# Contributing to HansHub
 
-**Guidelines for contributing to the LANHub project**
+**Guidelines for contributing to the HansHub project**
 
 > Last Updated: April 2026
 
@@ -32,11 +32,11 @@
 ```bash
 # Fork the repo on GitHub
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/LANHub.git
-cd LANHub
+git clone https://github.com/YOUR_USERNAME/HansHub.git
+cd HansHub
 
 # Add upstream remote
-git remote add upstream https://github.com/ORIGINAL_OWNER/LANHub.git
+git remote add upstream https://github.com/ORIGINAL_OWNER/HansHub.git
 ```
 
 ### Branches
@@ -231,7 +231,7 @@ class User:
 
 ### Writing Tests
 
-See [TESTING.md](https://github.com/theplatecrafter/LANHub/blob/main/docs/TESTING.md) for detailed testing guide.
+See [TESTING.md](https://github.com/theplatecrafter/HansHub/blob/main/docs/TESTING.md) for detailed testing guide.
 
 **Quick summary:**
 ```python
@@ -581,10 +581,10 @@ Located in `requirements-dev.txt`:
 
 ## Also See
 
-- [TESTING.md](https://github.com/theplatecrafter/LANHub/blob/main/docs/TESTING.md) - Testing guide
-- [ARCHITECTURE.md](https://github.com/theplatecrafter/LANHub/blob/main/docs/ARCHITECTURE.md) - Project structure
-- [README.md](https://github.com/theplatecrafter/LANHub/blob/main/docs/README.md) - Project overview
+- [TESTING.md](https://github.com/theplatecrafter/HansHub/blob/main/docs/TESTING.md) - Testing guide
+- [ARCHITECTURE.md](https://github.com/theplatecrafter/HansHub/blob/main/docs/ARCHITECTURE.md) - Project structure
+- [README.md](https://github.com/theplatecrafter/HansHub/blob/main/docs/README.md) - Project overview
 
 ---
 
-**Thank you for contributing to LANHub!** 🎉
+**Thank you for contributing to HansHub!** 🎉

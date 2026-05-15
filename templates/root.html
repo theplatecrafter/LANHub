@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}LANHub — Home{% endblock %}
+{% block title %}HansHub — Home{% endblock %}
 
 {% block content %}
 {% if request.args.get('afk') %}
@@ -26,7 +26,7 @@
   <p class="mono" style="color: var(--cyan); letter-spacing: 0.15em; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 10px;">
     ◈ System Online
   </p>
-  <h1>Welcome to <span style="color: var(--cyan);">LANHub</span></h1>
+  <h1>Welcome to <span style="color: var(--cyan);">HansHub</span></h1>
   <p style="color: var(--text-dim); margin-top: 10px; max-width: 480px; font-size: 0.92rem;">
     A webapp that runs on your local network (LAN). chat, play games, and more with others on your network.
   </p>
@@ -70,7 +70,7 @@
     <a href="/updates" class="feature-card accent-cyan">
       <div class="card-icon">🚀</div>
       <div class="card-label">Changelog</div>
-      <div class="card-title">LANHub Updates</div>
+      <div class="card-title">HansHub Updates</div>
       <div class="card-desc">Release notes and feature updates from the DEV team.</div>
       <span class="card-badge">Live</span>
     </a>
@@ -160,8 +160,8 @@
     <a href="/about" class="feature-card accent-green">
       <div class="card-icon">ℹ️</div>
       <div class="card-label">Info</div>
-      <div class="card-title">LANHub Description</div>
-      <div class="card-desc">What is LANHub, what can it do, and how does it work.</div>
+      <div class="card-title">HansHub Description</div>
+      <div class="card-desc">What is HansHub, what can it do, and how does it work.</div>
       <span class="card-badge">Live</span>
     </a>
   </div>
@@ -178,7 +178,7 @@
     <a href="/lab" class="feature-card accent-amber">
       <div class="card-icon">🧪</div>
       <div class="card-label">Development</div>
-      <div class="card-title">LANHub Lab</div>
+      <div class="card-title">HansHub Lab</div>
       <div class="card-desc">Self-hosted web development environment. Create and deploy web apps on your LAN.</div>
       <span class="card-badge">Live</span>
     </a>
@@ -225,7 +225,7 @@
       <div class="card-icon">🧪</div>
       <div class="card-label">Experimental</div>
       <div class="card-title">Owner Playground</div>
-      <div class="card-desc">Experimental features and creative ideas from the LANHub developer. A sandbox of new stuff.</div>
+      <div class="card-desc">Experimental features and creative ideas from the HansHub developer. A sandbox of new stuff.</div>
       <span class="card-badge">Experimental</span>
     </a>
   </div>
@@ -340,7 +340,7 @@
       <div class="card-icon">🌐</div>
       <div class="card-label">World Wide Web</div>
       <div class="card-title">Access Settings</div>
-      <div class="card-desc">Decide whether your LANHub can be accessed publically or not.</div>
+      <div class="card-desc">Decide whether your HansHub can be accessed publically or not.</div>
       <span class="card-badge">DEV Only</span>
     </a>
     <a href="{{ url_for('backup.backup_page') }}" class="feature-card accent-red">

@@ -1,5 +1,5 @@
 /* ============================================================
-   LANHub — GAME BOY Theme
+   HansHub — GAME BOY Theme
    Aesthetic: Original DMG-01. 4 shades of green. Pixel font.
    No anti-aliasing. No gradients. Dithering patterns.
    ============================================================ */
@@ -125,7 +125,7 @@ input::placeholder { color: var(--text-dim); }
 
 .modal-bg { position: fixed; inset: 0; background: rgba(15,56,15,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; }
 .modal { background: var(--bg-panel); border: 4px solid var(--border-hi); padding: 20px; width: 320px; max-width: 90vw; }
-.modal::before { content: '*** LANHub ***'; display: block; text-align: center; font-size: 0.55rem; color: var(--text-dim); margin-bottom: 12px; letter-spacing: 0.15em; }
+.modal::before { content: '*** HansHub ***'; display: block; text-align: center; font-size: 0.55rem; color: var(--text-dim); margin-bottom: 12px; letter-spacing: 0.15em; }
 .modal h2 { font-size: 0.65rem; margin-bottom: 10px; }
 .modal p  { font-size: 0.6rem; color: var(--text-dim); margin-bottom: 14px; line-height: 2; }
 

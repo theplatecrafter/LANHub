@@ -1,6 +1,6 @@
-# LANHub Configuration Files
+# HansHub Configuration Files
 
-This directory contains configuration files and examples for LANHub development and deployment.
+This directory contains configuration files and examples for HansHub development and deployment.
 
 ## Contents
 

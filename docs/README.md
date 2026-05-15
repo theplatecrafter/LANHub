@@ -1,12 +1,12 @@
-# LANHub Documentation
+# HansHub Documentation
 
-This directory contains all developer and user documentation for LANHub.
+This directory contains all developer and user documentation for HansHub.
 
 ## Contents
 
 - **QUICK_START.md** - Get up and running in 5 minutes
 - **TESTING.md** - Testing infrastructure and guidelines  
-- **CONTRIBUTING.md** - How to contribute to LANHub
+- **CONTRIBUTING.md** - How to contribute to HansHub
 - **ARCHITECTURE.md** - System design and structure
 - **DEPLOYMENT.md** - Production deployment guide
 - **DEVELOPER_GUIDE.md** - Detailed developer reference
@@ -17,7 +17,7 @@ This directory contains all developer and user documentation for LANHub.
 
 ## Quick Links
 
-New to LANHub? Start with [QUICK_START.md](QUICK_START.md)
+New to HansHub? Start with [QUICK_START.md](QUICK_START.md)
 
 Want to contribute? Read [CONTRIBUTING.md](CONTRIBUTING.md)
 

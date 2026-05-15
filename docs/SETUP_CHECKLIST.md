@@ -1,6 +1,6 @@
-# LANHub Setup & Verification Checklist
+# HansHub Setup & Verification Checklist
 
-**Complete checklist for LANHub development environment setup and verification**
+**Complete checklist for HansHub development environment setup and verification**
 
 ---
 
@@ -9,12 +9,12 @@
 ### Prerequisites
 - [ ] Python 3.10 or higher installed (`python --version`)
 - [ ] Git installed (`git --version`)
-- [ ] Access to LANHub repository
+- [ ] Access to HansHub repository
 - [ ] Text editor or IDE (VS Code recommended)
 
 ### Initial Setup
 - [ ] Clone repository: `git clone <url>`
-- [ ] Navigate to directory: `cd LANHub`
+- [ ] Navigate to directory: `cd HansHub`
 - [ ] Create virtual environment: `python -m venv venv`
 - [ ] Activate virtual environment:
   - [ ] Linux/Mac: `source venv/bin/activate`

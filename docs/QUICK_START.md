@@ -1,6 +1,6 @@
-# LANHub Quick Start Guide
+# HansHub Quick Start Guide
 
-**Get up and running with LANHub development in 5 minutes**
+**Get up and running with HansHub development in 5 minutes**
 
 ---
 
@@ -8,8 +8,8 @@
 
 ### 1. Clone & Enter Directory
 ```bash
-git clone https://github.com/YOUR_USERNAME/LANHub.git
-cd LANHub
+git clone https://github.com/YOUR_USERNAME/HansHub.git
+cd HansHub
 ```
 
 ### 2. Create Virtual Environment
@@ -71,7 +71,7 @@ black . && isort . && flake8 . && pytest tests/
 ## 📁 Project Structure
 
 ```
-LANHub/
+HansHub/
 ├── blueprints/          # Flask blueprint modules
 ├── socket_events/       # WebSocket event handlers
 ├── static/              # Frontend assets (CSS, JS)
@@ -188,8 +188,8 @@ import pdb; pdb.set_trace()
 
 ### `ModuleNotFoundError: No module named 'functions'`
 ```bash
-# Make sure you're in the LANHub directory
-cd /path/to/LANHub
+# Make sure you're in the HansHub directory
+cd /path/to/HansHub
 
 # Reinstall dependencies
 pip install -r dependencies.txt

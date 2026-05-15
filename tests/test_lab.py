@@ -1,4 +1,4 @@
-"""tests/test_lab.py - Unit tests for LANHub Lab feature."""
+"""tests/test_lab.py - Unit tests for HansHub Lab feature."""
 
 import pytest
 import time

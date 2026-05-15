@@ -1,6 +1,6 @@
-# LANHub Developer Guide
+# HansHub Developer Guide
 
-**Complete documentation for the reorganized LANHub codebase (Phase 1-4)**
+**Complete documentation for the reorganized HansHub codebase (Phase 1-4)**
 
 > Last Updated: April 2026  
 > Status: Phase 4 - Final Documentation  
@@ -98,7 +98,7 @@ User clicks "Send Message" button
 ### Complete Layout
 
 ```
-LANHub/
+HansHub/
 ├── app.py                          ★ Main Flask application
 ├── socketio_instance.py            ★ Socket.io configuration
 ├── config.py                       ★ Configuration management
@@ -1669,7 +1669,7 @@ When a feature requires **infrastructure changes** (Docker builds, system packag
 1. **Automatic on startup**: App checks `updates/` directory for pending updates
 2. **Non-interactive auto-apply**: Updates marked with `Requires input: no` run automatically
 3. **Manual trigger**: Admin panel at `/admin/server/system-updates` to check/apply
-4. **Tracking**: Applied updates stored in `.lanhub_updates_manifest` (prevents re-runs)
+4. **Tracking**: Applied updates stored in `.hanshub_updates_manifest` (prevents re-runs)
 
 ### Creating an Update
 
@@ -1684,17 +1684,17 @@ Create a shell script in a new version directory:
 # Requires restart: no
 # Requires sudo: yes
 # Requires input: no
-# Description: Install Docker and build lanhub-lab:latest image
+# Description: Install Docker and build hanshub-lab:latest image
 
 set -e
 
 # Check if already done
-if docker image inspect lanhub-lab:latest >/dev/null 2>&1; then
+if docker image inspect hanshub-lab:latest >/dev/null 2>&1; then
     exit 0  # Already exists, skip
 fi
 
 # Your update logic here
-docker build -f tools/Dockerfile.lab -t lanhub-lab:latest .
+docker build -f tools/Dockerfile.lab -t hanshub-lab:latest .
 exit 0  # Success
 ```
 
@@ -1742,10 +1742,10 @@ print(results)
 EOF
 
 # View applied updates
-cat .lanhub_updates_manifest | python3 -m json.tool
+cat .hanshub_updates_manifest | python3 -m json.tool
 
 # Clear manifest to re-run all
-rm .lanhub_updates_manifest
+rm .hanshub_updates_manifest
 ```
 
 ### Best Practices

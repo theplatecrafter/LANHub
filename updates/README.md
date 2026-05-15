@@ -1,8 +1,8 @@
-# LANHub Update System
+# HansHub Update System
 
 ## Overview
 
-The LANHub update system allows server administrators to apply incremental updates to a running deployment. The system tracks which updates have been applied and prevents duplicate execution.
+The HansHub update system allows server administrators to apply incremental updates to a running deployment. The system tracks which updates have been applied and prevents duplicate execution.
 
 ## Files
 
@@ -22,7 +22,7 @@ The LANHub update system allows server administrators to apply incremental updat
 
 ## Usage
 
-Run the update process from the LANHub root directory:
+Run the update process from the HansHub root directory:
 
 ```bash
 bash update.sh

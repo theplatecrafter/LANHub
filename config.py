@@ -1,6 +1,6 @@
 # config.py
 """
-Single source of truth for LANHub configuration.
+Single source of truth for HansHub configuration.
 
 Loads configvars.json and exposes every value as a module-level name,
 so all existing  `from config import X`  and  `from config import *`

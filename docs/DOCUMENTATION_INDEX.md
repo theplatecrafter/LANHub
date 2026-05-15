@@ -1,12 +1,12 @@
-# LANHub Documentation Index
+# HansHub Documentation Index
 
-**Quick reference guide for all LANHub documentation**
+**Quick reference guide for all HansHub documentation**
 
 ---
 
 ## 📖 Start Here
 
-### New to LANHub?
+### New to HansHub?
 Start with these in order:
 
 1. **[README.md](README.md)** (5 min read)
@@ -460,6 +460,6 @@ Log files:
 
 **Last Updated**: April 2026  
 **Status**: Phase 4 Complete ✅  
-**Maintainers**: LANHub Team
+**Maintainers**: HansHub Team
 
 Happy coding! 🚀

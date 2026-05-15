@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh — LANHub one-shot setup script
+# install.sh — HansHub one-shot setup script
 # Run this once after cloning the repo.
 # Usage: bash install.sh
 
@@ -12,14 +12,14 @@ cd "$SCRIPT_DIR"
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
 
-info()    { echo -e "${CYAN}[LANHub]${RESET} $*"; }
+info()    { echo -e "${CYAN}[HansHub]${RESET} $*"; }
 success() { echo -e "${GREEN}[✓]${RESET} $*"; }
 warn()    { echo -e "${YELLOW}[!]${RESET} $*"; }
 error()   { echo -e "${RED}[✗]${RESET} $*"; exit 1; }
 ask()     { echo -e "${BOLD}$*${RESET}"; }
 
 echo ""
-echo -e "${BOLD}🛰️  LANHub Setup${RESET}"
+echo -e "${BOLD}🛰️  HansHub Setup${RESET}"
 echo "────────────────────────────────────────"
 echo ""
 echo "Requirements:"
@@ -142,11 +142,11 @@ echo ""
 
 # ── Step 6 — Build Docker image for Lab feature ────────────────────────────────
 if [ "$LAB_FEATURE_ENABLED" = true ]; then
-    info "Building Docker image for Lab feature (lanhub-lab:latest)..."
+    info "Building Docker image for Lab feature (hanshub-lab:latest)..."
     echo ""
 
 # Build with real-time output showing progress
-if docker build -f tools/Dockerfile.lab -t lanhub-lab:latest . 2>&1 | while IFS= read -r line; do
+if docker build -f tools/Dockerfile.lab -t hanshub-lab:latest . 2>&1 | while IFS= read -r line; do
     # Show each build step with indentation and formatting
     if [[ "$line" =~ ^Step\ [0-9] ]]; then
         echo -e "  ${GREEN}→${RESET} $line"
@@ -281,8 +281,8 @@ if [ "$INSTALL_MODE" = "server" ]; then
     # Configure git user (needed for any git operations)
     if [ -z "$(git config --global user.name 2>/dev/null)" ]; then
         info "Configuring git user..."
-        git config --global user.name "LANHub Server"
-        git config --global user.email "server@lanhub.local"
+        git config --global user.name "HansHub Server"
+        git config --global user.email "server@hanshub.local"
         success "Git user configured."
     fi
     
@@ -291,7 +291,7 @@ if [ "$INSTALL_MODE" = "server" ]; then
     echo ""
     echo "Before continuing, do these two things in your browser:"
     echo ""
-    echo -e "  ${BOLD}1. Create a new GitHub repository${RESET} (e.g. 'lanhub-redirect')"
+    echo -e "  ${BOLD}1. Create a new GitHub repository${RESET} (e.g. 'hanshub-redirect')"
     echo "     → Go to https://github.com/new"
     echo "     → Add a README.md so the main branch is created"
     echo "     → Go to Settings → Pages → Source → Deploy from branch → main / root → Save"
@@ -340,7 +340,7 @@ if [ "$SKIP_CONFIG" = false ]; then
 
     # PORT — must be a number between 1 and 65535
     while true; do
-        ask "Port to run LANHub on [default: 5000]:"
+        ask "Port to run HansHub on [default: 5000]:"
         read -r PORT
         PORT="${PORT:-5000}"
         if [[ ! "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
@@ -428,11 +428,11 @@ if [ "$SKIP_CONFIG" = false ]; then
 
     # Write config — pass values via environment variables into a quoted heredoc
     # so special characters in passwords/URLs never break the Python script.
-    export _LANHUB_PORT="$PORT"
-    export _LANHUB_DEV_USER="$DEV_USER"
-    export _LANHUB_DEV_PASS="$DEV_PASS"
-    export _LANHUB_SITE_MODE="$SITE_MODE"
-    export _LANHUB_SITE_PASSWORD="$SITE_PASSWORD"
+    export _HANSHUB_PORT="$PORT"
+    export _HANSHUB_DEV_USER="$DEV_USER"
+    export _HANSHUB_DEV_PASS="$DEV_PASS"
+    export _HANSHUB_SITE_MODE="$SITE_MODE"
+    export _HANSHUB_SITE_PASSWORD="$SITE_PASSWORD"
 
     ./venv/bin/python3 - <<'PYEOF'
 import json, os, sys
@@ -446,16 +446,16 @@ except Exception as e:
     sys.exit(1)
 
 cfg.setdefault("general", {})
-cfg["general"]["PORT"] = int(os.environ["_LANHUB_PORT"])
+cfg["general"]["PORT"] = int(os.environ["_HANSHUB_PORT"])
 
 cfg.setdefault("admin", {})
-cfg["admin"]["INITIAL_DEV_USERNAME"] = os.environ["_LANHUB_DEV_USER"]
-cfg["admin"]["INITIAL_DEV_PASSWORD"] = os.environ["_LANHUB_DEV_PASS"]
+cfg["admin"]["INITIAL_DEV_USERNAME"] = os.environ["_HANSHUB_DEV_USER"]
+cfg["admin"]["INITIAL_DEV_PASSWORD"] = os.environ["_HANSHUB_DEV_PASS"]
 cfg["admin"]["SECRET_KEY"]           = "__generate__"
 
 cfg.setdefault("access", {})
-cfg["access"]["SITE_MODE"]     = os.environ["_LANHUB_SITE_MODE"]
-cfg["access"]["SITE_PASSWORD"] = os.environ["_LANHUB_SITE_PASSWORD"]
+cfg["access"]["SITE_MODE"]     = os.environ["_HANSHUB_SITE_MODE"]
+cfg["access"]["SITE_PASSWORD"] = os.environ["_HANSHUB_SITE_PASSWORD"]
 
 try:
     with open(cfg_path, "w") as f:
@@ -468,8 +468,8 @@ print("configvars.json written successfully.")
 PYEOF
 
     # Clean up exported secrets immediately
-    unset _LANHUB_REPO_URL _LANHUB_PORT _LANHUB_DEV_USER _LANHUB_DEV_PASS
-    unset _LANHUB_SITE_MODE _LANHUB_SITE_PASSWORD
+    unset _HANSHUB_REPO_URL _HANSHUB_PORT _HANSHUB_DEV_USER _HANSHUB_DEV_PASS
+    unset _HANSHUB_SITE_MODE _HANSHUB_SITE_PASSWORD
 
     success "Configuration saved."
 fi
@@ -508,7 +508,7 @@ except:
     print(5000)
 ")
 
-echo "Starting LANHub server on port $PORT (LAN access)..."
+echo "Starting HansHub server on port $PORT (LAN access)..."
 source venv/bin/activate
 python app.py
 STARTSH
@@ -529,7 +529,7 @@ except:
     print(5000)
 ")
 
-echo "Starting LANHub on port $PORT (LAN only — no tunnel)..."
+echo "Starting HansHub on port $PORT (LAN only — no tunnel)..."
 source venv/bin/activate
 python app.py
 STARTSH
@@ -551,7 +551,7 @@ except:
 ")
 
 echo ""
-echo "LANHub — Developer Mode"
+echo "HansHub — Developer Mode"
 echo "Access at: http://localhost:$PORT"
 echo "Press Ctrl+C to stop."
 echo ""
@@ -570,7 +570,7 @@ if [ "$INSTALL_MODE" = "dev" ]; then
     info "Skipping systemd service (dev mode — run './start.sh' manually)."
 else
     CURRENT_USER=$(whoami)
-    SERVICE_NAME="lanhub"
+    SERVICE_NAME="hanshub"
 
     # Loop to ensure we get a unique or explicitly overwritten service name
     while true; do
@@ -580,7 +580,7 @@ else
             ask "Do you want to (O)verwrite it, or (R)ename this new service? [O/r]:"
             read -r OVERWRITE_CHOICE
             if [[ "$OVERWRITE_CHOICE" =~ ^[Rr]$ ]]; then
-                ask "Enter new service name (e.g., lanhub-dev, lanhub2):"
+                ask "Enter new service name (e.g., hanshub-dev, hanshub2):"
                 read -r SERVICE_NAME
                 # Loop back to check if the new name exists!
                 continue
@@ -600,7 +600,7 @@ else
     info "Writing systemd service (${SERVICE_NAME}.service)..."
     sudo tee "$SERVICE_FILE" > /dev/null <<SERVICE
 [Unit]
-Description=LANHub Server (${SERVICE_NAME})
+Description=HansHub Server (${SERVICE_NAME})
 After=network.target
 
 [Service]
@@ -626,8 +626,8 @@ fi
 if [ "$INSTALL_MODE" = "server" ] || [ "$INSTALL_MODE" = "local" ]; then
     info "Configuring Nginx as reverse proxy (minimal config for Lab WebSocket support)..."
     
-    # Get LANHub port from config
-    LANHUB_PORT=$(./venv/bin/python3 -c "
+    # Get HansHub port from config
+    HANSHUB_PORT=$(./venv/bin/python3 -c "
 import json
 try:
     with open('configvars.json') as f:
@@ -656,13 +656,13 @@ except:
         # Ensure Nginx directories exist
         sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
         
-        NGINX_CONF="/etc/nginx/sites-available/lanhub"
+        NGINX_CONF="/etc/nginx/sites-available/hanshub"
         
         # Create Nginx config with minimal setup - just for Lab WebSocket
         # Note: using unquoted heredoc delimiter to allow bash variable expansion
         sudo bash -c "cat > '$NGINX_CONF' << NGINXEOF
-upstream lanhub_backend {
-    server localhost:${LANHUB_PORT};
+upstream hanshub_backend {
+    server localhost:${HANSHUB_PORT};
     keepalive 32;
 }
 
@@ -697,9 +697,9 @@ server {
         proxy_send_timeout 600s;
     }
     
-    # All other traffic to LANHub Flask
+    # All other traffic to HansHub Flask
     location / {
-        proxy_pass http://lanhub_backend;
+        proxy_pass http://hanshub_backend;
         proxy_http_version 1.1;
         proxy_set_header Host \\\$http_host;
         proxy_set_header X-Real-IP \\\$remote_addr;
@@ -712,8 +712,8 @@ NGINXEOF
 "
         
         # Enable site
-        if [ ! -L /etc/nginx/sites-enabled/lanhub ]; then
-            sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/lanhub
+        if [ ! -L /etc/nginx/sites-enabled/hanshub ]; then
+            sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/hanshub
         fi
         
         # Test and reload — show full error output if it fails
@@ -857,7 +857,7 @@ if [ "$INSTALL_MODE" = "dev" ]; then
     echo -e "  ${YELLOW}Use Admin → Server → Update to pull changes from your dev machine.${RESET}"
 else
     # Fetch the chosen service name for the printout
-    SVC_NAME=$(cat .service_name 2>/dev/null || echo "lanhub")
+    SVC_NAME=$(cat .service_name 2>/dev/null || echo "hanshub")
     
     echo -e "  Start the server:   ${BOLD}sudo systemctl start ${SVC_NAME}${RESET}"
     echo -e "  Check status:       ${BOLD}sudo systemctl status ${SVC_NAME}${RESET}"

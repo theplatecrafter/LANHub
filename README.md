@@ -1,4 +1,4 @@
-# LANHub
+# HansHub
 
 A self-hosted web application for local networks and private internet access. Includes real-time chat, file sharing, multiplayer games, polls, feedback tracking, and a full admin panel — all running from your own hardware.
 
@@ -70,7 +70,7 @@ These two actions require a browser and cannot be automated.
 
 This is a GitHub Pages site that always points to your server's current address. Your friends bookmark this one URL and it always finds your server.
 
-- Go to [github.com/new](https://github.com/new) and create a new **public** repository (e.g. `lanhub-redirect`)
+- Go to [github.com/new](https://github.com/new) and create a new **public** repository (e.g. `hanshub-redirect`)
 - Check "Add a README file" so the `main` branch is created immediately
 - Once created, go to **Settings → Pages → Source → Deploy from branch → main / (root) → Save**
 
@@ -80,7 +80,7 @@ The installer will generate an SSH key and display it. You will need to paste it
 
 SSH is required so the server can push redirector updates to GitHub without storing credentials.
 
-If you want to focus on developing, then this is optional as the installer will skip this once you've selected to install LANHub as a developer.
+If you want to focus on developing, then this is optional as the installer will skip this once you've selected to install HansHub as a developer.
 
 ---
 
@@ -89,8 +89,8 @@ If you want to focus on developing, then this is optional as the installer will 
 Clone the repository and run `install.sh`. This is the only command you need.
 
 ```bash
-git clone https://github.com/theplatecrafter/LANHub
-cd LANHub
+git clone https://github.com/theplatecrafter/HansHub
+cd HansHub
 bash install.sh
 ```
 
@@ -104,29 +104,29 @@ The installer handles everything in sequence:
 6. Writes `configvars.json` from your answers (using environment variable injection — safe for passwords with special characters)
 7. Optionally disables system sleep and hibernation (recommended for a server)
 8. Writes `start.sh` with the correct port from your config
-9. Writes and enables the `systemd` service (`lanhub.service`) so the server starts on boot
+9. Writes and enables the `systemd` service (`hanshub.service`) so the server starts on boot
 10. Attempts an initial push to the GitHub Pages redirector
 
-The installer is safe to re-run. It will prompt before overwriting `configvars.json` or an existing `lanhub` systemd service.
+The installer is safe to re-run. It will prompt before overwriting `configvars.json` or an existing `hanshub` systemd service.
 
 ---
 
 ### Step 3 — Start the server
 
 ```bash
-sudo systemctl start lanhub
+sudo systemctl start hanshub
 ```
 
 The server is now running. On every subsequent reboot it will start automatically.
 
 Confirm it is running:
 ```bash
-sudo systemctl status lanhub
+sudo systemctl status hanshub
 ```
 
 Within 60 seconds of startup, the GitHub Pages redirector will be updated with the current tunnel URL. Share the redirector URL with friends:
 ```
-https://YOUR_USERNAME.github.io/lanhub-redirect/
+https://YOUR_USERNAME.github.io/hanshub-redirect/
 ```
 
 The admin panel is available at `http://localhost:PORT/admin` using the DEV credentials you set during installation.
@@ -151,7 +151,7 @@ The visibility mode is controlled from **Admin Panel → Access Settings** and t
 
 ## How Public Access Works
 
-LANHub uses a free Cloudflare quick tunnel (`cloudflared tunnel --url`) which requires no account, no port forwarding, and works behind any firewall including campus and corporate networks.
+HansHub uses a free Cloudflare quick tunnel (`cloudflared tunnel --url`) which requires no account, no port forwarding, and works behind any firewall including campus and corporate networks.
 
 ```
 start.sh runs
@@ -180,11 +180,11 @@ Note: the redirector page is served over HTTPS (GitHub Pages). Due to browser mi
 
 | Action | Command |
 |---|---|
-| Start | `sudo systemctl start lanhub` |
-| Stop | `sudo systemctl stop lanhub` |
-| Restart | `sudo systemctl restart lanhub` |
-| Status | `sudo systemctl status lanhub` |
-| Live output | `journalctl -u lanhub -f` |
+| Start | `sudo systemctl start hanshub` |
+| Stop | `sudo systemctl stop hanshub` |
+| Restart | `sudo systemctl restart hanshub` |
+| Status | `sudo systemctl status hanshub` |
+| Live output | `journalctl -u hanshub -f` |
 
 ### Graceful shutdown sequence
 
@@ -193,7 +193,7 @@ When the server receives `SIGTERM` or `SIGINT` it performs the following before 
 1. Emits a `server_shutdown` socket event to all connected clients (browsers display a warning banner)
 2. Stops the APScheduler
 3. Pushes an offline page to the GitHub Pages redirector
-4. Sends `SIGTERM` to the cloudflared process (PID stored at `/tmp/lanhub_cf.pid`)
+4. Sends `SIGTERM` to the cloudflared process (PID stored at `/tmp/hanshub_cf.pid`)
 5. Marks active Chess and UNO games as ended
 6. Flushes all log handlers
 7. Waits 1.5 seconds for in-flight socket messages and log writes to complete
@@ -209,9 +209,9 @@ Runs `git pull`, merges new keys from `configvars.example.json` into your `confi
 
 **From the terminal:**
 ```bash
-sudo systemctl stop lanhub
+sudo systemctl stop hanshub
 git pull
-sudo systemctl start lanhub
+sudo systemctl start hanshub
 ```
 
 `start.sh` and `configvars.json` are excluded from git tracking and will never be modified by a pull. If a new version of `install.sh` changes the `start.sh` template, re-run `install.sh` to regenerate it.
@@ -231,7 +231,7 @@ Log files are in the `logs/` directory. Each rotates at 5 MB with 3 backups kept
 
 ```bash
 tail -f logs/github_sync.log
-journalctl -u lanhub -f   # full systemd journal including stdout
+journalctl -u hanshub -f   # full systemd journal including stdout
 ```
 
 ---

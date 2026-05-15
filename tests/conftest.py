@@ -5,7 +5,7 @@ import sys
 import os
 from typing import Dict
 
-# Add parent directory to path so we can import LANHub modules
+# Add parent directory to path so we can import HansHub modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dependencies import DI, mock_database

@@ -1,6 +1,6 @@
 # System Updates Infrastructure
 
-This document describes LANHub's system-level update framework for managing infrastructure changes, Docker updates, and system-wide configurations.
+This document describes HansHub's system-level update framework for managing infrastructure changes, Docker updates, and system-wide configurations.
 
 ## Overview
 
@@ -17,7 +17,7 @@ The system update framework automatically manages version updates and infrastruc
 ## Architecture
 
 ### Update Detection
-When LANHub starts, it scans the `updates/` directory for pending updates:
+When HansHub starts, it scans the `updates/` directory for pending updates:
 ```
 updates/
   v1.1.0/
@@ -32,9 +32,9 @@ Each update has metadata in its header:
 ```
 
 ### Update Execution
-1. **Detection**: `check_for_updates()` scans `updates/` and compares against `.lanhub_updates_manifest`
+1. **Detection**: `check_for_updates()` scans `updates/` and compares against `.hanshub_updates_manifest`
 2. **Application**: `apply_pending_updates()` executes scripts with real-time output streaming
-3. **Tracking**: `.lanhub_updates_manifest` (JSON file) records successful completions
+3. **Tracking**: `.hanshub_updates_manifest` (JSON file) records successful completions
 
 ### Update Lifecycle
 
@@ -43,10 +43,10 @@ App Startup
   ↓
 Check for updates (scan updates/v*/*.sh)
   ↓
-Compare against .lanhub_updates_manifest
+Compare against .hanshub_updates_manifest
   ↓
 Found pending updates?
-  ├─ YES → Auto-apply (unless LANHUB_SKIP_AUTO_UPDATES=1)
+  ├─ YES → Auto-apply (unless HANSHUB_SKIP_AUTO_UPDATES=1)
   │         └─ Execute scripts with progress logging
   │         └─ Update manifest if successful
   └─ NO  → Log "All up to date"
@@ -61,7 +61,7 @@ Found pending updates?
 
 **Developer Override**: Skip auto-apply with environment variable
 ```bash
-LANHUB_SKIP_AUTO_UPDATES=1 python3 app.py
+HANSHUB_SKIP_AUTO_UPDATES=1 python3 app.py
 ```
 
 ## Write an Update Script
@@ -174,7 +174,7 @@ done
 1. Checks if Docker is installed (installs if not)
 2. Ensures Docker daemon is running
 3. Verifies Docker is accessible (user in docker group or passwordless sudo)
-4. Builds `lanhub-lab:latest` image for Lab feature
+4. Builds `hanshub-lab:latest` image for Lab feature
 
 **Execution Time**: 2-5 minutes (depends on internet and hardware)
 
@@ -229,10 +229,10 @@ Users can monitor progress:
 ## Troubleshooting
 
 ### Update Appears Multiple Times
-Check `.lanhub_updates_manifest` — if an update isn't recorded, it will re-run.
+Check `.hanshub_updates_manifest` — if an update isn't recorded, it will re-run.
 
 ```bash
-cat .lanhub_updates_manifest
+cat .hanshub_updates_manifest
 ```
 
 ### Update Fails with "Permission denied"
@@ -266,7 +266,7 @@ grep -i "error\|fail" logs/app.log
 ### Skip Auto-Apply (For Testing)
 ```bash
 # Start app without auto-applying updates
-LANHUB_SKIP_AUTO_UPDATES=1 python3 app.py
+HANSHUB_SKIP_AUTO_UPDATES=1 python3 app.py
 ```
 
 Then apply manually via admin panel or CLI:
@@ -300,7 +300,7 @@ Core module for update management:
 - `get_update_status()` - Return pending updates dict
 - `_load_manifest()` / `_save_manifest()` - Tracking storage
 
-### .lanhub_updates_manifest
+### .hanshub_updates_manifest
 JSON file tracking all applied updates:
 ```json
 {

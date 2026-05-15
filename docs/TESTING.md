@@ -1,4 +1,4 @@
-# LANHub Testing Guide
+# HansHub Testing Guide
 
 **Comprehensive guide to testing infrastructure, CI/CD, and code quality tools**
 
@@ -524,10 +524,10 @@ File: `.github/workflows/ci-cd.yml`
 
 ### View CI/CD Results
 
-1. **GitHub Actions**: https://github.com/[owner]/LANHub/actions
+1. **GitHub Actions**: https://github.com/[owner]/HansHub/actions
 2. **Badge in README**: Add to README.md:
    ```markdown
-   ![CI/CD](https://github.com/[owner]/LANHub/workflows/CI%2FCD%20Pipeline/badge.svg)
+   ![CI/CD](https://github.com/[owner]/HansHub/workflows/CI%2FCD%20Pipeline/badge.svg)
    ```
 
 ---

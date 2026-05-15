@@ -43,7 +43,7 @@ def push_offline_page():
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>LANHub - Offline</title>
+    <title>HansHub - Offline</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
                background: #0f1117; color: #e2e8f0; display: flex;
@@ -59,7 +59,7 @@ def push_offline_page():
     <div class="card">
         <div class="icon">🛰️</div>
         <h1>Server Offline</h1>
-        <p>LANHub is currently offline.<br>Check back later.</p>
+        <p>HansHub is currently offline.<br>Check back later.</p>
     </div>
 </body>
 </html>"""

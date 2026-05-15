@@ -1,5 +1,5 @@
-# LANHub Lab - Code Server Container
-# This Dockerfile creates the lanhub-lab:latest image used for Lab projects
+# HansHub Lab - Code Server Container
+# This Dockerfile creates the hanshub-lab:latest image used for Lab projects
 
 FROM debian:12
 

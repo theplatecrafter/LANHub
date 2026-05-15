@@ -1,7 +1,7 @@
 """
 owner_playground.py
 
-The owner/developer playground for LANHub.
+The owner/developer playground for HansHub.
 A space for the owner to experiment with new features and ideas.
 """
 
