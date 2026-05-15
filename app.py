@@ -21,6 +21,7 @@ except Exception as e:
 
 import os
 from flask import Flask, render_template, session, redirect, url_for, request
+from werkzeug.middleware.proxy_fix import ProxyFix
 from socketio_instance import socketio
 import utils.scheduler as sch
 import sys
@@ -42,6 +43,9 @@ import functions as _fns
 _startup_stats = _fns.get_network_stats()
 app.config["LAN_IP"]   = _startup_stats.get("ip_address", "")
 app.config["LAN_PORT"] = int(_config.PORT)
+
+# Apply ProxyFix middleware for proper URL handling behind proxies
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
 LANG_NAMES = {
     "en": "English",
