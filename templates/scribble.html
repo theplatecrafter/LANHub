@@ -329,7 +329,7 @@
         <span>✏️</span><span>🎨</span><span>✏️</span>
       </div>
       <div class="ltitle" id="ltitle-el">SCRIBBLE</div>
-      <div class="lsub">◈ Draw &amp; Guess on the LAN ◈</div>
+      <div class="lsub">◈ Draw &amp; Guess on the network ◈</div>
       <input class="linput" id="l-name" type="text" maxlength="20"
              placeholder="Enter username…"
              onkeydown="if(event.key==='Enter')joinGame()" />
@@ -507,7 +507,7 @@ socket.on('scr_username_err',d=>{
   const sub=document.querySelector('.lsub');
   if(sub){sub.style.color='#e63946';sub.textContent='⚠ '+d.error;}
   document.getElementById('lobby').style.display='flex';inGame=false;
-  setTimeout(()=>{inp.style.borderColor='';inp.style.boxShadow='';if(sub){sub.style.color='';sub.textContent='◈ Draw & Guess on the LAN ◈';}},3000);
+  setTimeout(()=>{inp.style.borderColor='';inp.style.boxShadow='';if(sub){sub.style.color='';sub.textContent='◈ Draw & Guess on the network ◈';}},3000);
 });
 
 function _setChatEnabled(enabled, placeholder) {

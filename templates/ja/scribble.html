@@ -329,7 +329,7 @@
         <span>✏️</span><span>🎨</span><span>✏️</span>
       </div>
       <div class="ltitle" id="ltitle-el">SCRIBBLE</div>
-      <div class="lsub">◈ LAN上で描いて当てよう ◈</div>
+      <div class="lsub">◈ ネットワーク上で描いて当てよう ◈</div>
       <input class="linput" id="l-name" type="text" maxlength="20"
              placeholder="ユーザー名を入力…"
              onkeydown="if(event.key==='Enter')joinGame()" />
@@ -507,7 +507,7 @@ socket.on('scr_username_err',d=>{
   const sub=document.querySelector('.lsub');
   if(sub){sub.style.color='#e63946';sub.textContent='⚠ '+d.error;}
   document.getElementById('lobby').style.display='flex';inGame=false;
-  setTimeout(()=>{inp.style.borderColor='';inp.style.boxShadow='';if(sub){sub.style.color='';sub.textContent='◈ LAN上で描いて当てよう ◈';}},3000);
+  setTimeout(()=>{inp.style.borderColor='';inp.style.boxShadow='';if(sub){sub.style.color='';sub.textContent='◈ ネットワーク上で描いて当てよう ◈';}},3000);
 });
 
 function _setChatEnabled(enabled, placeholder) {
