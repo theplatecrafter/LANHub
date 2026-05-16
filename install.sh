@@ -329,7 +329,7 @@ print("configvars.json written successfully.")
 PYEOF
 
     # Clean up exported secrets immediately
-    unset _HANSHUB_REPO_URL _HANSHUB_PORT _HANSHUB_DEV_USER _HANSHUB_DEV_PASS
+    unset _HANSHUB_PORT _HANSHUB_DEV_USER _HANSHUB_DEV_PASS
     unset _HANSHUB_SITE_MODE _HANSHUB_SITE_PASSWORD
 
     success "Configuration saved."

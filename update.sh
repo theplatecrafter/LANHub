@@ -5,6 +5,8 @@ set -e
 source venv/bin/activate
 git pull
 
+pip install -r dependencies.txt
+
 # ── Merge configvars.json with configvars.example.json ──────────────────────
 # After git pull, synchronise configvars.json with configvars.example.json.
 #
