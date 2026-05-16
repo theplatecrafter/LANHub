@@ -62,7 +62,6 @@ from blueprints.communications import *
 from blueprints.games import *
 from blueprints.server_stats import *
 from blueprints.tools import *
-from blueprints.other import *
 
 # Socket event handlers
 import socket_events.chat_events
@@ -276,7 +275,6 @@ app.register_blueprint(scribble_bp)
 app.register_blueprint(geoguesser_bp)
 app.register_blueprint(access_bp)
 app.register_blueprint(backup_bp)
-app.register_blueprint(owner_playground_bp)
 # Only register Lab blueprint if feature is enabled
 if LAB_ENABLED:
     app.register_blueprint(lab_bp)
@@ -491,13 +489,6 @@ gevent.signal_handler(signal.SIGTERM, graceful_shutdown)
 if __name__ == "__main__":
     # Start the scheduler immediately since reloader is off
     sch.start_scheduler()
-    
-    # Initialize Owner Playground background tasks
-    try:
-        from functions import owner_playground
-        owner_playground.init_playground_tasks(app)
-    except Exception as e:
-        app_log.warning(f"[startup] Failed to initialize playground tasks: {e}")
     
     # Run the app
     socketio.run(

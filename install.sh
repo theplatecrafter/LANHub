@@ -40,18 +40,16 @@ fi
 
 # ── Mode selection ────────────────────────────────────────────────────────────
 echo "Installation mode:"
-echo "  1) Server     — full setup with Cloudflare tunnel and systemd autostart"
-echo "  2) Local only — server mode but no Cloudflare tunnel (LAN access only)"
-echo "  3) Developer  — minimal setup for local development, no systemd or tunnel"
+echo "  1) Normal     — full server setup with systemd autostart (tunnel/access control managed by admin)"
+echo "  2) Developer  — minimal setup for local development, no systemd"
 while true; do
-    ask "Choose mode [1/2/3, default: 1]:"
+    ask "Choose mode [1/2, default: 1]:"
     read -r INSTALL_MODE
     INSTALL_MODE="${INSTALL_MODE:-1}"
     case "$INSTALL_MODE" in
-        1) INSTALL_MODE="server";    break ;;
-        2) INSTALL_MODE="local";     break ;;
-        3) INSTALL_MODE="dev";       break ;;
-        *) warn "Please enter 1, 2, or 3." ;;
+        1) INSTALL_MODE="normal";    break ;;
+        2) INSTALL_MODE="dev";       break ;;
+        *) warn "Please enter 1 or 2." ;;
     esac
 done
 echo ""
@@ -175,138 +173,7 @@ else
     info "Lab feature disabled — skipping Docker image build."
 fi
 
-# ── Step 7 — cloudflared ──────────────────────────────────────────────────────
-if [ "$INSTALL_MODE" = "server" ]; then
-    if ! command -v cloudflared &>/dev/null || [ ! -s /usr/local/bin/cloudflared ]; then
-        info "Installing cloudflared..."
-        ARCH=$(dpkg --print-architecture 2>/dev/null || echo "amd64")
-        CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}"
-        echo "  Downloading cloudflared-linux-${ARCH} from GitHub..."
-        
-        # Clean up any old/corrupt versions
-        rm -f /tmp/cloudflared /usr/local/bin/cloudflared
-        
-        # Download with better error handling
-        if ! curl -fSL "$CF_URL" -o /tmp/cloudflared 2>&1 | grep -v "^  [0-9]"; then
-            error "Failed to download cloudflared. Check your internet connection."
-        fi
-        
-        # Validate the binary was actually downloaded
-        if [ ! -s /tmp/cloudflared ]; then
-            error "cloudflared download failed (file is empty). Check your internet connection."
-        fi
-        
-        # Validate it's an ELF binary
-        if ! file /tmp/cloudflared | grep -q "ELF"; then
-            warn "Downloaded file doesn't look like a valid binary. Contents:"
-            head -c 200 /tmp/cloudflared
-            error "cloudflared download corrupted. Try again."
-        fi
-        
-        chmod +x /tmp/cloudflared
-        sudo mv /tmp/cloudflared /usr/local/bin/cloudflared
-        success "cloudflared installed."
-    else
-        success "cloudflared already installed."
-    fi
-    
-    # Verify cloudflared works
-    if ! cloudflared --version &>/dev/null; then
-        warn "cloudflared not responding. Attempting fresh install..."
-        sudo rm -f /usr/local/bin/cloudflared
-        
-        # Fresh download attempt
-        ARCH=$(dpkg --print-architecture 2>/dev/null || echo "amd64")
-        CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}"
-        echo "  Re-downloading cloudflared-linux-${ARCH}..."
-        
-        if curl -fSL "$CF_URL" -o /tmp/cloudflared 2>&1 | grep -v "^  [0-9]"; then
-            if [ -s /tmp/cloudflared ] && file /tmp/cloudflared | grep -q "ELF"; then
-                chmod +x /tmp/cloudflared
-                sudo mv /tmp/cloudflared /usr/local/bin/cloudflared
-                if cloudflared --version &>/dev/null; then
-                    success "cloudflared reinstalled successfully ($(cloudflared --version 2>&1 | head -1))."
-                else
-                    warn "cloudflared installed but still not responding. You may need to reinstall it manually."
-                fi
-            else
-                warn "cloudflared download failed again. Tunnel will not be available."
-                warn "Manual install: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
-            fi
-        else
-            warn "Could not download cloudflared. Tunnel will not be available."
-            warn "Manual install: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
-        fi
-    else
-        success "cloudflared verified working ($(cloudflared --version 2>&1 | head -1))."
-    fi
-else
-    info "Skipping cloudflared (not needed for ${INSTALL_MODE} mode)."
-fi
 
-# ── Step 7 — SSH key ──────────────────────────────────────────────────────────
-if [ "$INSTALL_MODE" = "server" ]; then
-    SSH_KEY="$HOME/.ssh/id_ed25519"
-    mkdir -p "$HOME/.ssh"
-    chmod 700 "$HOME/.ssh"
-
-    if [ ! -f "$SSH_KEY" ]; then
-        info "Generating SSH key for GitHub..."
-        ask "Enter your email address (used for SSH key label):"
-        read -r USER_EMAIL
-        if [ -z "$USER_EMAIL" ]; then
-            error "Email cannot be empty."
-        fi
-        ssh-keygen -t ed25519 -C "$USER_EMAIL" -f "$SSH_KEY" -N "" -q
-        success "SSH key generated."
-    else
-        warn "SSH key already exists at $SSH_KEY — using it as-is."
-    fi
-
-    if [ ! -f "${SSH_KEY}.pub" ]; then
-        error "Public key not found at ${SSH_KEY}.pub — something went wrong with key generation."
-    fi
-    
-    # Add GitHub to known_hosts to avoid SSH host key verification issues
-    info "Configuring SSH for GitHub..."
-    if ! grep -q "github.com" "$HOME/.ssh/known_hosts" 2>/dev/null; then
-        mkdir -p "$HOME/.ssh"
-        ssh-keyscan -H github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null
-        chmod 600 "$HOME/.ssh/known_hosts"
-        success "GitHub added to known_hosts."
-    else
-        success "GitHub already in known_hosts."
-    fi
-
-    # Configure git user (needed for any git operations)
-    if [ -z "$(git config --global user.name 2>/dev/null)" ]; then
-        info "Configuring git user..."
-        git config --global user.name "HansHub Server"
-        git config --global user.email "server@hanshub.local"
-        success "Git user configured."
-    fi
-    
-    echo ""
-    echo -e "${BOLD}━━━ GitHub Setup Required ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-    echo ""
-    echo "Before continuing, do these two things in your browser:"
-    echo ""
-    echo -e "  ${BOLD}1. Create a new GitHub repository${RESET} (e.g. 'hanshub-redirect')"
-    echo "     → Go to https://github.com/new"
-    echo "     → Add a README.md so the main branch is created"
-    echo "     → Go to Settings → Pages → Source → Deploy from branch → main / root → Save"
-    echo ""
-    echo -e "  ${BOLD}2. Add your SSH key to GitHub${RESET}"
-    echo "     → Go to https://github.com/settings/ssh/new"
-    echo "     → Paste the key below as the key contents:"
-    echo ""
-    echo -e "${YELLOW}$(cat "${SSH_KEY}.pub")${RESET}"
-    echo ""
-    ask "Press ENTER once you have done both steps..."
-    read -r
-else
-    info "Skipping GitHub SSH setup (not needed for ${INSTALL_MODE} mode)."
-fi
 
 # ── Step 8 — Interactive config ───────────────────────────────────────────────
 echo ""
@@ -377,28 +244,22 @@ if [ "$SKIP_CONFIG" = false ]; then
         fi
     done
 
-    # Visibility mode — forced to lan_only for non-server modes
-    if [ "$INSTALL_MODE" = "server" ]; then
-        echo ""
-        echo "Visibility mode:"
-        echo "  1) lan_only          — LAN devices only, public connections blocked"
-        echo "  2) public_password   — everyone must enter a password"
-        echo "  3) both_password     — LAN free, public connections need a password"
-        while true; do
-            ask "Choose mode [1/2/3, default: 1]:"
-            read -r MODE_CHOICE
-            MODE_CHOICE="${MODE_CHOICE:-1}"
-            case "$MODE_CHOICE" in
-                1) SITE_MODE="lan_only";        break ;;
-                2) SITE_MODE="public_password"; break ;;
-                3) SITE_MODE="both_password";   break ;;
-                *) warn "Please enter 1, 2, or 3." ;;
-            esac
-        done
-    else
-        SITE_MODE="lan_only"
-        info "Visibility mode set to lan_only (${INSTALL_MODE} mode)."
-    fi
+    echo ""
+    echo "Visibility mode:"
+    echo "  1) lan_only          — LAN devices only, public connections blocked"
+    echo "  2) public_password   — everyone must enter a password (If PORT fowarded)"
+    echo "  3) both_password     — LAN free, public connections need a password (If PORT fowarded)"
+    while true; do
+        ask "Choose mode (This can be changed later) [1/2/3, default: 1]:"
+        read -r MODE_CHOICE
+        MODE_CHOICE="${MODE_CHOICE:-1}"
+        case "$MODE_CHOICE" in
+            1) SITE_MODE="lan_only";        break ;;
+            2) SITE_MODE="public_password"; break ;;
+            3) SITE_MODE="both_password";   break ;;
+            *) warn "Please enter 1, 2, or 3." ;;
+        esac
+    done
 
     # Site password — only asked if not lan_only, confirmed
     SITE_PASSWORD=""
@@ -493,7 +354,7 @@ fi
 # ── Step 10 — Write start.sh ───────────────────────────────────────────────────
 info "Writing start.sh..."
 
-if [ "$INSTALL_MODE" = "server" ]; then
+if [ "$INSTALL_MODE" = "normal" ]; then
     cat > start.sh << 'STARTSH'
 #!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -508,28 +369,7 @@ except:
     print(5000)
 ")
 
-echo "Starting HansHub server on port $PORT (LAN access)..."
-source venv/bin/activate
-python app.py
-STARTSH
-
-elif [ "$INSTALL_MODE" = "local" ]; then
-    cat > start.sh << 'STARTSH'
-#!/bin/bash
-set -e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-
-PORT=$(python3 -c "
-import json
-try:
-    with open('configvars.json') as f:
-        print(json.load(f).get('general', {}).get('PORT', 5000))
-except:
-    print(5000)
-")
-
-echo "Starting HansHub on port $PORT (LAN only — no tunnel)..."
+echo "Starting HansHub server on port $PORT..."
 source venv/bin/activate
 python app.py
 STARTSH
@@ -623,7 +463,7 @@ SERVICE
 fi
 
 # ── Step 12 — Nginx reverse proxy for Lab WebSocket support ──────────────────
-if [ "$INSTALL_MODE" = "server" ] || [ "$INSTALL_MODE" = "local" ]; then
+if [ "$INSTALL_MODE" = "normal" ]; then
     info "Configuring Nginx as reverse proxy (minimal config for Lab WebSocket support)..."
     
     # Get HansHub port from config
@@ -733,7 +573,7 @@ else
 fi
 
 # ── Step 11 — Initial redirector push ─────────────────────────────────────────
-if [ "$INSTALL_MODE" = "server" ]; then
+if [ "$INSTALL_MODE" = "normal" ]; then
     info "Running initial GitHub redirector push..."
     ./venv/bin/python3 - <<'PYEOF'
 import sys
@@ -766,7 +606,7 @@ except Exception as e:
     print(f"Redirector push skipped ({e}) — it will retry automatically on first start.")
 PYEOF
 else
-    info "Skipping redirector push (${INSTALL_MODE} mode)."
+    info "Skipping redirector push (dev mode — it will run automatically on first start)."
 fi
 
 # ── Start Nginx for Lab WebSocket support ─────────────────────────────────────
@@ -865,15 +705,7 @@ else
     echo ""
     echo -e "  Local access:       ${BOLD}http://localhost:${PORT:-5000}${RESET}"
     echo -e "  Admin panel:        ${BOLD}http://localhost:${PORT:-5000}/admin${RESET}"
-    if [ "$INSTALL_MODE" = "server" ] && [ -n "${REPO_URL:-}" ]; then
-        PAGES_URL=$(echo "$REPO_URL" | sed 's|https://github.com/\([^/]*\)/\(.*\)|\1.github.io/\2|')
-        echo ""
-        echo -e "  Redirector URL:     ${BOLD}https://${PAGES_URL}/${RESET}"
-        echo -e "  ${YELLOW}(share this link with friends — it always finds your server)${RESET}"
-    fi
-    if [ "$INSTALL_MODE" = "local" ]; then
-        echo ""
-        echo -e "  ${YELLOW}Local-only mode — no Cloudflare tunnel. Accessible on this network only.${RESET}"
-    fi
+    echo ""
+    echo -e "  ${YELLOW}Tunnel and access control are configured via the Admin panel.${RESET}"
 fi
 echo ""

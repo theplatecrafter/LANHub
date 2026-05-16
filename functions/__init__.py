@@ -137,12 +137,6 @@ from .geoguesser import (
     geo_preset_delete,
 )
 
-# Owner's Playground
-from .owner_playground import (
-    measure_coherency,
-    random_image,
-    ndarray_to_png,
-)
 
 __all__ = [
     # Profanity
