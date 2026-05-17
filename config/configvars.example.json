@@ -9,7 +9,6 @@
   },
   "scheduler": {
     "STATS_INTERVAL_SECS": 3,
-    "REDIRECTOR_INTERVAL_SECS": 60
   },
   "afk": {
     "AFK_IDLE_SECS": 300,

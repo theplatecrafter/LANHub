@@ -403,14 +403,6 @@ def graceful_shutdown(*args, **kwargs):
     except Exception as e:
         app_log.warning(f"[shutdown] Scheduler shutdown error: {e}")
 
-    # ── 3. Push offline page to GitHub redirector ─────────────────────────────
-    try:
-        app_log.info("[shutdown] Pushing offline page to GitHub redirector...")
-        ok = sch.push_offline_page()
-        if not ok:
-            app_log.warning("[shutdown] Offline page push failed — friends may see a stale redirect.")
-    except Exception as e:
-        app_log.warning(f"[shutdown] Redirector offline push error: {e}")
 
     # ── 4. Close active game/chess/uno sessions ───────────────────────────────
     try:

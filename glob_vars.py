@@ -5,11 +5,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 
-###########################################################
-# Redirector Vars
-###########################################################
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-REDIRECTOR_PATH = os.path.join(BASE_DIR, "redirector_repo")
 
 
 ###########################################################

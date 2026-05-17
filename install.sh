@@ -572,42 +572,6 @@ else
     info "Skipping Nginx setup (${INSTALL_MODE} mode)."
 fi
 
-# ── Step 11 — Initial redirector push ─────────────────────────────────────────
-if [ "$INSTALL_MODE" = "normal" ]; then
-    info "Running initial GitHub redirector push..."
-    ./venv/bin/python3 - <<'PYEOF'
-import sys
-sys.path.insert(0, ".")
-
-try:
-    import config as _config
-    import functions as f
-except Exception as e:
-    print(f"Import error: {e}")
-    print("Skipping redirector push — it will run automatically on first start.")
-    sys.exit(0)
-
-try:
-    stats = f.get_network_stats()
-    ip    = stats.get("ip_address", "127.0.0.1")
-    port  = int(getattr(_config, "PORT", 5000))
-
-    if ip == "127.0.0.1":
-        print("No network connection detected — skipping redirector push.")
-        print("It will run automatically within 60s of first start.")
-        sys.exit(0)
-
-    ok = f.redirector_update(ip, port)
-    if ok:
-        print(f"Redirector push successful → http://{ip}:{port}")
-    else:
-        print("Redirector push failed — check logs/github_sync.log after first start.")
-except Exception as e:
-    print(f"Redirector push skipped ({e}) — it will retry automatically on first start.")
-PYEOF
-else
-    info "Skipping redirector push (dev mode — it will run automatically on first start)."
-fi
 
 # ── Start Nginx for Lab WebSocket support ─────────────────────────────────────
 if [ "$INSTALL_MODE" != "dev" ] && [ -f "${PROJECT_DIR}/.lab_enabled" ] 2>/dev/null; then

@@ -85,7 +85,6 @@ def backup_page():
         ("Configuration",    os.path.join(BASE_DIR, "configvars.json"), "configvars.json"),
         ("Uploaded files",   os.path.join(BASE_DIR, "files"),           "files/"),
         ("Logs",             os.path.join(BASE_DIR, "logs"),            "logs/"),
-        ("Redirector repo",  os.path.join(BASE_DIR, "redirector_repo"), "redirector_repo/"),
     ]
 
     manifest = [
@@ -113,7 +112,7 @@ def backup_export():
                 zf.write(full, filename)
 
         # Directories
-        for dirname in ("files", "logs", "redirector_repo"):
+        for dirname in ("files", "logs"):
             full = os.path.join(BASE_DIR, dirname)
             if os.path.isdir(full):
                 _zip_dir(zf, full, dirname)

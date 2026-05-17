@@ -5,7 +5,6 @@ __pycache__/
 app.db
 files/
 logs/
-redirector_repo/
 configvars.json
 start.sh
 .service_name

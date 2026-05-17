@@ -93,8 +93,6 @@ from .server import (
     get_full_server_stats,
 )
 
-# Redirector
-from .redirector import redirector_update
 
 # Feedback
 from .feedback import (
@@ -207,8 +205,6 @@ __all__ = [
     "get_uptime_seconds",
     "get_cpu_temp",
     "get_full_server_stats",
-    # Redirector
-    "redirector_update",
     # Feedback
     "feedback_create",
     "_feedback_attach",
