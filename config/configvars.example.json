@@ -8,7 +8,7 @@
     "SITE_ACCESS_COOKIE_DAYS": 30
   },
   "scheduler": {
-    "STATS_INTERVAL_SECS": 3,
+    "STATS_INTERVAL_SECS": 3
   },
   "afk": {
     "AFK_IDLE_SECS": 300,
