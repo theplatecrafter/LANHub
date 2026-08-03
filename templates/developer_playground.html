@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}HansHub — Developer's Playground{% endblock %}
+
+{% block content %}
+<div class="fade-up" style="padding: 2.5rem 0 2rem;">
+  <p class="mono" style="color: var(--amber); letter-spacing: 0.15em; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 10px;">
+    🧪 Developer's Playground
+  </p>
+  <h1>A gallery of small experiments and side projects</h1>
+  <p style="color: var(--text-dim); margin-top: 10px; max-width: 640px; font-size: 0.92rem;">
+    This space is for little developer experiments and playful tools that can be explored in the browser.
+    New widgets will be added here as they are built.
+  </p>
+</div>
+
+<div class="category">
+  <div class="category-header">
+    <h2>🚀 &nbsp;Available Widgets</h2>
+    <div class="cat-line"></div>
+  </div>
+  <div class="card-grid stagger">
+    {% for project in projects %}
+    <a href="/developer_playground/{{ project.slug }}" class="feature-card accent-amber">
+      <div class="card-icon">{{ project.icon }}</div>
+      <div class="card-label">{{ project.label }}</div>
+      <div class="card-title">{{ project.title }}</div>
+      <div class="card-desc">{{ project.description }}</div>
+      <span class="card-badge">Experimental</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
